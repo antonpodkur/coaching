@@ -1,16 +1,13 @@
-//! Verification of Telegram-signed login data.
+//! Verification of Mini App `initData`, which Telegram signs for clients.
 //!
-//! Clients sign in with Mini App `initData`; the coach signs in with the Login
-//! Widget. Both are an HMAC-SHA256 over a data-check-string (every field except
-//! `hash`, sorted by key, as `key=value` lines joined with `\n`). They differ only
-//! in how the HMAC key is derived from the bot token.
+//! It is an HMAC-SHA256 over a data-check-string (every field except `hash`, sorted
+//! by key, as `key=value` lines joined with `\n`), keyed with HMAC-SHA256 of the bot
+//! token under the constant `WebAppData`.
 //! Spec: https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app
-//! and https://core.telegram.org/widgets/login#checking-authorization
 
 use hmac::{Hmac, KeyInit, Mac};
 use serde::Deserialize;
-use sha2::{Digest, Sha256};
-use utoipa::ToSchema;
+use sha2::Sha256;
 
 type HmacSha256 = Hmac<Sha256>;
 
@@ -89,47 +86,6 @@ pub fn verify_web_app_init_data(
         auth_date,
         start_param: field("start_param").map(str::to_owned),
     })
-}
-
-/// What the Telegram Login Widget passes to its `data-onauth` callback.
-#[derive(Debug, Deserialize, ToSchema)]
-pub struct LoginWidgetPayload {
-    pub id: i64,
-    pub first_name: String,
-    pub last_name: Option<String>,
-    pub username: Option<String>,
-    pub photo_url: Option<String>,
-    pub auth_date: i64,
-    pub hash: String,
-}
-
-/// Checks a Login Widget payload.
-pub fn verify_login_widget(
-    payload: &LoginWidgetPayload,
-    bot_token: &str,
-    now: i64,
-) -> Result<(), TelegramAuthError> {
-    let id = payload.id.to_string();
-    let auth_date = payload.auth_date.to_string();
-    let mut fields = vec![
-        ("auth_date", auth_date.as_str()),
-        ("first_name", payload.first_name.as_str()),
-        ("id", id.as_str()),
-    ];
-    for (key, value) in [
-        ("last_name", &payload.last_name),
-        ("photo_url", &payload.photo_url),
-        ("username", &payload.username),
-    ] {
-        if let Some(value) = value {
-            fields.push((key, value.as_str()));
-        }
-    }
-    fields.sort_by_key(|(key, _)| *key);
-
-    let secret = Sha256::digest(bot_token.as_bytes());
-    verify_hex(&secret, &data_check_string(fields), &payload.hash)?;
-    check_age(payload.auth_date, now)
 }
 
 fn data_check_string<'a>(fields: impl IntoIterator<Item = (&'a str, &'a str)>) -> String {
@@ -213,38 +169,6 @@ mod tests {
         assert_eq!(
             verify_web_app_init_data(without_hash, BOT_TOKEN, AUTH_DATE).unwrap_err(),
             TelegramAuthError::MissingHash
-        );
-    }
-
-    fn login_payload() -> LoginWidgetPayload {
-        LoginWidgetPayload {
-            id: 555_000_222,
-            first_name: "Даша".into(),
-            last_name: None,
-            username: Some("daria_k".into()),
-            photo_url: None,
-            auth_date: AUTH_DATE,
-            hash: "6bacae6cc378306bb2e35addfb25e1440f4be37d059a335e3d7bc6441610013a".into(),
-        }
-    }
-
-    #[test]
-    fn accepts_valid_login_widget_payload() {
-        assert_eq!(
-            verify_login_widget(&login_payload(), BOT_TOKEN, AUTH_DATE),
-            Ok(())
-        );
-    }
-
-    #[test]
-    fn rejects_tampered_login_widget_payload() {
-        let payload = LoginWidgetPayload {
-            username: Some("someone_else".into()),
-            ..login_payload()
-        };
-        assert_eq!(
-            verify_login_widget(&payload, BOT_TOKEN, AUTH_DATE),
-            Err(TelegramAuthError::BadSignature)
         );
     }
 }

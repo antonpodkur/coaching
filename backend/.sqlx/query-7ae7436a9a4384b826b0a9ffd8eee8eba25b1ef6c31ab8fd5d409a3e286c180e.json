@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE coach_logins SET status = 'used' WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "7ae7436a9a4384b826b0a9ffd8eee8eba25b1ef6c31ab8fd5d409a3e286c180e"
+}

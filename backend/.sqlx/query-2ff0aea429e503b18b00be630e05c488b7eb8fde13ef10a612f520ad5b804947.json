@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT c.id, c.name, co.telegram_id AS coach_telegram_id\n           FROM clients c JOIN coaches co ON co.id = c.coach_id\n           WHERE c.invite_code_hash = $1 AND c.invite_expires_at > now() AND c.archived_at IS NULL\n           FOR UPDATE OF c",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "clients",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "clients",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "coach_telegram_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "coaches",
+            "name": "telegram_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "2ff0aea429e503b18b00be630e05c488b7eb8fde13ef10a612f520ad5b804947"
+}

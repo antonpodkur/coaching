@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE clients SET invite_code_hash = $3, invite_expires_at = $4\n         WHERE id = $1 AND coach_id = $2 AND archived_at IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Text",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "d205c56a8bf3bf7cdb4e6f48f1562b7067d3f6df399ddbf7d2ffbce63405d98e"
+}

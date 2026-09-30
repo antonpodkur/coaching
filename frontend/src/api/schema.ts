@@ -4,7 +4,7 @@
  */
 
 export interface paths {
-    "/auth/telegram-login": {
+    "/auth/bot-login": {
         parameters: {
             query?: never;
             header?: never;
@@ -13,8 +13,25 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Coach sign-in with the Telegram Login Widget. */
-        post: operations["telegram_login"];
+        /** Starts a coach sign-in that the coach confirms in the bot. */
+        post: operations["bot_login_start"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/bot-login/poll": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Collects the result of a coach sign-in started with `/auth/bot-login`. */
+        post: operations["bot_login_poll"];
         delete?: never;
         options?: never;
         head?: never;
@@ -32,6 +49,45 @@ export interface paths {
         put?: never;
         /** Mini App sign-in: trades Telegram-signed `initData` for a session token. */
         post: operations["telegram_webapp"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/coach/clients": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** All of the coach's clients, newest first. */
+        get: operations["list"];
+        put?: never;
+        /** Adds a client and returns their first invite link. */
+        post: operations["create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/coach/clients/{id}/invite": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * A fresh invite link. The previous unused link stops working.
+         * @description For a client who already joined, the new link re-links the profile to whoever
+         *     opens it, e.g. after they switched Telegram accounts.
+         */
+        post: operations["reinvite"];
         delete?: never;
         options?: never;
         head?: never;
@@ -110,6 +166,34 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        BotLoginPoll: {
+            /** @enum {string} */
+            status: "pending";
+        } | {
+            /** @enum {string} */
+            status: "cancelled";
+        } | {
+            /** @enum {string} */
+            status: "expired";
+        } | {
+            coach: components["schemas"]["CoachProfile"];
+            /** @enum {string} */
+            status: "approved";
+            token: string;
+        };
+        BotLoginPollRequest: {
+            poll_secret: string;
+        };
+        BotLoginStart: {
+            /** @description Opens the bot in Telegram with the login code. */
+            bot_url: string;
+            /** @description Shown on the page; the bot shows the same digits before the coach confirms. */
+            display_code: string;
+            /** Format: date-time */
+            expires_at: string;
+            /** @description Keep in the page; send it to `/auth/bot-login/poll` to collect the token. */
+            poll_secret: string;
+        };
         ClientProfile: {
             /** Format: uuid */
             id: string;
@@ -121,14 +205,30 @@ export interface components {
             client: components["schemas"]["ClientProfile"];
             token: string;
         };
+        CoachClient: {
+            /** Format: date-time */
+            created_at: string;
+            /** Format: uuid */
+            id: string;
+            /**
+             * Format: date-time
+             * @description Set while an unused invite exists; it may already have expired.
+             */
+            invite_expires_at?: string | null;
+            /** @description The client opened their invite and is linked to a Telegram account. */
+            joined: boolean;
+            name: string;
+            /** Format: date */
+            paid_until?: string | null;
+        };
         CoachProfile: {
             /** Format: uuid */
             id: string;
             name: string;
         };
-        CoachSession: {
-            coach: components["schemas"]["CoachProfile"];
-            token: string;
+        CreatedClient: {
+            client: components["schemas"]["CoachClient"];
+            invite: components["schemas"]["InviteLink"];
         };
         ErrorBody: {
             /** @description Machine-readable code, e.g. `unauthorized`, `not_a_client`, `unknown_timezone`. */
@@ -170,17 +270,14 @@ export interface components {
             /** Format: int32 */
             reps_min: number;
         };
-        /** @description What the Telegram Login Widget passes to its `data-onauth` callback. */
-        LoginWidgetPayload: {
-            /** Format: int64 */
-            auth_date: number;
-            first_name: string;
-            hash: string;
-            /** Format: int64 */
-            id: number;
-            last_name?: string | null;
-            photo_url?: string | null;
-            username?: string | null;
+        InviteLink: {
+            /** Format: date-time */
+            expires_at: string;
+            /** @description `https://t.me/<bot>?start=inv_<code>`. Works once. */
+            url: string;
+        };
+        NewClient: {
+            name: string;
         };
         SetTimezone: {
             /** @description IANA name from `Intl.DateTimeFormat().resolvedOptions().timeZone`. */
@@ -199,7 +296,26 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    telegram_login: {
+    bot_login_start: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BotLoginStart"];
+                };
+            };
+        };
+    };
+    bot_login_poll: {
         parameters: {
             query?: never;
             header?: never;
@@ -208,7 +324,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["LoginWidgetPayload"];
+                "application/json": components["schemas"]["BotLoginPollRequest"];
             };
         };
         responses: {
@@ -217,25 +333,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CoachSession"];
-                };
-            };
-            /** @description The payload is invalid or older than a day */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-            /** @description `not_a_coach`: this Telegram user is not a coach */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
+                    "application/json": components["schemas"]["BotLoginPoll"];
                 };
             };
         };
@@ -272,6 +370,111 @@ export interface operations {
             };
             /** @description `not_a_client`: this Telegram user has no invite */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CoachClient"][];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NewClient"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedClient"];
+                };
+            };
+            /** @description `invalid_name` */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    reinvite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Client id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InviteLink"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

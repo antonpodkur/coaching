@@ -14,10 +14,11 @@ Dasha's online coaching app. She builds workouts from her exercise library and p
 ## What works so far
 
 - **Database:** the full v1 schema (`backend/migrations/`), applied on startup.
-- **Sign-in:** clients with Mini App `initData`; the coach with the Telegram Login Widget. Both are verified server-side and exchanged for a JWT.
+- **Sign-in:** clients with Mini App `initData`. The coach confirms in the bot: the page shows a code, she taps Confirm in Telegram, and the page collects a JWT.
+- **Bot and invites:** the webhook checks Telegram's secret header. Dasha adds a client and gets a single-use invite link that expires in 7 days. The client taps Start, their Telegram account is linked, and the bot replies with an "Open" button for the Mini App and tells Dasha.
 - **Client:** `GET /me`, and `PUT /me/timezone` so reminders can use local time.
-- **Coach:** `POST /coach/import/parse` reads an old Telegram plan and matches it against the library.
-- **Frontend:** the Mini App signs in and greets the client. The coach signs in and uses the import preview.
+- **Coach:** `GET/POST /coach/clients`, `POST /coach/clients/{id}/invite`, and `POST /coach/import/parse`, which reads an old Telegram plan and matches it against the library.
+- **Frontend:** the Mini App signs in and greets the client. The coach signs in through the bot, manages clients and invite links, and uses the import preview.
 - **API types:** `frontend/src/api/schema.ts` is generated from the backend's OpenAPI spec.
 
 ## Prerequisites
@@ -39,29 +40,32 @@ cd backend && cargo run                      # http://localhost:8080, runs migra
 cd frontend && pnpm install && pnpm dev      # http://localhost:5173, proxies /api to the backend
 ```
 
-`/app` in a normal browser only says "open in Telegram"; `/coach` needs the Login Widget. To use either, go through Telegram as below.
+`/app` in a normal browser only says "open in Telegram", and `/coach` sign-in is confirmed in the bot. To use either, go through Telegram as below.
 
 ### Local Telegram
 
-Telegram opens Mini Apps and the Login Widget only over HTTPS on a known domain, so development goes through a tunnel. Vite proxies `/api`, so one tunnel covers both frontend and backend.
+Telegram only opens Mini Apps and bot buttons over HTTPS, and it has to reach the webhook. So development goes through a tunnel. Vite proxies `/api`, so one tunnel covers the frontend, the API and the webhook.
 
-1. Create a **dev** bot with @BotFather. Put its token in `backend/.env` and its username in `frontend/.env.local` (`VITE_BOT_USERNAME`).
-2. Start a tunnel. It prints an `https://….trycloudflare.com` URL; set `FRONTEND_ORIGIN` in `backend/.env` to that URL and restart the backend.
+1. Create a **dev** bot with @BotFather. In `backend/.env`, set `BOT_TOKEN` and `BOT_USERNAME`, and set `WEBHOOK_SECRET` to the output of `openssl rand -hex 24`.
+2. Start a tunnel. It prints an `https://….trycloudflare.com` URL.
    ```bash
    cloudflared tunnel --url http://localhost:5173
    ```
-3. In @BotFather:
-   - `/setdomain`: the tunnel domain, for the coach's Login Widget. Telegram now calls this widget legacy. It's being replaced by sign-in confirmed through the bot (next steps, item 1).
-   - `/setmenubutton` (or `/newapp`): `https://<tunnel>/app`, for the Mini App.
-4. Add yourself. Invites via the bot are not built yet, so insert rows directly. When someone without access tries to sign in, the backend logs their Telegram ID ("sign-in by a non-client" / "by a non-coach").
-   ```sql
-   INSERT INTO coaches (telegram_id, name) VALUES (<your id>, 'Даша');
-   INSERT INTO clients (coach_id, name, telegram_id)
-   SELECT id, 'Тестовий клієнт', <your id> FROM coaches WHERE telegram_id = <your id>;
-   ```
-   Connect with `psql postgres://coaching:coaching@localhost:5434/coaching`.
+3. In `backend/.env`, set:
+   - `FRONTEND_ORIGIN=https://<tunnel>`
+   - `TELEGRAM_WEBHOOK_URL=https://<tunnel>/api/telegram/webhook`
 
-Quick tunnel URLs change on every start, so repeat step 3 each time, or set up a named Cloudflare tunnel once.
+   Then restart the backend. It registers the webhook and logs "Telegram webhook registered".
+4. Make yourself the coach, once:
+   - Send `/start` to the bot. The backend logs your ID ("message from an unknown Telegram user").
+   - Then run this in `psql postgres://coaching:coaching@localhost:5434/coaching`:
+     ```sql
+     INSERT INTO coaches (telegram_id, name) VALUES (<your id>, 'Даша');
+     ```
+5. Open `https://<tunnel>/coach` and choose "Увійти через Telegram". Tap Start in the bot, check that the code matches, and confirm.
+6. Add a client and send the invite link to any Telegram account; your own works too. Tapping Start links it, and the bot's button opens the Mini App.
+
+Quick tunnel URLs change on every start, so repeat step 3 each time, or set up a named Cloudflare tunnel once. BotFather's `/setdomain` is no longer needed.
 
 ## Everyday commands
 
@@ -88,12 +92,11 @@ TypeScript is pinned to 5.9. TypeScript 7 has no JavaScript API yet, and typescr
 
 In order, following [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md):
 
-1. Bot and invites: teloxide webhook, `/start <code>` links a client, "Open" button. Also replace the coach's Login Widget with sign-in confirmed through the bot.
-2. Exercise library and Bunny Stream uploads.
-3. Builder: whole-workout save with `version`, copy, templates, publish.
-4. Client workout screens and offline set logging.
-5. Finish and report, then notifications (background jobs).
-6. Deploy:
+1. Exercise library and Bunny Stream uploads.
+2. Builder: whole-workout save with `version`, copy, templates, publish.
+3. Client workout screens and offline set logging.
+4. Finish and report, then notifications (background jobs).
+5. Deploy:
    - A Render Blueprint (`render.yaml`) for the backend and Postgres in Frankfurt.
    - The frontend on Cloudflare Workers.
    - Videos on Bunny Stream.

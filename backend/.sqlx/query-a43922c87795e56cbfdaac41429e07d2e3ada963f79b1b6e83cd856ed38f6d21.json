@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "INSERT INTO coaches (telegram_id, name) VALUES (555000222, 'Даша') RETURNING id",
+  "query": "SELECT id FROM clients WHERE telegram_id = $1 AND archived_at IS NULL",
   "describe": {
     "columns": [
       {
@@ -9,18 +9,20 @@
         "type_info": "Uuid",
         "origin": {
           "Table": {
-            "table": "coaches",
+            "table": "clients",
             "name": "id"
           }
         }
       }
     ],
     "parameters": {
-      "Left": []
+      "Left": [
+        "Int8"
+      ]
     },
     "nullable": [
       false
     ]
   },
-  "hash": "42398da95d4413a64148a9b734b3d14c71cdfe02c9f5b3f5be88811b33d0aab0"
+  "hash": "a43922c87795e56cbfdaac41429e07d2e3ada963f79b1b6e83cd856ed38f6d21"
 }

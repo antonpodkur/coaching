@@ -33,7 +33,7 @@ The planned system behind the clickable prototype (`app-prototype/` in the `dash
 | Part | Choice | Why |
 | --- | --- | --- |
 | Frontend | React + TypeScript + Vite, one app with two areas: `/app` (Mini App) and `/coach` | One codebase and shared UI. The Telegram SDK and the UI libraries the builder needs are JavaScript. |
-| Backend | Rust: axum, tokio, sqlx, teloxide | One small binary for the API, bot, parser and jobs. The compiler catches mistakes early. |
+| Backend | Rust: axum, tokio, sqlx, and a small Bot API client over reqwest | One small binary for the API, bot, parser and jobs. The compiler catches mistakes early. |
 | API contract | `utoipa` → OpenAPI → `openapi-typescript` + `openapi-fetch` | Typed paths, params and bodies in the frontend, generated from the Rust structs. |
 | Database | Postgres 16, managed (Render, Frankfurt) | Relational data, 3-day point-in-time restore, EU region. |
 | Video | Bunny Stream (Frankfurt storage) | Resumable uploads from a phone, turns iPhone HEVC into H.264 every device plays, thumbnails, HLS with an MP4 fallback. An EU company. |
@@ -82,7 +82,10 @@ backend/
     main.rs          config, router, background tasks
     api/             axum handlers, split into client/ and coach/
     auth/            initData checks, bot login codes, JWT issue/verify, role extractors
-    bot/             teloxide handlers (/start <invite>) and outgoing messages
+    bot/             update handling: invites, coach sign-in, replies
+    telegram.rs      Bot API client: sendMessage, editMessageText, answerCallbackQuery, setWebhook
+    invites.rs       client invite links
+    codes.rs         random link secrets, stored hashed
     db/              sqlx queries and row types
     import/          Telegram plan parser (port of the prototype's parse_plan.py)
     jobs/            reminders and notifications
@@ -92,7 +95,10 @@ backend/
 
 - **HTTP:** axum with tower-http for CORS (locked to the frontend origin), request tracing and compression.
 - **Database access:** sqlx with compile-time-checked queries. `cargo sqlx prepare` commits the query metadata so CI builds without a live database.
-- **Bot:** teloxide in webhook mode, mounted in the same axum router at `/telegram/webhook`. The webhook is registered with a `secret_token`, and every request must carry a matching `X-Telegram-Bot-Api-Secret-Token` header.
+- **Bot:** a small typed Bot API client over reqwest. The bot uses four methods, so teloxide's dispatcher isn't worth its weight.
+  - **Webhook:** updates arrive at `/telegram/webhook` in the same axum router. When `TELEGRAM_WEBHOOK_URL` is set, the webhook is registered on startup with a `secret_token`. Requests without the matching `X-Telegram-Bot-Api-Secret-Token` header get 401.
+  - **Failures:** those that may be temporary answer 500, so Telegram retries. Handling is safe to repeat: tapping a spent invite again just offers the app.
+  - **Tests** swap in a client that records messages instead of sending them.
 - **Sessions:** HS256 JWTs (`jsonwebtoken`) carrying `role` and `client_id` or `coach_id`. Client tokens last 12 hours; coach tokens last 30 days. Rotating the secret signs everyone out.
 - **Background jobs:** one tokio task that wakes every 5 minutes and sends whatever is due. v1 runs one instance. If that changes, the task takes a Postgres advisory lock first.
 
@@ -115,13 +121,13 @@ The unit tests include a real `initData` string captured from the dev bot.
 
 **Coach sign-in, confirmed through the bot.** The coach web shows "Увійти через Telegram":
 
-1. `POST /auth/bot-login` creates a random single-use code, valid for 5 minutes. It returns the link `https://t.me/<bot>?start=login_<code>` and a short display code such as `4821`.
+1. `POST /auth/bot-login` creates a random single-use code, valid for 5 minutes. It returns the link `https://t.me/<bot>?start=login_<code>`, a short display code such as `4821`, and a separate poll secret that stays in the page.
 2. Dasha opens the link and taps Start. The bot's handler takes her Telegram ID from the update (Telegram vouches for it) and checks that it belongs to a row in `coaches`. It replies "Увійти в кабінет? Код 4821 [Підтвердити] [Скасувати]".
-3. Only the Confirm button approves the code. The page polls `GET /auth/bot-login/{code}`. Once the code is approved, the page receives the coach JWT a single time, and the code is spent.
+3. Only the Confirm button approves the code. The page polls `POST /auth/bot-login/poll` with its poll secret; someone who only saw the link cannot collect the token. Once the code is approved, the page receives the coach JWT a single time, and the code is spent. Polling continues while the page is hidden, and it checks again as soon as the page returns: confirming means switching to Telegram, which hides the page.
 
 **Why the confirm step and the code.** Without them, an attacker could start a login in their own browser and trick Dasha into opening that link, which would sign the attacker in as her. Asking her to confirm, and to match the code shown on her own screen, prevents this.
 
-This replaces the Telegram Login Widget, which Telegram now labels legacy; the current scaffold still uses it. Telegram's OpenID Connect login (set up in BotFather with a client ID and secret) can be added later if clients ever get a browser version. The last step, Telegram ID to our session, stays the same.
+This replaces the Telegram Login Widget, which Telegram now labels legacy. Telegram's OpenID Connect login (set up in BotFather with a client ID and secret) can be added later if clients ever get a browser version. The last step, Telegram ID to our session, stays the same.
 
 **Authorisation.** Client handlers take `client_id` only from the token, never from the request. Coach handlers require `role = coach`.
 
@@ -129,7 +135,7 @@ This replaces the Telegram Login Widget, which Telegram now labels legacy; the c
 
 ```sql
 coaches           id, telegram_id UNIQUE, name
-clients           id, coach_id, name, telegram_id UNIQUE NULL, invite_code UNIQUE NULL,
+clients           id, coach_id, name, telegram_id UNIQUE NULL, invite_code_hash UNIQUE NULL,
                   invite_expires_at, paid_until DATE NULL, timezone TEXT NULL,
                   created_at, archived_at
 exercises         id, coach_id, name, muscle_group, aliases TEXT[],
@@ -146,8 +152,8 @@ workout_sets      id, workout_exercise_id, position,
 workout_reports   workout_id PK, effort (easy|ok|hard), comment, finished_at, duration_min
 notifications     id, kind, entity_id, local_date, sent_at,
                   UNIQUE (kind, entity_id, local_date)
-coach_logins      id, code_hash UNIQUE, display_code, coach_id NULL,
-                  status (pending|approved|used), expires_at
+coach_logins      id, code_hash UNIQUE, poll_secret_hash UNIQUE, display_code, coach_id NULL,
+                  status (pending|approved|cancelled|used), expires_at
 ```
 
 - **Targets and results share a row.** Dasha writes the `target_*` columns and the client writes the `actual_*` columns. Tapping ✓ copies the target into the actual and sets `completed_at`. "Different from the plan" is a column comparison, so no report data is stored twice.
@@ -158,7 +164,7 @@ coach_logins      id, code_hash UNIQUE, display_code, coach_id NULL,
 - **Dates:** `workouts.date` is a calendar date in the client's timezone, not a timestamp. Reminders use `clients.timezone` via `chrono-tz`. The Mini App sends the phone's timezone on first launch.
 - **Exercises are archived, never deleted,** because old workouts refer to them.
 - **`coach_id`** is on the top-level tables even though there is one coach. It costs nothing and keeps the door open.
-- **Login codes are stored hashed.** Until it is used, the code in the link works like a password.
+- **Invite and login codes are stored hashed.** Until it is used, a code in a link works like a password.
 
 ## API (v1)
 
@@ -178,8 +184,8 @@ Coach (`role = coach`):
 | Method | Path | Purpose |
 | --- | --- | --- |
 | POST | `/auth/bot-login` | New login code, bot link and display code |
-| GET | `/auth/bot-login/{code}` | `pending`, or the coach token once, after she confirms in the bot |
-| GET/POST/PATCH | `/coach/clients`, `/coach/clients/{id}` | List, add, edit (name, `paid_until`, archive) |
+| POST | `/auth/bot-login/poll` | `{poll_secret}` → `pending`, `cancelled`, `expired`, or `approved` with the coach token (once) |
+| GET/POST/PATCH | `/coach/clients`, `/coach/clients/{id}` | List; add (returns the first invite link); edit (name, `paid_until`, archive) |
 | POST | `/coach/clients/{id}/invite` | New invite link |
 | GET | `/coach/clients/{id}/workouts` | History with results and reports |
 | GET/POST/PATCH | `/coach/exercises`, `/coach/exercises/{id}` | Library |
@@ -258,7 +264,7 @@ coaching/
   - **Frontend:** Cloudflare Workers builds `frontend/` on push. `assets.not_found_handling = "single-page-application"` makes every path serve the app, and `VITE_API_URL` points at `https://api.<domain>`.
   - **Bot webhook:** set once per environment to `https://api.<domain>/telegram/webhook`.
   - **Environments:** development uses the dev bot and local Postgres. Production has its own bot, database and Bunny library. A staging environment can be added later as a second Render service.
-- **Secrets:** `BOT_TOKEN`, `WEBHOOK_SECRET`, `JWT_SECRET`, `DATABASE_URL`, `BUNNY_STREAM_LIBRARY_ID`, `BUNNY_STREAM_API_KEY`, `BUNNY_CDN_HOSTNAME`, `SENTRY_DSN`. They are set in the Render dashboard and marked `sync: false` in the Blueprint, so they never live in the repo.
+- **Secrets:** `BOT_TOKEN`, `WEBHOOK_SECRET`, `JWT_SECRET`, `DATABASE_URL`, `BUNNY_STREAM_LIBRARY_ID`, `BUNNY_STREAM_API_KEY`, `BUNNY_CDN_HOSTNAME`, `SENTRY_DSN`. They are set in the Render dashboard and marked `sync: false` in the Blueprint, so they never live in the repo. Other settings: `BOT_USERNAME`, `TELEGRAM_WEBHOOK_URL`, `FRONTEND_ORIGIN`.
 
 ## Security and privacy
 
@@ -272,6 +278,7 @@ coaching/
 - **Backend:** integration tests with `#[sqlx::test]`, which gives each test a fresh database, for auth, copy, publish, offline-style duplicate writes and notification de-duplication.
 - **Import parser:** unit tests using her real Telegram plans as fixtures (starting with `backend/tests/fixtures/example-back.txt`).
 - **Auth:** `initData` verification against captured real payloads, plus tampered copies that must fail. For bot login: codes expire, work once, and only the Confirm button approves them.
+- **Bot:** updates are posted to the real webhook route, with a recording Telegram client. Covered: invites (spent, expired, replaced, one account per profile), the secret header, greetings by role, and sign-in with confirm and cancel.
 - **Frontend:** typecheck plus a few Playwright smoke tests of the builder, publish, log and report flow against a seeded backend. Before each release, check manually inside the Telegram apps on iOS and Android.
 
 ## Later, without redesign

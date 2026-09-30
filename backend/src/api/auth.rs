@@ -1,5 +1,5 @@
 use axum::{Json, extract::State};
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
@@ -7,8 +7,9 @@ use uuid::Uuid;
 use crate::{
     auth::{
         Role,
+        bot_login::{self, Polled},
         jwt::{CLIENT_TOKEN_TTL, COACH_TOKEN_TTL},
-        telegram::{LoginWidgetPayload, verify_login_widget, verify_web_app_init_data},
+        telegram::verify_web_app_init_data,
     },
     error::{AppError, AppResult, ErrorBody},
     state::AppState,
@@ -38,12 +39,6 @@ pub struct ClientSession {
 pub struct CoachProfile {
     pub id: Uuid,
     pub name: String,
-}
-
-#[derive(Serialize, ToSchema)]
-pub struct CoachSession {
-    pub token: String,
-    pub coach: CoachProfile,
 }
 
 /// Mini App sign-in: trades Telegram-signed `initData` for a session token.
@@ -93,41 +88,81 @@ pub async fn telegram_webapp(
     Ok(Json(ClientSession { token, client }))
 }
 
-/// Coach sign-in with the Telegram Login Widget.
+#[derive(Serialize, ToSchema)]
+pub struct BotLoginStart {
+    /// Keep in the page; send it to `/auth/bot-login/poll` to collect the token.
+    pub poll_secret: String,
+    /// Opens the bot in Telegram with the login code.
+    pub bot_url: String,
+    /// Shown on the page; the bot shows the same digits before the coach confirms.
+    pub display_code: String,
+    pub expires_at: DateTime<Utc>,
+}
+
+/// Starts a coach sign-in that the coach confirms in the bot.
 #[utoipa::path(
     post,
-    path = "/auth/telegram-login",
+    path = "/auth/bot-login",
     tag = "auth",
-    request_body = LoginWidgetPayload,
-    responses(
-        (status = 200, body = CoachSession),
-        (status = 401, body = ErrorBody, description = "The payload is invalid or older than a day"),
-        (status = 403, body = ErrorBody, description = "`not_a_coach`: this Telegram user is not a coach"),
-    )
+    responses((status = 200, body = BotLoginStart))
 )]
-pub async fn telegram_login(
+pub async fn bot_login_start(State(state): State<AppState>) -> AppResult<Json<BotLoginStart>> {
+    let login = bot_login::start(&state.db).await?;
+    Ok(Json(BotLoginStart {
+        poll_secret: login.poll_secret,
+        bot_url: state
+            .config
+            .bot_start_url(&format!("{}{}", bot_login::START_PREFIX, login.code)),
+        display_code: login.display_code,
+        expires_at: login.expires_at,
+    }))
+}
+
+#[derive(Deserialize, ToSchema)]
+pub struct BotLoginPollRequest {
+    pub poll_secret: String,
+}
+
+#[derive(Serialize, ToSchema)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum BotLoginPoll {
+    /// Not confirmed in the bot yet; ask again in a couple of seconds.
+    Pending,
+    /// The coach pressed Cancel in the bot.
+    Cancelled,
+    /// Timed out, unknown, or the token was already collected.
+    Expired,
+    /// Confirmed. The token is handed out only once.
+    Approved { token: String, coach: CoachProfile },
+}
+
+/// Collects the result of a coach sign-in started with `/auth/bot-login`.
+#[utoipa::path(
+    post,
+    path = "/auth/bot-login/poll",
+    tag = "auth",
+    request_body = BotLoginPollRequest,
+    responses((status = 200, body = BotLoginPoll))
+)]
+pub async fn bot_login_poll(
     State(state): State<AppState>,
-    Json(payload): Json<LoginWidgetPayload>,
-) -> AppResult<Json<CoachSession>> {
-    verify_login_widget(&payload, &state.config.bot_token, Utc::now().timestamp()).map_err(
-        |err| {
-            tracing::debug!(%err, "rejected Login Widget payload");
-            AppError::Unauthorized
-        },
-    )?;
-
-    let coach = sqlx::query_as!(
-        CoachProfile,
-        "SELECT id, name FROM coaches WHERE telegram_id = $1",
-        payload.id,
-    )
-    .fetch_optional(&state.db)
-    .await?
-    .ok_or_else(|| {
-        tracing::info!(telegram_id = payload.id, "coach sign-in by a non-coach");
-        AppError::Forbidden("not_a_coach")
-    })?;
-
-    let token = state.jwt.issue(Role::Coach, coach.id, COACH_TOKEN_TTL)?;
-    Ok(Json(CoachSession { token, coach }))
+    Json(request): Json<BotLoginPollRequest>,
+) -> AppResult<Json<BotLoginPoll>> {
+    let polled = bot_login::poll(&state.db, &request.poll_secret).await?;
+    Ok(Json(match polled {
+        Polled::Pending => BotLoginPoll::Pending,
+        Polled::Cancelled => BotLoginPoll::Cancelled,
+        Polled::Expired => BotLoginPoll::Expired,
+        Polled::Approved { coach_id } => {
+            let coach = sqlx::query_as!(
+                CoachProfile,
+                "SELECT id, name FROM coaches WHERE id = $1",
+                coach_id,
+            )
+            .fetch_one(&state.db)
+            .await?;
+            let token = state.jwt.issue(Role::Coach, coach.id, COACH_TOKEN_TTL)?;
+            BotLoginPoll::Approved { token, coach }
+        }
+    }))
 }

@@ -4,6 +4,7 @@ pub mod auth;
 pub mod client;
 pub mod coach;
 pub mod health;
+pub mod telegram;
 
 use axum::{
     Router,
@@ -30,9 +31,13 @@ use crate::state::AppState;
     paths(
         health::health,
         auth::telegram_webapp,
-        auth::telegram_login,
+        auth::bot_login_start,
+        auth::bot_login_poll,
         client::me,
         client::set_timezone,
+        coach::clients::list,
+        coach::clients::create,
+        coach::clients::reinvite,
         coach::import::parse,
     ),
     modifiers(&BearerAuth),
@@ -82,10 +87,17 @@ pub fn router(state: AppState) -> Router {
     Router::new()
         .route("/health", get(health::health))
         .route("/auth/telegram-webapp", post(auth::telegram_webapp))
-        .route("/auth/telegram-login", post(auth::telegram_login))
+        .route("/auth/bot-login", post(auth::bot_login_start))
+        .route("/auth/bot-login/poll", post(auth::bot_login_poll))
         .route("/me", get(client::me))
         .route("/me/timezone", put(client::set_timezone))
+        .route(
+            "/coach/clients",
+            get(coach::clients::list).post(coach::clients::create),
+        )
+        .route("/coach/clients/{id}/invite", post(coach::clients::reinvite))
         .route("/coach/import/parse", post(coach::import::parse))
+        .route("/telegram/webhook", post(telegram::webhook))
         .layer(CompressionLayer::new())
         .layer(cors)
         .layer(TraceLayer::new_for_http())

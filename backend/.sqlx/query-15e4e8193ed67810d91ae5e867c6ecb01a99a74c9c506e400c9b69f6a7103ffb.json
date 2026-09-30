@@ -1,0 +1,76 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, status AS \"status: LoginStatus\", coach_id, expires_at\n           FROM coach_logins WHERE poll_secret_hash = $1\n           FOR UPDATE",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "coach_logins",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "status: LoginStatus",
+        "type_info": {
+          "Custom": {
+            "name": "coach_login_status",
+            "kind": {
+              "Enum": [
+                "pending",
+                "approved",
+                "cancelled",
+                "used"
+              ]
+            }
+          }
+        },
+        "origin": {
+          "Table": {
+            "table": "coach_logins",
+            "name": "status"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "coach_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "coach_logins",
+            "name": "coach_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "expires_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "coach_logins",
+            "name": "expires_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "15e4e8193ed67810d91ae5e867c6ecb01a99a74c9c506e400c9b69f6a7103ffb"
+}
