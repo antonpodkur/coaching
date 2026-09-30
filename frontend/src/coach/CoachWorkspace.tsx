@@ -1,0 +1,66 @@
+import { useMemo } from 'react'
+import { Link, Route, Routes, useLocation } from 'react-router'
+
+import { ImportIcon, PeopleIcon } from '../shared/icons'
+import { ClientsPage } from './ClientsPage'
+import { ImportPage } from './ImportPage'
+import { InvitePage } from './InvitePage'
+import { CoachContext } from './context'
+
+interface Props {
+  /** `/app` inside Telegram, `/coach` in a browser. */
+  base: string
+  onUnauthorized: () => void
+  /** Browser only; inside Telegram the session belongs to her Telegram account. */
+  onSignOut?: () => void
+}
+
+/**
+ * Dasha's workspace, laid out for a phone: pages above a bottom tab bar. The
+ * same screens serve the Mini App and the browser; on a wide screen the tabs
+ * move to the top.
+ */
+export function CoachWorkspace({ base, onUnauthorized, onSignOut }: Props) {
+  const context = useMemo(() => ({ base, onUnauthorized }), [base, onUnauthorized])
+  const { pathname } = useLocation()
+  const section = pathname.startsWith(`${base}/import`) ? 'import' : 'clients'
+  // Sub-pages take the whole screen and go back with Telegram's back arrow.
+  const subPage = pathname.startsWith(`${base}/invite`)
+
+  return (
+    <CoachContext value={context}>
+      <div className="coach-shell">
+        {onSignOut && (
+          <header className="coach-top">
+            <div className="wordmark">
+              <span>Daria Khyzhniak</span>
+              <span className="muted">кабінет тренера</span>
+            </div>
+            <button type="button" className="button small" onClick={onSignOut}>
+              Вийти
+            </button>
+          </header>
+        )}
+        <main className="coach-main">
+          <Routes>
+            <Route index element={<ClientsPage />} />
+            <Route path="invite" element={<InvitePage />} />
+            <Route path="import" element={<ImportPage />} />
+          </Routes>
+        </main>
+        {!subPage && (
+          <nav className="tab-bar" aria-label="Розділи">
+            <Link to={base} aria-current={section === 'clients' ? 'page' : undefined}>
+              <PeopleIcon size={22} />
+              Клієнти
+            </Link>
+            <Link to={`${base}/import`} aria-current={section === 'import' ? 'page' : undefined}>
+              <ImportIcon size={22} />
+              Імпорт
+            </Link>
+          </nav>
+        )}
+      </div>
+    </CoachContext>
+  )
+}

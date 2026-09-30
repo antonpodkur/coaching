@@ -3,10 +3,12 @@ use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Header, Validation, deco
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-/// Clients re-authenticate with fresh `initData` on every Mini App launch.
-pub const CLIENT_TOKEN_TTL: Duration = Duration::hours(12);
-/// The coach signs in with the Login Widget much less often.
-pub const COACH_TOKEN_TTL: Duration = Duration::days(30);
+/// Mini App sessions, for clients and the coach alike. The Mini App keeps the
+/// token in memory and gets a new one from fresh `initData` on every launch.
+pub const MINI_APP_TOKEN_TTL: Duration = Duration::hours(12);
+/// The coach's browser session from the bot-confirmed sign-in, kept in
+/// `localStorage` so she is not asked to confirm every visit.
+pub const BROWSER_TOKEN_TTL: Duration = Duration::days(30);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -73,7 +75,7 @@ mod tests {
     fn round_trips_a_token() {
         let keys = JwtKeys::new(SECRET);
         let id = Uuid::new_v4();
-        let token = keys.issue(Role::Coach, id, COACH_TOKEN_TTL).unwrap();
+        let token = keys.issue(Role::Coach, id, BROWSER_TOKEN_TTL).unwrap();
         let claims = keys.verify(&token).unwrap();
         assert_eq!((claims.sub, claims.role), (id, Role::Coach));
     }
@@ -88,7 +90,7 @@ mod tests {
 
         let other = JwtKeys::new("another-secret-that-is-also-long-enough");
         let foreign = other
-            .issue(Role::Client, Uuid::new_v4(), CLIENT_TOKEN_TTL)
+            .issue(Role::Client, Uuid::new_v4(), MINI_APP_TOKEN_TTL)
             .unwrap();
         assert!(keys.verify(&foreign).is_none());
     }

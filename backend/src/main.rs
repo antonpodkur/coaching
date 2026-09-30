@@ -1,5 +1,5 @@
 use anyhow::Context;
-use coaching_backend::{config::Config, state::AppState, telegram::TelegramClient};
+use coaching_backend::{bot, config::Config, state::AppState, telegram::TelegramClient};
 use sqlx::postgres::PgPoolOptions;
 use tracing_subscriber::EnvFilter;
 
@@ -25,13 +25,7 @@ async fn main() -> anyhow::Result<()> {
         .context("running migrations")?;
 
     let telegram = TelegramClient::live(&config.bot_token)?;
-    if let Some(url) = &config.telegram_webhook_url {
-        // Not fatal: the API still works, and the next start retries.
-        match telegram.set_webhook(url, &config.webhook_secret).await {
-            Ok(()) => tracing::info!(%url, "Telegram webhook registered"),
-            Err(err) => tracing::warn!(error = ?err, "could not register the Telegram webhook"),
-        }
-    }
+    bot::register(&telegram, &config).await;
 
     let addr = config.bind_addr;
     let app = coaching_backend::router(AppState::new(db, config, telegram));

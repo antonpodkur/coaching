@@ -1,6 +1,6 @@
 # Coaching app
 
-Dasha's online coaching app. She builds workouts from her exercise library and publishes them to clients. Clients open them in a Telegram Mini App, log each set and send a short report.
+Dasha's online coaching app. She builds workouts from her exercise library and publishes them to clients. Clients open them in a Telegram Mini App, log each set and send a short report. Dasha works in the same Mini App from her phone; a browser version is there for a computer.
 
 - Design and decisions: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - Clickable prototype: https://claude.ai/artifact/WaTHWZpJ27qQq8HDozxSr5 (source in the `dashas-inst` repo, `app-prototype/`)
@@ -8,17 +8,17 @@ Dasha's online coaching app. She builds workouts from her exercise library and p
 | Folder | What |
 | --- | --- |
 | `backend/` | Rust: axum, sqlx (Postgres), Telegram auth, plan import parser |
-| `frontend/` | React + TypeScript + Vite: `/app` is the Mini App, `/coach` is Dasha's workspace |
+| `frontend/` | React + TypeScript + Vite: `/app` is the Mini App (the client's screens, or Dasha's workspace), `/coach` is her workspace in a browser |
 | `docs/` | Architecture |
 
 ## What works so far
 
 - **Database:** the full v1 schema (`backend/migrations/`), applied on startup.
-- **Sign-in:** clients with Mini App `initData`. The coach confirms in the bot: the page shows a code, she taps Confirm in Telegram, and the page collects a JWT.
-- **Bot and invites:** the webhook checks Telegram's secret header. Dasha adds a client and gets a single-use invite link that expires in 7 days. The client taps Start, their Telegram account is linked, and the bot replies with an "Open" button for the Mini App and tells Dasha.
+- **Sign-in:** the Mini App trades `initData` for a session, and the backend decides the role: Dasha gets her workspace, invited clients get theirs. In a browser, Dasha confirms in the bot: the page shows a code, she taps Confirm in Telegram, and the page collects a JWT.
+- **Bot and invites:** the webhook checks Telegram's secret header. On startup the bot's menu button is pointed at the Mini App. Dasha adds a client and sends the single-use invite link (valid 7 days) through Telegram's share sheet. The client taps Start, their Telegram account is linked, and the bot replies with a button for the Mini App and tells Dasha.
 - **Client:** `GET /me`, and `PUT /me/timezone` so reminders can use local time.
 - **Coach:** `GET/POST /coach/clients`, `POST /coach/clients/{id}/invite`, and `POST /coach/import/parse`, which reads an old Telegram plan and matches it against the library.
-- **Frontend:** the Mini App signs in and greets the client. The coach signs in through the bot, manages clients and invite links, and uses the import preview.
+- **Frontend:** the Mini App signs in and greets the client, or opens Dasha's workspace: a phone layout with a bottom tab bar, the client list, inviting through Telegram's share sheet, and the import preview. The same workspace runs in a browser at `/coach`.
 - **API types:** `frontend/src/api/schema.ts` is generated from the backend's OpenAPI spec.
 
 ## Prerequisites
@@ -40,7 +40,7 @@ cd backend && cargo run                      # http://localhost:8080, runs migra
 cd frontend && pnpm install && pnpm dev      # http://localhost:5173, proxies /api to the backend
 ```
 
-`/app` in a normal browser only says "open in Telegram", and `/coach` sign-in is confirmed in the bot. To use either, go through Telegram as below.
+`/app` in a normal browser only says "open in Telegram". `/coach` works in a browser, but its sign-in is confirmed in the bot. To use either, go through Telegram as below.
 
 ### Local Telegram
 
@@ -55,15 +55,18 @@ Telegram only opens Mini Apps and bot buttons over HTTPS, and it has to reach th
    - `FRONTEND_ORIGIN=https://<tunnel>`
    - `TELEGRAM_WEBHOOK_URL=https://<tunnel>/api/telegram/webhook`
 
-   Then restart the backend. It registers the webhook and logs "Telegram webhook registered".
+   Then restart the backend. It registers the webhook, points the bot's menu button at the tunnel, and logs "Telegram webhook registered" and "menu button opens the Mini App".
 4. Make yourself the coach, once:
    - Send `/start` to the bot. The backend logs your ID ("message from an unknown Telegram user").
    - Then run this in `psql postgres://coaching:coaching@localhost:5434/coaching`:
      ```sql
      INSERT INTO coaches (telegram_id, name) VALUES (<your id>, 'Даша');
      ```
-5. Open `https://<tunnel>/coach` and choose "Увійти через Telegram". Tap Start in the bot, check that the code matches, and confirm.
-6. Add a client and send the invite link to any Telegram account; your own works too. Tapping Start links it, and the bot's button opens the Mini App.
+5. In the chat with the bot, tap the menu button ("Відкрити"). The Mini App opens your workspace.
+6. Invite a client: "Запросити", enter a name, "Надіслати в Telegram", and pick a chat. Any second Telegram account works. Tapping Start there links it, and the bot's button opens the client's screens.
+7. Optional, the browser version: open `https://<tunnel>/coach`, choose "Увійти через Telegram", tap Start in the bot, check that the code matches, and confirm.
+
+Your own account is the coach, so the Mini App always opens the workspace for it, even if you also accepted an invite with it.
 
 Quick tunnel URLs change on every start, so repeat step 3 each time, or set up a named Cloudflare tunnel once. BotFather's `/setdomain` is no longer needed.
 
@@ -92,8 +95,8 @@ TypeScript is pinned to 5.9. TypeScript 7 has no JavaScript API yet, and typescr
 
 In order, following [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md):
 
-1. Exercise library and Bunny Stream uploads.
-2. Builder: whole-workout save with `version`, copy, templates, publish.
+1. Exercise library and Bunny Stream uploads. Test a large upload from the Mini App on an iPhone first.
+2. Builder, following the prototype's phone design: whole-workout save with `version`, copy, templates, publish.
 3. Client workout screens and offline set logging.
 4. Finish and report, then notifications (background jobs).
 5. Deploy:

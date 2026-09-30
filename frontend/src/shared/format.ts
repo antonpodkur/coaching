@@ -7,6 +7,32 @@ export function plural(n: number, one: string, few: string, many: string): strin
   return many
 }
 
+/** `29 вересня`. */
+export function formatDay(iso: string): string {
+  return new Date(iso).toLocaleDateString('uk-UA', { day: 'numeric', month: 'long' })
+}
+
+/** `Вівторок, 29 вересня`. */
+export function formatToday(): string {
+  const today = new Date().toLocaleDateString('uk-UA', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  })
+  return today.charAt(0).toUpperCase() + today.slice(1)
+}
+
+/** `Максим К.` → `МК`. */
+export function initials(name: string): string {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((word) => word.charAt(0))
+    .join('')
+    .toUpperCase()
+}
+
 export function formatKg(kg: number): string {
   return kg.toLocaleString('uk-UA', { maximumFractionDigits: 2 })
 }

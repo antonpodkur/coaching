@@ -13,9 +13,9 @@ const queryClient = new QueryClient({
 
 const router = createBrowserRouter([
   { path: '/', element: <Navigate to="/coach" replace /> },
-  // Opened by the bot's button inside Telegram.
+  // Opened from the bot inside Telegram: a client's workouts, or Dasha's workspace.
   { path: '/app/*', element: <MiniApp /> },
-  // Dasha's workspace in a normal browser.
+  // Dasha's workspace in a normal browser, signed in through the bot.
   { path: '/coach/*', element: <CoachArea /> },
 ])
 

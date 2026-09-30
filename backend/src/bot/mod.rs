@@ -5,10 +5,34 @@ use uuid::Uuid;
 
 use crate::{
     auth::bot_login::{self, Claimed},
+    config::Config,
     invites::{self, Accepted},
     state::AppState,
-    telegram::{Button, CallbackQuery, Message, OutgoingMessage, Update, User},
+    telegram::{Button, CallbackQuery, Message, OutgoingMessage, TelegramClient, Update, User},
 };
+
+/// Label of the menu button that opens the Mini App, for clients and the coach.
+const MENU_BUTTON_TEXT: &str = "Відкрити";
+
+/// Points Telegram at this deployment: the webhook (when configured) and the
+/// menu button's Mini App URL. Runs on startup. Failures are logged, not fatal:
+/// the API still works, and the next start tries again.
+pub async fn register(telegram: &TelegramClient, config: &Config) {
+    if let Some(url) = &config.telegram_webhook_url {
+        match telegram.set_webhook(url, &config.webhook_secret).await {
+            Ok(()) => tracing::info!(%url, "Telegram webhook registered"),
+            Err(err) => tracing::warn!(error = ?err, "could not register the Telegram webhook"),
+        }
+    }
+    let url = config.mini_app_url();
+    match telegram
+        .set_default_menu_button(MENU_BUTTON_TEXT, &url)
+        .await
+    {
+        Ok(()) => tracing::info!(%url, "menu button opens the Mini App"),
+        Err(err) => tracing::warn!(error = ?err, "could not set the bot's menu button"),
+    }
+}
 
 pub async fn handle_update(state: &AppState, update: Update) -> anyhow::Result<()> {
     if let Some(message) = update.message {
@@ -161,13 +185,16 @@ async fn greet(state: &AppState, from: &User, chat_id: i64) -> anyhow::Result<Ou
         .await?
         .is_some();
     if is_coach {
+        let text = format!(
+            "Кабінет тренера — кнопкою нижче або «{MENU_BUTTON_TEXT}» біля поля повідомлення. \
+             На комп’ютері: {}/coach",
+            state.config.frontend_url
+        );
         return Ok(
-            OutgoingMessage::text(chat_id, "Кабінет тренера відкривається в браузері.").with_row(
-                vec![Button::Url {
-                    text: "Відкрити кабінет".to_owned(),
-                    url: format!("{}/coach", state.config.frontend_url),
-                }],
-            ),
+            OutgoingMessage::text(chat_id, text).with_row(vec![Button::WebApp {
+                text: "Відкрити кабінет".to_owned(),
+                url: state.config.mini_app_url(),
+            }]),
         );
     }
     // The ID is what's needed to add this person as the coach (see README).

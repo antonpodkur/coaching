@@ -32,7 +32,7 @@ impl From<sqlx::Error> for AppError {
 
 #[derive(Debug, Serialize, ToSchema)]
 pub struct ErrorBody {
-    /// Machine-readable code, e.g. `unauthorized`, `not_a_client`, `unknown_timezone`.
+    /// Machine-readable code, e.g. `unauthorized`, `not_invited`, `unknown_timezone`.
     pub error: String,
 }
 

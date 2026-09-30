@@ -1,12 +1,11 @@
 import { useCallback, useState } from 'react'
-import { NavLink, Route, Routes } from 'react-router'
 
 import { setSessionToken } from '../api/client'
-import { ClientsPage } from './ClientsPage'
 import { CoachLogin } from './CoachLogin'
-import { ImportPage } from './ImportPage'
+import { CoachWorkspace } from './CoachWorkspace'
 import { loadCoachToken, saveCoachToken } from './session'
 
+/** The workspace in a normal browser, for when Dasha is at a computer. */
 export function CoachArea() {
   const [token, setToken] = useState(() => {
     const saved = loadCoachToken()
@@ -27,28 +26,5 @@ export function CoachArea() {
   }, [])
 
   if (!token) return <CoachLogin onSignedIn={signIn} />
-
-  return (
-    <div className="coach">
-      <header className="coach-header">
-        <div className="wordmark">
-          <span>Daria Khyzhniak</span>
-          <span className="muted">кабінет тренера</span>
-        </div>
-        <nav className="coach-nav" aria-label="Розділи">
-          <NavLink to="/coach" end>
-            Клієнти
-          </NavLink>
-          <NavLink to="/coach/import">Імпорт</NavLink>
-        </nav>
-        <button type="button" className="button" onClick={signOut}>
-          Вийти
-        </button>
-      </header>
-      <Routes>
-        <Route index element={<ClientsPage onUnauthorized={signOut} />} />
-        <Route path="import" element={<ImportPage onUnauthorized={signOut} />} />
-      </Routes>
-    </div>
-  )
+  return <CoachWorkspace base="/coach" onUnauthorized={signOut} onSignOut={signOut} />
 }

@@ -8,7 +8,7 @@ use crate::{
     auth::{
         Role,
         bot_login::{self, Polled},
-        jwt::{CLIENT_TOKEN_TTL, COACH_TOKEN_TTL},
+        jwt::{BROWSER_TOKEN_TTL, MINI_APP_TOKEN_TTL},
         telegram::verify_web_app_init_data,
     },
     error::{AppError, AppResult, ErrorBody},
@@ -30,15 +30,21 @@ pub struct ClientProfile {
 }
 
 #[derive(Serialize, ToSchema)]
-pub struct ClientSession {
-    pub token: String,
-    pub client: ClientProfile,
-}
-
-#[derive(Serialize, ToSchema)]
 pub struct CoachProfile {
     pub id: Uuid,
     pub name: String,
+}
+
+/// Who opened the Mini App decides which screens they get.
+#[derive(Serialize, ToSchema)]
+#[serde(tag = "role", rename_all = "snake_case")]
+pub enum MiniAppSession {
+    /// Dasha's workspace. Checked first, so an account that is both gets this.
+    Coach { token: String, coach: CoachProfile },
+    Client {
+        token: String,
+        client: ClientProfile,
+    },
 }
 
 /// Mini App sign-in: trades Telegram-signed `initData` for a session token.
@@ -48,15 +54,15 @@ pub struct CoachProfile {
     tag = "auth",
     request_body = WebAppAuthRequest,
     responses(
-        (status = 200, body = ClientSession),
+        (status = 200, body = MiniAppSession),
         (status = 401, body = ErrorBody, description = "`initData` is invalid or older than a day"),
-        (status = 403, body = ErrorBody, description = "`not_a_client`: this Telegram user has no invite"),
+        (status = 403, body = ErrorBody, description = "`not_invited`: neither the coach nor an invited client"),
     )
 )]
 pub async fn telegram_webapp(
     State(state): State<AppState>,
     Json(request): Json<WebAppAuthRequest>,
-) -> AppResult<Json<ClientSession>> {
+) -> AppResult<Json<MiniAppSession>> {
     let init_data = verify_web_app_init_data(
         &request.init_data,
         &state.config.bot_token,
@@ -66,26 +72,37 @@ pub async fn telegram_webapp(
         tracing::debug!(%err, "rejected Mini App initData");
         AppError::Unauthorized
     })?;
+    let telegram_id = init_data.user.id;
+
+    let coach = sqlx::query_as!(
+        CoachProfile,
+        "SELECT id, name FROM coaches WHERE telegram_id = $1",
+        telegram_id,
+    )
+    .fetch_optional(&state.db)
+    .await?;
+    if let Some(coach) = coach {
+        let token = state.jwt.issue(Role::Coach, coach.id, MINI_APP_TOKEN_TTL)?;
+        return Ok(Json(MiniAppSession::Coach { token, coach }));
+    }
 
     let client = sqlx::query_as!(
         ClientProfile,
         "SELECT id, name, timezone FROM clients
          WHERE telegram_id = $1 AND archived_at IS NULL",
-        init_data.user.id,
+        telegram_id,
     )
     .fetch_optional(&state.db)
     .await?
     .ok_or_else(|| {
         // The ID is what the coach needs to add this person (see README, "Local Telegram").
-        tracing::info!(
-            telegram_id = init_data.user.id,
-            "Mini App sign-in by a non-client"
-        );
-        AppError::Forbidden("not_a_client")
+        tracing::info!(telegram_id, "Mini App sign-in by someone without an invite");
+        AppError::Forbidden("not_invited")
     })?;
-
-    let token = state.jwt.issue(Role::Client, client.id, CLIENT_TOKEN_TTL)?;
-    Ok(Json(ClientSession { token, client }))
+    let token = state
+        .jwt
+        .issue(Role::Client, client.id, MINI_APP_TOKEN_TTL)?;
+    Ok(Json(MiniAppSession::Client { token, client }))
 }
 
 #[derive(Serialize, ToSchema)]
@@ -161,7 +178,7 @@ pub async fn bot_login_poll(
             )
             .fetch_one(&state.db)
             .await?;
-            let token = state.jwt.issue(Role::Coach, coach.id, COACH_TOKEN_TTL)?;
+            let token = state.jwt.issue(Role::Coach, coach.id, BROWSER_TOKEN_TTL)?;
             BotLoginPoll::Approved { token, coach }
         }
     }))

@@ -4,7 +4,7 @@
 mod common;
 
 use axum::http::StatusCode;
-use coaching_backend::auth::{Role, jwt::COACH_TOKEN_TTL};
+use coaching_backend::auth::{Role, jwt::BROWSER_TOKEN_TTL};
 use common::{BOT_TOKEN, call, coach_token, seed_client, seed_coach, signed_init_data, test_state};
 use serde_json::json;
 use sqlx::PgPool;
@@ -26,6 +26,7 @@ async fn invited_client_signs_in_and_reads_profile(db: PgPool) {
     )
     .await;
     assert_eq!(status, StatusCode::OK);
+    assert_eq!(session["role"], "client");
     assert_eq!(session["client"]["id"], client_id.to_string());
 
     let token = session["token"].as_str().unwrap();
@@ -72,7 +73,7 @@ async fn uninvited_or_forged_logins_are_refused(db: PgPool) {
     )
     .await;
     assert_eq!(status, StatusCode::FORBIDDEN);
-    assert_eq!(body["error"], "not_a_client");
+    assert_eq!(body["error"], "not_invited");
 
     let forged = signed_init_data(777_000_111, "654321:not-our-bot");
     let (status, _) = call(
@@ -87,6 +88,36 @@ async fn uninvited_or_forged_logins_are_refused(db: PgPool) {
 
     let (status, _) = call(&app, "GET", "/me", None, None).await;
     assert_eq!(status, StatusCode::UNAUTHORIZED);
+}
+
+#[sqlx::test]
+async fn the_coach_gets_the_coach_area_in_the_mini_app(db: PgPool) {
+    let coach_id = seed_coach(&db, 555_000_222).await;
+    // She is also her own test client; the coach area still wins.
+    seed_client(&db, coach_id, 555_000_222).await;
+    let app = coaching_backend::router(test_state(db));
+
+    let init_data = signed_init_data(555_000_222, BOT_TOKEN);
+    let (status, session) = call(
+        &app,
+        "POST",
+        "/auth/telegram-webapp",
+        None,
+        Some(json!({ "init_data": init_data })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(session["role"], "coach");
+    assert_eq!(session["coach"]["id"], coach_id.to_string());
+    assert!(session.get("client").is_none());
+
+    let token = session["token"].as_str().unwrap();
+    let (status, clients) = call(&app, "GET", "/coach/clients", Some(token), None).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(clients.as_array().unwrap().len(), 1);
+    let (status, body) = call(&app, "GET", "/me", Some(token), None).await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+    assert_eq!(body["error"], "wrong_role");
 }
 
 #[sqlx::test]
@@ -112,7 +143,7 @@ async fn import_preview_matches_the_library_and_is_coach_only(db: PgPool) {
     let coach_token = coach_token(&state, coach_id);
     let client_token = state
         .jwt
-        .issue(Role::Client, Uuid::new_v4(), COACH_TOKEN_TTL)
+        .issue(Role::Client, Uuid::new_v4(), BROWSER_TOKEN_TTL)
         .unwrap();
     let app = coaching_backend::router(state);
 

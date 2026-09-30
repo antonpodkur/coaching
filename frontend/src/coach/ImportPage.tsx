@@ -1,17 +1,19 @@
 import { useMutation } from '@tanstack/react-query'
 import { useState } from 'react'
 
-import { ApiError, type Schemas, api, unwrap } from '../api/client'
+import { type Schemas, api, unwrap } from '../api/client'
 import { formatSet, plural } from '../shared/format'
+import { isUnauthorized, useCoach } from './context'
 
 /** One-off import of an old Telegram plan: paste it, see how it was read. */
-export function ImportPage({ onUnauthorized }: { onUnauthorized: () => void }) {
+export function ImportPage() {
+  const { onUnauthorized } = useCoach()
   const [text, setText] = useState('')
   const parse = useMutation({
     mutationFn: async (plan: string) =>
       unwrap(await api.POST('/coach/import/parse', { body: { text: plan } })),
     onError: (err) => {
-      if (err instanceof ApiError && err.status === 401) onUnauthorized()
+      if (isUnauthorized(err)) onUnauthorized()
     },
   })
 

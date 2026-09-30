@@ -5,34 +5,38 @@ The planned system behind the clickable prototype (`app-prototype/` in the `dash
 ## Context
 
 - **What v1 does:** Dasha builds workouts from her exercise library and publishes them to a client. The client opens them in a Telegram Mini App, logs each set against the target and sends a short report. Chat, technique-video checks and payments stay in Telegram or are handled by hand.
+- **Where Dasha works:** mostly on her phone, like most coaches. Her workspace is the same Telegram Mini App: it shows her the coach screens instead of a client's. A browser version of the same screens is there for when she sits at a computer.
 - **Scale:** one coach and tens of clients, growing to low hundreds. Performance is not a design driver. Reliability, low running cost and one developer's time are.
 - **Users:** Ukraine and the Ukrainian diaspora, so clients are in many timezones. Clients train in gyms with poor reception, mostly on mid-range phones inside Telegram's in-app browser.
 
 ## Overview
 
 ```
- Client's phone                       Dasha's laptop / phone
- ┌─────────────────────┐              ┌──────────────────────┐
- │ Telegram            │              │ Browser              │
- │  ├─ chat with bot   │              │  Coach web (/coach)  │
- │  └─ Mini App (/app) │              │  Telegram login      │
- └──────┬──────────▲───┘              └─────┬──────────┬─────┘
-        │ initData │ bot messages           │ API      │ resumable upload
-        ▼          │                        ▼          ▼
- ┌──────────────────────────────────────────────┐  ┌────────────────────┐
- │ Backend — one Rust service (axum)            │  │ Bunny Stream       │
- │  REST API · Telegram auth · bot webhook ·    │──│ transcode, thumbs, │
- │  import parser · background jobs             │  │ HLS playback       │
- └──────────────┬───────────────────────────────┘  └────────────────────┘
-                ▼
-          ┌────────────┐
-          │ Postgres   │
-          └────────────┘
+ Client's phone          Dasha's phone           Dasha's laptop (optional)
+ ┌───────────────────┐   ┌───────────────────┐   ┌───────────────────┐
+ │ Telegram          │   │ Telegram          │   │ Browser (/coach)  │
+ │  chat with bot    │   │  chat with bot    │   │  sign-in that     │
+ │  Mini App (/app)  │   │  Mini App (/app)  │   │  she confirms     │
+ │                   │   │  (her workspace)  │   │  in the bot       │
+ └─────────┬─────────┘   └─────────┬─────────┘   └─────────┬─────────┘
+           │ initData, API         │ initData, API         │ API
+           ▼                       ▼                       ▼
+ ┌───────────────────────────────────────────────────────────────────┐
+ │ Backend — one Rust service (axum)                                 │
+ │  REST API · Telegram auth · bot webhook · import parser · jobs    │
+ └────────────────┬─────────────────────────────┬────────────────────┘
+                  ▼                             ▼
+            ┌────────────┐           ┌────────────────────────────┐
+            │ Postgres   │           │ Bunny Stream: transcoding, │
+            └────────────┘           │ thumbnails, HLS playback   │
+                                     └────────────────────────────┘
 ```
+
+Videos go from Dasha's phone straight to Bunny with a resumable upload; the backend only signs the upload. Clients stream them from Bunny.
 
 | Part | Choice | Why |
 | --- | --- | --- |
-| Frontend | React + TypeScript + Vite, one app with two areas: `/app` (Mini App) and `/coach` | One codebase and shared UI. The Telegram SDK and the UI libraries the builder needs are JavaScript. |
+| Frontend | React + TypeScript + Vite. `/app` is the Telegram Mini App for clients and for Dasha; `/coach` is her workspace in a browser | One codebase and shared UI. The Telegram SDK and the UI libraries the builder needs are JavaScript. |
 | Backend | Rust: axum, tokio, sqlx, and a small Bot API client over reqwest | One small binary for the API, bot, parser and jobs. The compiler catches mistakes early. |
 | API contract | `utoipa` → OpenAPI → `openapi-typescript` + `openapi-fetch` | Typed paths, params and bodies in the frontend, generated from the Rust structs. |
 | Database | Postgres 16, managed (Render, Frankfurt) | Relational data, 3-day point-in-time restore, EU region. |
@@ -68,9 +72,12 @@ Chosen for low cost with no servers to maintain. Prices were checked on the prov
   - TanStack Query for server state, persisted to IndexedDB so an opened workout survives losing signal.
   - `dnd-kit` for reordering exercises in the builder.
   - `hls.js` where the browser cannot play HLS natively (Android WebView). iOS plays it natively. Bunny's MP4 fallback covers any WebView where HLS misbehaves.
-- **Telegram:** `telegram-web-app.js`, loaded in `index.html` before the app so it can read the launch parameters from the URL. It provides `initData`, `start_param`, theme colours, the back button and haptics. Outside Telegram it does nothing.
+- **Telegram:** `telegram-web-app.js`, loaded in `index.html` before the app so it can read the launch parameters from the URL. It provides `initData`, `start_param`, theme colours, the back button, haptics and `openTelegramLink`. Outside Telegram it does nothing.
+- **One Mini App, two roles:** the sign-in response says whether Dasha or a client opened `/app`, and the app mounts her workspace or the client's screens. Nothing in the URL decides the role.
+- **Coach screens are phone-first:** pages above a bottom tab bar; sub-pages go back with Telegram's own back button. The browser at `/coach` shows the same components with an in-page back link, and on a wide screen the tabs move to the top. The builder's phone design (set chips with a −/+ editor, the library as a bottom sheet) is in the prototype.
+- **Invites go through Telegram's share sheet:** "Надіслати в Telegram" opens `https://t.me/share/url?url=<invite>` with `openTelegramLink`, so Dasha picks the chat instead of copying a link. Copying stays as a fallback.
 - **Types:** `frontend/src/api/schema.ts` is generated from the backend's OpenAPI spec and never edited by hand. CI fails if it is out of date.
-- **Tokens:** sent as `Authorization: Bearer …`, not cookies. Telegram Web runs Mini Apps in an iframe, where cookies are unreliable. The client token lives in memory and is re-issued from fresh `initData` on every launch. The coach token lives in `localStorage`.
+- **Tokens:** sent as `Authorization: Bearer …`, not cookies. Telegram Web runs Mini Apps in an iframe, where cookies are unreliable. Mini App tokens, the client's and Dasha's alike, live in memory and are re-issued from fresh `initData` on every launch. The browser's coach token lives in `localStorage`.
 
 ## Backend
 
@@ -83,7 +90,8 @@ backend/
     api/             axum handlers, split into client/ and coach/
     auth/            initData checks, bot login codes, JWT issue/verify, role extractors
     bot/             update handling: invites, coach sign-in, replies
-    telegram.rs      Bot API client: sendMessage, editMessageText, answerCallbackQuery, setWebhook
+    telegram.rs      Bot API client: sendMessage, editMessageText, answerCallbackQuery,
+                     setWebhook, setChatMenuButton
     invites.rs       client invite links
     codes.rs         random link secrets, stored hashed
     db/              sqlx queries and row types
@@ -95,31 +103,34 @@ backend/
 
 - **HTTP:** axum with tower-http for CORS (locked to the frontend origin), request tracing and compression.
 - **Database access:** sqlx with compile-time-checked queries. `cargo sqlx prepare` commits the query metadata so CI builds without a live database.
-- **Bot:** a small typed Bot API client over reqwest. The bot uses four methods, so teloxide's dispatcher isn't worth its weight.
+- **Bot:** a small typed Bot API client over reqwest. The bot uses five methods, so teloxide's dispatcher isn't worth its weight.
   - **Webhook:** updates arrive at `/telegram/webhook` in the same axum router. When `TELEGRAM_WEBHOOK_URL` is set, the webhook is registered on startup with a `secret_token`. Requests without the matching `X-Telegram-Bot-Api-Secret-Token` header get 401.
+  - **Menu button:** on startup the bot's default menu button is set to open the Mini App at `<FRONTEND_ORIGIN>/app`, so it follows the deployment (and the dev tunnel). Clients and Dasha open the app from it in any chat with the bot.
   - **Failures:** those that may be temporary answer 500, so Telegram retries. Handling is safe to repeat: tapping a spent invite again just offers the app.
   - **Tests** swap in a client that records messages instead of sending them.
-- **Sessions:** HS256 JWTs (`jsonwebtoken`) carrying `role` and `client_id` or `coach_id`. Client tokens last 12 hours; coach tokens last 30 days. Rotating the secret signs everyone out.
+- **Sessions:** HS256 JWTs (`jsonwebtoken`) carrying `role` and `client_id` or `coach_id`. Mini App tokens (either role) last 12 hours; the browser coach token lasts 30 days. Rotating the secret signs everyone out.
 - **Background jobs:** one tokio task that wakes every 5 minutes and sends whatever is due. v1 runs one instance. If that changes, the task takes a Postgres advisory lock first.
 
 ## Authentication and onboarding
 
 **Client invite.** A bot can only message people who have started it, so onboarding goes through the bot:
 
-1. Dasha adds a client in the coach web. The backend creates a random, single-use invite code that expires after 7 days.
-2. She sends the link `https://t.me/<bot>?start=<code>` in her existing Telegram chat with the client.
+1. Dasha adds a client in her workspace. The backend creates a random, single-use invite code that expires after 7 days.
+2. She sends the link `https://t.me/<bot>?start=<code>` to her existing Telegram chat with the client, through Telegram's share sheet.
 3. The client taps Start. The bot's `/start <code>` handler links their Telegram user ID to the client record and replies with a button that opens the Mini App.
 
-**Client sign-in.** On every launch the Mini App posts Telegram's `initData` to `POST /auth/telegram-webapp`. The backend:
+**Mini App sign-in, for clients and Dasha.** On every launch the Mini App posts Telegram's `initData` to `POST /auth/telegram-webapp`. The backend:
 
 1. Builds the data-check-string and verifies `hash` exactly as Telegram's Mini App docs describe. The secret key is derived from the bot token with the constant `WebAppData`.
 2. Rejects `initData` older than 24 hours.
-3. Looks up the client by Telegram user ID. If there is none, it answers 403, and the app asks the person to get an invite from Dasha.
-4. Issues a client JWT.
+3. Looks up the Telegram user ID in `coaches`, then in `clients`. Dasha gets a coach session and her workspace; a client gets theirs. An account that is both (Dasha testing as her own client) gets the coach session. If it is neither, the backend answers 403 `not_invited`, and the app asks the person to get an invite from Dasha.
+4. Issues a JWT for that role, valid for 12 hours.
+
+This is as strong as the bot-confirmed sign-in below: both rest on Telegram vouching for her user ID, and `initData` cannot be forged without the bot token. It needs no confirm step, because nobody else can start this sign-in for her on another device.
 
 The unit tests include a real `initData` string captured from the dev bot.
 
-**Coach sign-in, confirmed through the bot.** The coach web shows "Увійти через Telegram":
+**Browser sign-in for Dasha, confirmed through the bot.** The secondary way in, for a computer. The browser workspace shows "Увійти через Telegram":
 
 1. `POST /auth/bot-login` creates a random single-use code, valid for 5 minutes. It returns the link `https://t.me/<bot>?start=login_<code>`, a short display code such as `4821`, and a separate poll secret that stays in the page.
 2. Dasha opens the link and taps Start. The bot's handler takes her Telegram ID from the update (Telegram vouches for it) and checks that it belongs to a row in `coaches`. It replies "Увійти в кабінет? Код 4821 [Підтвердити] [Скасувати]".
@@ -172,7 +183,7 @@ Client (`role = client`):
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| POST | `/auth/telegram-webapp` | `initData` → token |
+| POST | `/auth/telegram-webapp` | `initData` → client or coach session, decided by the Telegram user |
 | GET | `/me` | Profile, this week's workouts |
 | PUT | `/me/timezone` | Set once from the phone |
 | GET | `/workouts/{id}` | Workout with sets, video playback info and "last time" per exercise |
@@ -262,7 +273,7 @@ coaching/
     - Database: Basic 256 MB, Postgres 16, Frankfurt.
     - Render deploys `main` automatically, and migrations run at startup. The service reaches the database over Render's private network.
   - **Frontend:** Cloudflare Workers builds `frontend/` on push. `assets.not_found_handling = "single-page-application"` makes every path serve the app, and `VITE_API_URL` points at `https://api.<domain>`.
-  - **Bot webhook:** set once per environment to `https://api.<domain>/telegram/webhook`.
+  - **Bot webhook and menu button:** set on startup from `TELEGRAM_WEBHOOK_URL` (`https://api.<domain>/telegram/webhook`) and `FRONTEND_ORIGIN`.
   - **Environments:** development uses the dev bot and local Postgres. Production has its own bot, database and Bunny library. A staging environment can be added later as a second Render service.
 - **Secrets:** `BOT_TOKEN`, `WEBHOOK_SECRET`, `JWT_SECRET`, `DATABASE_URL`, `BUNNY_STREAM_LIBRARY_ID`, `BUNNY_STREAM_API_KEY`, `BUNNY_CDN_HOSTNAME`, `SENTRY_DSN`. They are set in the Render dashboard and marked `sync: false` in the Blueprint, so they never live in the repo. Other settings: `BOT_USERNAME`, `TELEGRAM_WEBHOOK_URL`, `FRONTEND_ORIGIN`.
 
@@ -277,8 +288,8 @@ coaching/
 
 - **Backend:** integration tests with `#[sqlx::test]`, which gives each test a fresh database, for auth, copy, publish, offline-style duplicate writes and notification de-duplication.
 - **Import parser:** unit tests using her real Telegram plans as fixtures (starting with `backend/tests/fixtures/example-back.txt`).
-- **Auth:** `initData` verification against captured real payloads, plus tampered copies that must fail. For bot login: codes expire, work once, and only the Confirm button approves them.
-- **Bot:** updates are posted to the real webhook route, with a recording Telegram client. Covered: invites (spent, expired, replaced, one account per profile), the secret header, greetings by role, and sign-in with confirm and cancel.
+- **Auth:** `initData` verification against captured real payloads, plus tampered copies that must fail. Mini App sign-in returns the right role, and the coach wins for an account that is both. For bot login: codes expire, work once, and only the Confirm button approves them.
+- **Bot:** updates are posted to the real webhook route, with a recording Telegram client. Covered: invites (spent, expired, replaced, one account per profile), the secret header, greetings by role, sign-in with confirm and cancel, and the webhook and menu button set on startup.
 - **Frontend:** typecheck plus a few Playwright smoke tests of the builder, publish, log and report flow against a seeded backend. Before each release, check manually inside the Telegram apps on iOS and Android.
 
 ## Later, without redesign
@@ -292,3 +303,7 @@ coaching/
 - The app's name and domain, needed for BotFather and the Cloudflare zone.
 - Whether clients see only the published workout or the whole week ahead. The data model supports both.
 - Signed video URLs from day one, or only if videos leak.
+
+## Risks to test early
+
+- **Video uploads from inside Telegram.** Dasha records on her iPhone and uploads from the Mini App, which runs in Telegram's WebView. Check early, on her phone, that picking a large video from the camera roll works and that a tus upload resumes after she switches apps or loses signal.

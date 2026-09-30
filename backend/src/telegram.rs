@@ -106,6 +106,10 @@ pub enum Sent {
     WebhookSet {
         url: String,
     },
+    MenuButtonSet {
+        text: String,
+        url: String,
+    },
 }
 
 /// Talks to Telegram, or records what it would have sent (tests).
@@ -194,6 +198,19 @@ impl TelegramClient {
             url: url.to_owned(),
         };
         self.call("setWebhook", body, sent).await
+    }
+
+    /// Makes the button next to the message box open the Mini App, in every
+    /// private chat with the bot.
+    pub async fn set_default_menu_button(&self, text: &str, url: &str) -> anyhow::Result<()> {
+        let body = json!({
+            "menu_button": { "type": "web_app", "text": text, "web_app": { "url": url } },
+        });
+        let sent = Sent::MenuButtonSet {
+            text: text.to_owned(),
+            url: url.to_owned(),
+        };
+        self.call("setChatMenuButton", body, sent).await
     }
 
     async fn call(&self, method: &str, body: Value, record: Sent) -> anyhow::Result<()> {

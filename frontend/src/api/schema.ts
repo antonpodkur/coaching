@@ -201,10 +201,6 @@ export interface components {
             /** @description IANA timezone reported by the client's phone, e.g. `Europe/Kyiv`. */
             timezone?: string | null;
         };
-        ClientSession: {
-            client: components["schemas"]["ClientProfile"];
-            token: string;
-        };
         CoachClient: {
             /** Format: date-time */
             created_at: string;
@@ -231,7 +227,7 @@ export interface components {
             invite: components["schemas"]["InviteLink"];
         };
         ErrorBody: {
-            /** @description Machine-readable code, e.g. `unauthorized`, `not_a_client`, `unknown_timezone`. */
+            /** @description Machine-readable code, e.g. `unauthorized`, `not_invited`, `unknown_timezone`. */
             error: string;
         };
         Health: {
@@ -275,6 +271,18 @@ export interface components {
             expires_at: string;
             /** @description `https://t.me/<bot>?start=inv_<code>`. Works once. */
             url: string;
+        };
+        /** @description Who opened the Mini App decides which screens they get. */
+        MiniAppSession: {
+            coach: components["schemas"]["CoachProfile"];
+            /** @enum {string} */
+            role: "coach";
+            token: string;
+        } | {
+            client: components["schemas"]["ClientProfile"];
+            /** @enum {string} */
+            role: "client";
+            token: string;
         };
         NewClient: {
             name: string;
@@ -356,7 +364,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ClientSession"];
+                    "application/json": components["schemas"]["MiniAppSession"];
                 };
             };
             /** @description `initData` is invalid or older than a day */
@@ -368,7 +376,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
-            /** @description `not_a_client`: this Telegram user has no invite */
+            /** @description `not_invited`: neither the coach nor an invited client */
             403: {
                 headers: {
                     [name: string]: unknown;

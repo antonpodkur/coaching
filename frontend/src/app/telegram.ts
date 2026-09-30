@@ -7,6 +7,15 @@ export interface TelegramWebApp {
   initData: string
   initDataUnsafe: { start_param?: string }
   ready(): void
+  /** Opens a t.me link inside Telegram; the Mini App stays open. */
+  openTelegramLink(url: string): void
+  /** The back arrow in Telegram's own header. */
+  BackButton: {
+    show(): void
+    hide(): void
+    onClick(callback: () => void): void
+    offClick(callback: () => void): void
+  }
   expand(): void
   setHeaderColor(color: string): void
   setBackgroundColor(color: string): void

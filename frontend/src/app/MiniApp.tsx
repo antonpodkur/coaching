@@ -1,27 +1,37 @@
 import { useQuery } from '@tanstack/react-query'
-import { useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
-import { ApiError, api, setSessionToken, unwrap } from '../api/client'
+import { ApiError, type Schemas, api, setSessionToken, unwrap } from '../api/client'
+import { CoachWorkspace } from '../coach/CoachWorkspace'
 import { Screen } from '../shared/Screen'
+import { ClientHome } from './ClientHome'
 import { telegramWebApp } from './telegram'
 
 const webApp = telegramWebApp()
 
-/** Trades Telegram's `initData` for a session and records the phone's timezone. */
-async function signIn(initData: string) {
+/**
+ * Trades Telegram's `initData` for a session. The backend decides the role:
+ * Dasha gets her workspace, everyone else with an invite gets their workouts.
+ */
+async function signIn(initData: string): Promise<Schemas['MiniAppSession']> {
   const session = unwrap(
     await api.POST('/auth/telegram-webapp', { body: { init_data: initData } }),
   )
   setSessionToken(session.token)
 
-  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
-  if (timezone && session.client.timezone !== timezone) {
-    unwrap(await api.PUT('/me/timezone', { body: { timezone } }))
+  if (session.role === 'client') {
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+    if (timezone && session.client.timezone !== timezone) {
+      unwrap(await api.PUT('/me/timezone', { body: { timezone } }))
+    }
   }
-  return session.client
+  return session
 }
 
 export function MiniApp() {
+  const [expired, setExpired] = useState(false)
+  const onUnauthorized = useCallback(() => setExpired(true), [])
+
   useEffect(() => {
     webApp?.ready()
     webApp?.expand()
@@ -29,8 +39,8 @@ export function MiniApp() {
     webApp?.setBackgroundColor('#121212')
   }, [])
 
-  const client = useQuery({
-    queryKey: ['client-session'],
+  const session = useQuery({
+    queryKey: ['mini-app-session'],
     queryFn: () => signIn(webApp?.initData ?? ''),
     enabled: webApp !== null,
     staleTime: Infinity,
@@ -46,7 +56,7 @@ export function MiniApp() {
     )
   }
 
-  if (client.isPending) {
+  if (session.isPending || session.isFetching) {
     return (
       <Screen>
         <p className="muted">Завантаження…</p>
@@ -54,8 +64,8 @@ export function MiniApp() {
     )
   }
 
-  if (client.isError) {
-    const notInvited = client.error instanceof ApiError && client.error.code === 'not_a_client'
+  if (session.isError) {
+    const notInvited = session.error instanceof ApiError && session.error.code === 'not_invited'
     return (
       <Screen>
         <h1>{notInvited ? 'Потрібне запрошення' : 'Не вдалося увійти'}</h1>
@@ -68,14 +78,28 @@ export function MiniApp() {
     )
   }
 
-  const firstName = client.data.name.split(' ')[0]
-  return (
-    <Screen>
-      <p className="muted">
-        {new Date().toLocaleDateString('uk-UA', { weekday: 'long', day: 'numeric', month: 'long' })}
-      </p>
-      <h1>Привіт, {firstName}</h1>
-      <p className="muted">Тут з’являться тренування від Даші.</p>
-    </Screen>
-  )
+  // The token ran out while the app stayed open for many hours.
+  if (expired) {
+    return (
+      <Screen>
+        <h1>Сесія завершилась</h1>
+        <p className="muted">Увійди знову. Якщо не вийде — закрий застосунок і відкрий ще раз.</p>
+        <button
+          type="button"
+          className="button primary"
+          onClick={() => {
+            setExpired(false)
+            void session.refetch()
+          }}
+        >
+          Увійти знову
+        </button>
+      </Screen>
+    )
+  }
+
+  if (session.data.role === 'coach') {
+    return <CoachWorkspace base="/app" onUnauthorized={onUnauthorized} />
+  }
+  return <ClientHome client={session.data.client} />
 }

@@ -4,11 +4,14 @@
 mod common;
 
 use axum::http::StatusCode;
-use coaching_backend::telegram::{Button, Sent};
+use coaching_backend::{
+    bot,
+    telegram::{Button, Sent, TelegramClient},
+};
 use common::{
     BOT_TOKEN, FRONTEND_URL, WEBHOOK_SECRET, button_update, call, coach_token, last_message_to,
-    messages_to, seed_client, seed_coach, signed_init_data, test_state, text_update, webhook,
-    webhook_with_secret,
+    messages_to, seed_client, seed_coach, signed_init_data, test_config, test_state, text_update,
+    webhook, webhook_with_secret,
 };
 use serde_json::{Value, json};
 use sqlx::PgPool;
@@ -252,12 +255,12 @@ async fn plain_start_greets_by_role(db: PgPool) {
     for id in [COACH_TG, CLIENT_TG, STRANGER_TG] {
         webhook(&app, text_update(id, "/start")).await;
     }
+    // Both open the same Mini App; it shows each their own screens.
+    let mini_app = Some(format!("{FRONTEND_URL}/app"));
     let coach = last_message_to(&state, COACH_TG);
-    assert!(matches!(
-        &coach.keyboard[0][0],
-        Button::Url { url, .. } if url == &format!("{FRONTEND_URL}/coach")
-    ));
-    assert!(web_app_url(&last_message_to(&state, CLIENT_TG)).is_some());
+    assert_eq!(web_app_url(&coach), mini_app);
+    assert!(coach.text.contains(&format!("{FRONTEND_URL}/coach")));
+    assert_eq!(web_app_url(&last_message_to(&state, CLIENT_TG)), mini_app);
     assert!(
         last_message_to(&state, STRANGER_TG)
             .text
@@ -269,6 +272,27 @@ async fn plain_start_greets_by_role(db: PgPool) {
     group["message"]["chat"] = json!({ "id": -100, "type": "group" });
     webhook(&app, group).await;
     assert!(messages_to(&state, -100).is_empty());
+}
+
+#[tokio::test]
+async fn startup_registers_the_webhook_and_the_menu_button() {
+    let telegram = TelegramClient::recording();
+    let mut config = test_config();
+    config.telegram_webhook_url = Some(format!("{FRONTEND_URL}/api/telegram/webhook"));
+
+    bot::register(&telegram, &config).await;
+    assert_eq!(
+        telegram.sent(),
+        vec![
+            Sent::WebhookSet {
+                url: format!("{FRONTEND_URL}/api/telegram/webhook"),
+            },
+            Sent::MenuButtonSet {
+                text: "Відкрити".to_owned(),
+                url: format!("{FRONTEND_URL}/app"),
+            },
+        ]
+    );
 }
 
 async fn start_login(app: &axum::Router) -> (String, String, String) {

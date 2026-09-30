@@ -8,7 +8,7 @@ use axum::{
 };
 use chrono::Utc;
 use coaching_backend::{
-    auth::{Role, jwt::COACH_TOKEN_TTL},
+    auth::{Role, jwt::BROWSER_TOKEN_TTL},
     config::Config,
     state::AppState,
     telegram::{OutgoingMessage, Sent, TelegramClient},
@@ -26,29 +26,29 @@ pub const BOT_USERNAME: &str = "dasha_test_bot";
 pub const WEBHOOK_SECRET: &str = "test-webhook-secret-123";
 pub const FRONTEND_URL: &str = "https://app.example.com";
 
+pub fn test_config() -> Config {
+    Config {
+        database_url: String::new(),
+        bind_addr: "127.0.0.1:0".parse().unwrap(),
+        bot_token: BOT_TOKEN.to_owned(),
+        bot_username: BOT_USERNAME.to_owned(),
+        webhook_secret: WEBHOOK_SECRET.to_owned(),
+        telegram_webhook_url: None,
+        jwt_secret: "test-secret-that-is-long-enough-for-hs256".to_owned(),
+        frontend_url: FRONTEND_URL.to_owned(),
+        frontend_origin: header::HeaderValue::from_static(FRONTEND_URL),
+    }
+}
+
 /// App state whose Telegram client records messages instead of sending them.
 pub fn test_state(db: PgPool) -> AppState {
-    AppState::new(
-        db,
-        Config {
-            database_url: String::new(),
-            bind_addr: "127.0.0.1:0".parse().unwrap(),
-            bot_token: BOT_TOKEN.to_owned(),
-            bot_username: BOT_USERNAME.to_owned(),
-            webhook_secret: WEBHOOK_SECRET.to_owned(),
-            telegram_webhook_url: None,
-            jwt_secret: "test-secret-that-is-long-enough-for-hs256".to_owned(),
-            frontend_url: FRONTEND_URL.to_owned(),
-            frontend_origin: header::HeaderValue::from_static(FRONTEND_URL),
-        },
-        TelegramClient::recording(),
-    )
+    AppState::new(db, test_config(), TelegramClient::recording())
 }
 
 pub fn coach_token(state: &AppState, coach_id: Uuid) -> String {
     state
         .jwt
-        .issue(Role::Coach, coach_id, COACH_TOKEN_TTL)
+        .issue(Role::Coach, coach_id, BROWSER_TOKEN_TTL)
         .unwrap()
 }
 
