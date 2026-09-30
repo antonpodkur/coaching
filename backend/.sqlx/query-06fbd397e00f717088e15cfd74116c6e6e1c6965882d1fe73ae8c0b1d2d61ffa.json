@@ -1,0 +1,124 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, name, muscle_group, aliases, video_uid, video_length_secs,\n                  upload_status AS \"upload_status: UploadStatus\", upload_started_at\n           FROM exercises\n           WHERE id = $1 AND coach_id = $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "exercises",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "exercises",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "muscle_group",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "exercises",
+            "name": "muscle_group"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "aliases",
+        "type_info": "TextArray",
+        "origin": {
+          "Table": {
+            "table": "exercises",
+            "name": "aliases"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "video_uid",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "exercises",
+            "name": "video_uid"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "video_length_secs",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "exercises",
+            "name": "video_length_secs"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "upload_status: UploadStatus",
+        "type_info": {
+          "Custom": {
+            "name": "upload_status",
+            "kind": {
+              "Enum": [
+                "uploading",
+                "processing",
+                "failed"
+              ]
+            }
+          }
+        },
+        "origin": {
+          "Table": {
+            "table": "exercises",
+            "name": "upload_status"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "upload_started_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "exercises",
+            "name": "upload_started_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "06fbd397e00f717088e15cfd74116c6e6e1c6965882d1fe73ae8c0b1d2d61ffa"
+}

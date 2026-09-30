@@ -18,7 +18,8 @@ Dasha's online coaching app. She builds workouts from her exercise library and p
 - **Bot and invites:** the webhook checks Telegram's secret header. On startup the bot's menu button is pointed at the Mini App. Dasha adds a client and sends the single-use invite link (valid 7 days) through Telegram's share sheet. The client taps Start, their Telegram account is linked, and the bot replies with a button for the Mini App and tells Dasha.
 - **Client:** `GET /me`, and `PUT /me/timezone` so reminders can use local time.
 - **Coach:** `GET/POST /coach/clients`, `POST /coach/clients/{id}/invite`, and `POST /coach/import/parse`, which reads an old Telegram plan and matches it against the library.
-- **Frontend:** the Mini App signs in and greets the client, or opens Dasha's workspace: a phone layout with a bottom tab bar, the client list, inviting through Telegram's share sheet, and the import preview. The same workspace runs in a browser at `/coach`.
+- **Exercise library and videos:** add, rename, group and archive exercises. Videos upload from the phone straight to Bunny Stream with tus; the backend signs each upload, follows the encoding (webhook, or asking Bunny when Dasha looks), swaps the new video in when it is ready and deletes the old one.
+- **Frontend:** the Mini App signs in and greets the client, or opens Dasha's workspace: a phone layout with a bottom tab bar, the client list, inviting through Telegram's share sheet, the exercise library with video upload and playback, and the import preview. The same workspace runs in a browser at `/coach`.
 - **API types:** `frontend/src/api/schema.ts` is generated from the backend's OpenAPI spec.
 
 ## Prerequisites
@@ -70,6 +71,15 @@ Your own account is the coach, so the Mini App always opens the workspace for it
 
 Quick tunnel URLs change on every start, so repeat step 3 each time, or set up a named Cloudflare tunnel once. BotFather's `/setdomain` is no longer needed.
 
+### Local video uploads (Bunny Stream)
+
+Without Bunny settings the library works and uploads say "not set up". To try real uploads:
+
+1. In Bunny, create a Stream library (Frankfurt storage). Use a separate library for development.
+2. From Stream › your library › API, copy the library ID, the API key, the read-only API key and the CDN hostname into the `BUNNY_*` lines of `backend/.env`, then restart the backend.
+3. On the same page, set the webhook URL to `https://<tunnel>/api/webhooks/stream`. Without it, encodings still finish: the app asks Bunny whenever you look at the exercise.
+4. Upload from the Mini App on a phone (Вправи → an exercise → Додати відео). Try a long video, switch apps mid-upload, and turn Wi-Fi off and on: tus should carry on where it stopped.
+
 ## Everyday commands
 
 Backend (`backend/`):
@@ -95,7 +105,7 @@ TypeScript is pinned to 5.9. TypeScript 7 has no JavaScript API yet, and typescr
 
 In order, following [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md):
 
-1. Exercise library and Bunny Stream uploads. Test a large upload from the Mini App on an iPhone first.
+1. Test a large video upload from the Mini App on Dasha's iPhone (see "Local video uploads").
 2. Builder, following the prototype's phone design: whole-workout save with `version`, copy, templates, publish.
 3. Client workout screens and offline set logging.
 4. Finish and report, then notifications (background jobs).

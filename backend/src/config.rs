@@ -3,6 +3,8 @@ use std::net::SocketAddr;
 use anyhow::{Context, Result, ensure};
 use axum::http::HeaderValue;
 
+use crate::video::StreamSettings;
+
 /// Settings read from the environment (and `backend/.env` in development).
 ///
 /// Deliberately not `Debug`: it holds the bot token and other secrets.
@@ -22,6 +24,8 @@ pub struct Config {
     pub frontend_url: String,
     /// The only origin CORS allows: the frontend.
     pub frontend_origin: HeaderValue,
+    /// Bunny Stream; without it the library works but videos cannot be uploaded.
+    pub bunny: Option<StreamSettings>,
 }
 
 impl Config {
@@ -42,6 +46,19 @@ impl Config {
             "WEBHOOK_SECRET must be 16-256 characters of A-Z, a-z, 0-9, _ or -"
         );
 
+        let bunny = match optional_var("BUNNY_STREAM_LIBRARY_ID") {
+            None => None,
+            Some(library_id) => Some(StreamSettings {
+                library_id,
+                api_key: var("BUNNY_STREAM_API_KEY")?,
+                read_only_api_key: optional_var("BUNNY_STREAM_READ_ONLY_API_KEY"),
+                cdn_hostname: var("BUNNY_CDN_HOSTNAME")?
+                    .trim_start_matches("https://")
+                    .trim_end_matches('/')
+                    .to_owned(),
+            }),
+        };
+
         let frontend_url = var("FRONTEND_ORIGIN")?.trim_end_matches('/').to_owned();
         let frontend_origin = HeaderValue::from_str(&frontend_url)
             .context("FRONTEND_ORIGIN is not a valid header value")?;
@@ -54,12 +71,11 @@ impl Config {
             bot_token: var("BOT_TOKEN")?,
             bot_username: var("BOT_USERNAME")?.trim_start_matches('@').to_owned(),
             webhook_secret,
-            telegram_webhook_url: std::env::var("TELEGRAM_WEBHOOK_URL")
-                .ok()
-                .filter(|url| !url.is_empty()),
+            telegram_webhook_url: optional_var("TELEGRAM_WEBHOOK_URL"),
             jwt_secret,
             frontend_url,
             frontend_origin,
+            bunny,
         })
     }
 
@@ -76,4 +92,9 @@ impl Config {
 
 fn var(name: &str) -> Result<String> {
     std::env::var(name).with_context(|| format!("{name} is not set"))
+}
+
+/// Unset and empty both mean "not configured".
+fn optional_var(name: &str) -> Option<String> {
+    std::env::var(name).ok().filter(|value| !value.is_empty())
 }

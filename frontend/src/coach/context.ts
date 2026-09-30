@@ -18,6 +18,8 @@ export function useCoach(): CoachContextValue {
 }
 
 export const CLIENTS_KEY = ['coach-clients']
+/** The library; one exercise is `[...EXERCISES_KEY, id]`. */
+export const EXERCISES_KEY = ['coach-exercises']
 
 export function isUnauthorized(error: unknown): boolean {
   return error instanceof ApiError && error.status === 401

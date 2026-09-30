@@ -4,6 +4,7 @@ pub mod auth;
 pub mod client;
 pub mod coach;
 pub mod health;
+pub mod stream;
 pub mod telegram;
 
 use axum::{
@@ -38,6 +39,12 @@ use crate::state::AppState;
         coach::clients::list,
         coach::clients::create,
         coach::clients::reinvite,
+        coach::exercises::list,
+        coach::exercises::create,
+        coach::exercises::get,
+        coach::exercises::update,
+        coach::exercises::start_video_upload,
+        coach::exercises::finish_video_upload,
         coach::import::parse,
     ),
     modifiers(&BearerAuth),
@@ -96,8 +103,25 @@ pub fn router(state: AppState) -> Router {
             get(coach::clients::list).post(coach::clients::create),
         )
         .route("/coach/clients/{id}/invite", post(coach::clients::reinvite))
+        .route(
+            "/coach/exercises",
+            get(coach::exercises::list).post(coach::exercises::create),
+        )
+        .route(
+            "/coach/exercises/{id}",
+            get(coach::exercises::get).patch(coach::exercises::update),
+        )
+        .route(
+            "/coach/exercises/{id}/video-upload",
+            post(coach::exercises::start_video_upload),
+        )
+        .route(
+            "/coach/exercises/{id}/video-uploaded",
+            post(coach::exercises::finish_video_upload),
+        )
         .route("/coach/import/parse", post(coach::import::parse))
         .route("/telegram/webhook", post(telegram::webhook))
+        .route("/webhooks/stream", post(stream::webhook))
         .layer(CompressionLayer::new())
         .layer(cors)
         .layer(TraceLayer::new_for_http())

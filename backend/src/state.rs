@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use sqlx::PgPool;
 
-use crate::{auth::jwt::JwtKeys, config::Config, telegram::TelegramClient};
+use crate::{auth::jwt::JwtKeys, config::Config, telegram::TelegramClient, video::StreamClient};
 
 #[derive(Clone)]
 pub struct AppState {
@@ -10,6 +10,8 @@ pub struct AppState {
     pub config: Arc<Config>,
     pub jwt: Arc<JwtKeys>,
     pub telegram: TelegramClient,
+    /// Bunny Stream; `None` when it is not configured, which turns video uploads off.
+    pub video: Option<StreamClient>,
 }
 
 impl AppState {
@@ -20,6 +22,12 @@ impl AppState {
             config: Arc::new(config),
             jwt: Arc::new(jwt),
             telegram,
+            video: None,
         }
+    }
+
+    pub fn with_video(mut self, video: Option<StreamClient>) -> Self {
+        self.video = video;
+        self
     }
 }

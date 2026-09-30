@@ -1,5 +1,7 @@
 use anyhow::Context;
-use coaching_backend::{bot, config::Config, state::AppState, telegram::TelegramClient};
+use coaching_backend::{
+    bot, config::Config, state::AppState, telegram::TelegramClient, video::StreamClient,
+};
 use sqlx::postgres::PgPoolOptions;
 use tracing_subscriber::EnvFilter;
 
@@ -27,8 +29,13 @@ async fn main() -> anyhow::Result<()> {
     let telegram = TelegramClient::live(&config.bot_token)?;
     bot::register(&telegram, &config).await;
 
+    let video = config.bunny.clone().map(StreamClient::live).transpose()?;
+    if video.is_none() {
+        tracing::warn!("Bunny Stream is not configured; video uploads are off");
+    }
+
     let addr = config.bind_addr;
-    let app = coaching_backend::router(AppState::new(db, config, telegram));
+    let app = coaching_backend::router(AppState::new(db, config, telegram).with_video(video));
     let listener = tokio::net::TcpListener::bind(addr).await?;
     tracing::info!(%addr, "listening");
     axum::serve(listener, app)

@@ -1,10 +1,13 @@
 import { useMemo } from 'react'
 import { Link, Route, Routes, useLocation } from 'react-router'
 
-import { ImportIcon, PeopleIcon } from '../shared/icons'
+import { ImportIcon, LibraryIcon, PeopleIcon } from '../shared/icons'
 import { ClientsPage } from './ClientsPage'
+import { ExercisePage } from './ExercisePage'
 import { ImportPage } from './ImportPage'
 import { InvitePage } from './InvitePage'
+import { LibraryPage } from './LibraryPage'
+import { NewExercisePage } from './NewExercisePage'
 import { CoachContext } from './context'
 
 interface Props {
@@ -23,9 +26,14 @@ interface Props {
 export function CoachWorkspace({ base, onUnauthorized, onSignOut }: Props) {
   const context = useMemo(() => ({ base, onUnauthorized }), [base, onUnauthorized])
   const { pathname } = useLocation()
-  const section = pathname.startsWith(`${base}/import`) ? 'import' : 'clients'
+  const section = pathname.startsWith(`${base}/import`)
+    ? 'import'
+    : pathname.startsWith(`${base}/exercises`)
+      ? 'exercises'
+      : 'clients'
   // Sub-pages take the whole screen and go back with Telegram's back arrow.
-  const subPage = pathname.startsWith(`${base}/invite`)
+  const subPage =
+    pathname.startsWith(`${base}/invite`) || pathname.startsWith(`${base}/exercises/`)
 
   return (
     <CoachContext value={context}>
@@ -45,6 +53,9 @@ export function CoachWorkspace({ base, onUnauthorized, onSignOut }: Props) {
           <Routes>
             <Route index element={<ClientsPage />} />
             <Route path="invite" element={<InvitePage />} />
+            <Route path="exercises" element={<LibraryPage />} />
+            <Route path="exercises/new" element={<NewExercisePage />} />
+            <Route path="exercises/:id" element={<ExercisePage />} />
             <Route path="import" element={<ImportPage />} />
           </Routes>
         </main>
@@ -53,6 +64,13 @@ export function CoachWorkspace({ base, onUnauthorized, onSignOut }: Props) {
             <Link to={base} aria-current={section === 'clients' ? 'page' : undefined}>
               <PeopleIcon size={22} />
               Клієнти
+            </Link>
+            <Link
+              to={`${base}/exercises`}
+              aria-current={section === 'exercises' ? 'page' : undefined}
+            >
+              <LibraryIcon size={22} />
+              Вправи
             </Link>
             <Link to={`${base}/import`} aria-current={section === 'import' ? 'page' : undefined}>
               <ImportIcon size={22} />

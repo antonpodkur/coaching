@@ -20,6 +20,12 @@ pub enum AppError {
     NotFound,
     #[error("{0}")]
     BadRequest(&'static str),
+    /// The request clashes with existing data, e.g. `name_taken`.
+    #[error("{0}")]
+    Conflict(&'static str),
+    /// A feature whose settings are missing, e.g. `video_not_configured`.
+    #[error("{0}")]
+    Unavailable(&'static str),
     #[error(transparent)]
     Internal(#[from] anyhow::Error),
 }
@@ -43,6 +49,8 @@ impl IntoResponse for AppError {
             Self::Forbidden(_) => StatusCode::FORBIDDEN,
             Self::NotFound => StatusCode::NOT_FOUND,
             Self::BadRequest(_) => StatusCode::BAD_REQUEST,
+            Self::Conflict(_) => StatusCode::CONFLICT,
+            Self::Unavailable(_) => StatusCode::SERVICE_UNAVAILABLE,
             Self::Internal(err) => {
                 tracing::error!(error = ?err, "request failed");
                 StatusCode::INTERNAL_SERVER_ERROR

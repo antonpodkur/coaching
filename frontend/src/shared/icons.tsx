@@ -67,3 +67,27 @@ export function BackIcon({ size = 20 }: { size?: number }) {
     </Icon>
   )
 }
+
+export function LibraryIcon({ size }: { size?: number }) {
+  return (
+    <Icon size={size}>
+      <path d="M4 5h16v14H4zM10 9v6l5-3z" />
+    </Icon>
+  )
+}
+
+export function CameraIcon({ size = 16 }: { size?: number }) {
+  return (
+    <Icon size={size}>
+      <path d="M3 7h12v10H3zM15 10l6-3v10l-6-3" />
+    </Icon>
+  )
+}
+
+export function UploadIcon({ size = 18 }: { size?: number }) {
+  return (
+    <Icon size={size}>
+      <path d="M12 16V4M7 9l5-5 5 5M4 20h16" strokeWidth={2} />
+    </Icon>
+  )
+}

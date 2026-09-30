@@ -37,6 +37,7 @@ pub fn test_config() -> Config {
         jwt_secret: "test-secret-that-is-long-enough-for-hs256".to_owned(),
         frontend_url: FRONTEND_URL.to_owned(),
         frontend_origin: header::HeaderValue::from_static(FRONTEND_URL),
+        bunny: None,
     }
 }
 

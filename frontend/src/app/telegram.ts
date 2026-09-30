@@ -9,6 +9,11 @@ export interface TelegramWebApp {
   ready(): void
   /** Opens a t.me link inside Telegram; the Mini App stays open. */
   openTelegramLink(url: string): void
+  /** Makes Telegram ask before the app is closed, e.g. during an upload. */
+  enableClosingConfirmation(): void
+  disableClosingConfirmation(): void
+  /** A native OK/Cancel dialog. */
+  showConfirm(message: string, callback: (confirmed: boolean) => void): void
   /** The back arrow in Telegram's own header. */
   BackButton: {
     show(): void

@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH old AS (\n                       SELECT id, video_uid FROM exercises WHERE upload_video_uid = $1 FOR UPDATE\n                   )\n                   UPDATE exercises e\n                   SET video_uid = $1, video_length_secs = $2,\n                       upload_video_uid = NULL, upload_status = NULL, upload_started_at = NULL\n                   FROM old WHERE e.id = old.id\n                   RETURNING old.video_uid",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "video_uid",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "exercises",
+            "name": "video_uid"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "452c97d396e15a4b09f95a834e2a4ca137667198b6944d14c23f83b9667b5da8"
+}

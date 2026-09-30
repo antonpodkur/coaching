@@ -14,10 +14,12 @@
   },
   "dependencies": {
     "@tanstack/react-query": "^5.104.0",
+    "hls.js": "^1.7.3",
     "openapi-fetch": "^0.17.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "react-router": "^8.4.0"
+    "react-router": "^8.4.0",
+    "tus-js-client": "^4.3.1"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

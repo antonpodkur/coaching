@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE exercises SET upload_status = 'failed' WHERE upload_video_uid = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "acdcf9cf0d4c1f75a83a354c156b38822148e92db5edd6c4aeafceba53afad99"
+}

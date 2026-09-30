@@ -11,5 +11,6 @@ pub mod import;
 pub mod invites;
 pub mod state;
 pub mod telegram;
+pub mod video;
 
 pub use api::{openapi, router};

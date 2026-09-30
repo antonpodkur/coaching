@@ -63,10 +63,10 @@ export interface paths {
             cookie?: never;
         };
         /** All of the coach's clients, newest first. */
-        get: operations["list"];
+        get: operations["list_clients"];
         put?: never;
         /** Adds a client and returns their first invite link. */
-        post: operations["create"];
+        post: operations["create_client"];
         delete?: never;
         options?: never;
         head?: never;
@@ -87,7 +87,83 @@ export interface paths {
          * @description For a client who already joined, the new link re-links the profile to whoever
          *     opens it, e.g. after they switched Telegram accounts.
          */
-        post: operations["reinvite"];
+        post: operations["reinvite_client"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/coach/exercises": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The coach's library, alphabetical. Archived exercises are left out. */
+        get: operations["list_exercises"];
+        put?: never;
+        /** Adds an exercise to the library. A video can follow later. */
+        post: operations["create_exercise"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/coach/exercises/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One exercise. While its video is being encoded, this also asks Bunny how far
+         *     it got, so the app sees the result even if Bunny's webhook is late.
+         */
+        get: operations["get_exercise"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Renames, regroups or archives an exercise. */
+        patch: operations["update_exercise"];
+        trace?: never;
+    };
+    "/coach/exercises/{id}/video-upload": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Starts a video upload for the exercise: creates the video on Bunny and signs
+         *     an upload into it. The current video stays until the new one is encoded.
+         */
+        post: operations["start_video_upload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/coach/exercises/{id}/video-uploaded": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** The phone finished uploading; Bunny encodes the video next. */
+        post: operations["finish_video_upload"];
         delete?: never;
         options?: never;
         head?: never;
@@ -230,6 +306,32 @@ export interface components {
             /** @description Machine-readable code, e.g. `unauthorized`, `not_invited`, `unknown_timezone`. */
             error: string;
         };
+        Exercise: {
+            /** @description Other spellings, used to match imported Telegram plans. */
+            aliases: string[];
+            /** Format: uuid */
+            id: string;
+            /** @description Free text; the app offers a fixed set (Спина, Ноги, …). */
+            muscle_group?: string | null;
+            name: string;
+            upload?: components["schemas"]["VideoUpload"] | null;
+            video?: components["schemas"]["ExerciseVideo"] | null;
+        };
+        /** @description Changes to an exercise; fields left out stay as they are. */
+        ExerciseChanges: {
+            /** @description Hides it from the library. Old workouts keep showing it. */
+            archived?: boolean | null;
+            /** @description An empty string clears the group. */
+            muscle_group?: string | null;
+            name?: string | null;
+        };
+        ExerciseVideo: {
+            /** @description HLS playlist. iOS plays it natively; elsewhere the app uses hls.js. */
+            hls_url: string;
+            /** Format: int32 */
+            length_secs?: number | null;
+            thumbnail_url: string;
+        };
         Health: {
             database: boolean;
             status: string;
@@ -287,9 +389,36 @@ export interface components {
         NewClient: {
             name: string;
         };
+        NewExercise: {
+            muscle_group?: string | null;
+            name: string;
+        };
         SetTimezone: {
             /** @description IANA name from `Intl.DateTimeFormat().resolvedOptions().timeZone`. */
             timezone: string;
+        };
+        /** @enum {string} */
+        UploadStatus: "uploading" | "processing" | "failed";
+        /** @description What the phone needs to upload one video straight to Bunny with tus. */
+        UploadTicket: {
+            /** @description Bunny's tus endpoint. */
+            endpoint: string;
+            /**
+             * Format: int64
+             * @description Unix seconds; send as the `AuthorizationExpire` header.
+             */
+            expires_at: number;
+            /** @description Send as the `LibraryId` header. */
+            library_id: string;
+            /** @description Send as the `AuthorizationSignature` header. */
+            signature: string;
+            /** @description Send as the `VideoId` header. */
+            video_id: string;
+        };
+        VideoUpload: {
+            /** Format: date-time */
+            started_at: string;
+            status: components["schemas"]["UploadStatus"];
         };
         WebAppAuthRequest: {
             /** @description `Telegram.WebApp.initData`, exactly as the Mini App received it. */
@@ -387,7 +516,7 @@ export interface operations {
             };
         };
     };
-    list: {
+    list_clients: {
         parameters: {
             query?: never;
             header?: never;
@@ -414,7 +543,7 @@ export interface operations {
             };
         };
     };
-    create: {
+    create_client: {
         parameters: {
             query?: never;
             header?: never;
@@ -454,7 +583,7 @@ export interface operations {
             };
         };
     };
-    reinvite: {
+    reinvite_client: {
         parameters: {
             query?: never;
             header?: never;
@@ -472,6 +601,265 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["InviteLink"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    list_exercises: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Exercise"][];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    create_exercise: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NewExercise"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Exercise"];
+                };
+            };
+            /** @description `invalid_name` or `invalid_group` */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description `name_taken`: the library already has it */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_exercise: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Exercise id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Exercise"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_exercise: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Exercise id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExerciseChanges"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Exercise"];
+                };
+            };
+            /** @description `invalid_name` or `invalid_group` */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description `name_taken` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    start_video_upload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Exercise id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UploadTicket"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description `video_not_configured`: no Bunny settings */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    finish_video_upload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Exercise id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Exercise"];
                 };
             };
             401: {

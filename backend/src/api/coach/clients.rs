@@ -50,6 +50,7 @@ pub struct CreatedClient {
 /// All of the coach's clients, newest first.
 #[utoipa::path(
     get,
+    operation_id = "list_clients",
     path = "/coach/clients",
     tag = "coach",
     security(("bearer" = [])),
@@ -79,6 +80,7 @@ pub async fn list(
 /// Adds a client and returns their first invite link.
 #[utoipa::path(
     post,
+    operation_id = "create_client",
     path = "/coach/clients",
     tag = "coach",
     security(("bearer" = [])),
@@ -126,6 +128,7 @@ pub async fn create(
 /// opens it, e.g. after they switched Telegram accounts.
 #[utoipa::path(
     post,
+    operation_id = "reinvite_client",
     path = "/coach/clients/{id}/invite",
     tag = "coach",
     security(("bearer" = [])),

@@ -97,7 +97,8 @@ backend/
     db/              sqlx queries and row types
     import/          Telegram plan parser (port of the prototype's parse_plan.py)
     jobs/            reminders and notifications
-    video/           Bunny Stream client (tus upload signatures, webhook)
+    video/           upload lifecycle; stream.rs is the Bunny Stream client (create, status,
+                     delete, tus signatures, webhook signatures)
   migrations/        sqlx migrations, run on startup
 ```
 
@@ -150,7 +151,9 @@ clients           id, coach_id, name, telegram_id UNIQUE NULL, invite_code_hash 
                   invite_expires_at, paid_until DATE NULL, timezone TEXT NULL,
                   created_at, archived_at
 exercises         id, coach_id, name, muscle_group, aliases TEXT[],
-                  video_uid NULL, video_status (none|uploading|ready|failed), archived_at
+                  video_uid NULL, video_length_secs NULL,
+                  upload_video_uid UNIQUE NULL, upload_status (uploading|processing|failed) NULL,
+                  upload_started_at NULL, archived_at
 workouts          id, coach_id, client_id NULL,            -- NULL client = template
                   date DATE NULL, title, status (draft|published|done),
                   source (builder|copy|template|import), copied_from_id NULL,
@@ -200,12 +203,13 @@ Coach (`role = coach`):
 | POST | `/coach/clients/{id}/invite` | New invite link |
 | GET | `/coach/clients/{id}/workouts` | History with results and reports |
 | GET/POST/PATCH | `/coach/exercises`, `/coach/exercises/{id}` | Library |
-| POST | `/coach/exercises/{id}/video-upload` | Creates the Bunny video and returns a short-lived tus upload signature |
+| POST | `/coach/exercises/{id}/video-upload` | Creates the Bunny video and returns a tus upload ticket (endpoint, IDs, expiry, signature) |
+| POST | `/coach/exercises/{id}/video-uploaded` | The phone finished uploading; Bunny encodes next |
 | POST | `/coach/workouts` | New: blank, `copy_from`, or `template_id` |
 | GET/PUT | `/coach/workouts/{id}` | Whole workout as one document, with `If-Match: <version>` |
 | POST | `/coach/workouts/{id}/publish` | Publish and message the client |
 | POST | `/coach/import/parse` | Telegram text → preview with library matches (nothing saved) |
-| POST | `/webhooks/stream` | Bunny Stream "encoding finished" (signature-checked) |
+| POST | `/webhooks/stream` | Bunny Stream state changes (signature-checked); prompts a check with Bunny's API |
 | POST | `/telegram/webhook` | Bot updates (secret-header-checked) |
 
 - **The builder saves the whole workout.** It sends one PUT with all exercises and sets, debounced, instead of one endpoint per field. `version` is optimistic locking: if Dasha has the same workout open on her laptop and phone, the older save gets a 409 instead of silently overwriting.
@@ -236,17 +240,25 @@ All messages come from the bot and are written in Ukrainian. Each send first ins
 
 ## Video pipeline
 
-1. Dasha picks a video in the library; on a phone this is the camera roll. The frontend calls `POST /coach/exercises/{id}/video-upload`.
-   - The backend creates the video in the Bunny Stream library.
-   - It returns a short-lived tus upload signature: a SHA-256 of the library ID, API key, expiry and video ID. The API key never leaves the server.
-   - The exercise becomes `uploading`.
-2. The frontend uploads straight to Bunny with tus. The upload is resumable and never passes through the backend.
-3. Bunny encodes the video (H.264 up to 1080p, free) and calls `/webhooks/stream`. When the status is "finished", the exercise becomes `ready` with its `video_uid`.
-4. Clients get the HLS playlist URL, an MP4 fallback URL and the thumbnail for each exercise in `GET /workouts/{id}`.
+1. Dasha picks a video on the exercise's page; on a phone this is the camera roll. The frontend calls `POST /coach/exercises/{id}/video-upload`.
+   - The backend creates the video in the Bunny Stream library, titled with the exercise's name.
+   - It returns a tus ticket: Bunny's endpoint, the library and video IDs, an expiry 24 hours ahead, and the signature `sha256_hex(library_id + api_key + expiry + video_id)`. The API key never leaves the server.
+   - The exercise's upload becomes `uploading`. The current video, if any, stays playable.
+2. The phone uploads straight to Bunny with tus-js-client, in 8 MB chunks, retrying with backoff after a dropped connection. The upload never passes through the backend. Telegram asks before closing the Mini App while it runs. If the WebView is killed, Dasha picks the file again; each attempt gets its own Bunny video.
+3. When tus finishes, the phone calls `POST /coach/exercises/{id}/video-uploaded` and the upload becomes `processing`.
+4. Bunny encodes the video (H.264 up to 1080p, free). Three things prompt the backend to ask Bunny's API (`GET /library/{id}/videos/{guid}`) where it is: Bunny's webhook at `/webhooks/stream`, Dasha opening the exercise, and the library list (up to 5 encodings per view). The API's answer decides:
+   - status 4 (Finished): the upload becomes the exercise's `video_uid`, with its length. The previous video is deleted on Bunny.
+   - status 5 or 6 (Error, UploadFailed), or the video is gone: the upload becomes `failed`.
+   - anything else: still `processing`.
+5. Clients get the HLS playlist and thumbnail for each exercise in `GET /workouts/{id}`. iOS plays HLS natively; elsewhere the app loads hls.js on demand.
 
-- **Library settings:** switch on MP4 fallback before the first upload.
+- **Why ask the API instead of trusting the webhook:** the webhook's status numbers differ from the API's (webhook 3 is Finished, API 3 is Transcoding). A replayed or forged webhook also cannot mark anything ready, and a lost webhook only delays the change until Dasha looks.
+- **Webhook signature:** Bunny signs Stream webhooks (`X-BunnyStream-Signature`, `v1`, `hmac-sha256`): lowercase hex HMAC-SHA256 of the raw body, keyed with the library's read-only API key. With `BUNNY_STREAM_READ_ONLY_API_KEY` set, unsigned or wrongly signed webhooks get 401. Webhooks for another library or for videos that are not a pending upload are ignored.
+- **URLs:** `https://<cdn hostname>/<video id>/playlist.m3u8` and `/thumbnail.jpg`.
+- **Without Bunny settings** the library works, uploads answer 503 `video_not_configured`, and the app says so.
+- **Library settings:** Stream › library › API: set the webhook URL to `https://api.<domain>/webhooks/stream`. MP4 fallback (Encoding tab) is optional now that the app plays HLS everywhere.
 - **Access:** in v1, videos are public but only reachable by an unguessable ID. If her videos start appearing elsewhere, switch on Bunny's CDN token authentication. The backend then signs a short-lived token per playback, and nothing else changes.
-- **Formats:** confirm the exact signature and webhook formats against Bunny's docs when building this.
+- **Formats:** Bunny takes iPhone `.mov` with HEVC. Formats and signing were checked against Bunny's docs on 30 September 2026.
 - **Tip for Dasha:** iPhone Camera → Formats → "Most Compatible" records H.264, which uploads faster and plays everywhere.
 
 ## Repository and environments
@@ -275,7 +287,7 @@ coaching/
   - **Frontend:** Cloudflare Workers builds `frontend/` on push. `assets.not_found_handling = "single-page-application"` makes every path serve the app, and `VITE_API_URL` points at `https://api.<domain>`.
   - **Bot webhook and menu button:** set on startup from `TELEGRAM_WEBHOOK_URL` (`https://api.<domain>/telegram/webhook`) and `FRONTEND_ORIGIN`.
   - **Environments:** development uses the dev bot and local Postgres. Production has its own bot, database and Bunny library. A staging environment can be added later as a second Render service.
-- **Secrets:** `BOT_TOKEN`, `WEBHOOK_SECRET`, `JWT_SECRET`, `DATABASE_URL`, `BUNNY_STREAM_LIBRARY_ID`, `BUNNY_STREAM_API_KEY`, `BUNNY_CDN_HOSTNAME`, `SENTRY_DSN`. They are set in the Render dashboard and marked `sync: false` in the Blueprint, so they never live in the repo. Other settings: `BOT_USERNAME`, `TELEGRAM_WEBHOOK_URL`, `FRONTEND_ORIGIN`.
+- **Secrets:** `BOT_TOKEN`, `WEBHOOK_SECRET`, `JWT_SECRET`, `DATABASE_URL`, `BUNNY_STREAM_LIBRARY_ID`, `BUNNY_STREAM_API_KEY`, `BUNNY_STREAM_READ_ONLY_API_KEY`, `BUNNY_CDN_HOSTNAME`, `SENTRY_DSN`. They are set in the Render dashboard and marked `sync: false` in the Blueprint, so they never live in the repo. Other settings: `BOT_USERNAME`, `TELEGRAM_WEBHOOK_URL`, `FRONTEND_ORIGIN`.
 
 ## Security and privacy
 
@@ -290,6 +302,7 @@ coaching/
 - **Import parser:** unit tests using her real Telegram plans as fixtures (starting with `backend/tests/fixtures/example-back.txt`).
 - **Auth:** `initData` verification against captured real payloads, plus tampered copies that must fail. Mini App sign-in returns the right role, and the coach wins for an account that is both. For bot login: codes expire, work once, and only the Confirm button approves them.
 - **Bot:** updates are posted to the real webhook route, with a recording Telegram client. Covered: invites (spent, expired, replaced, one account per profile), the secret header, greetings by role, sign-in with confirm and cancel, and the webhook and menu button set on startup.
+- **Video:** a fake Bunny library behind the same client covers the upload ticket and its signature, encoding to ready, replacing a video (the old one is deleted on Bunny), abandoned and failed uploads, and webhook signatures.
 - **Frontend:** typecheck plus a few Playwright smoke tests of the builder, publish, log and report flow against a seeded backend. Before each release, check manually inside the Telegram apps on iOS and Android.
 
 ## Later, without redesign

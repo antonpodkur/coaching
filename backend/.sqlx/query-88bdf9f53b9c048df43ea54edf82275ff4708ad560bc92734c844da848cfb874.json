@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT upload_video_uid FROM exercises WHERE id = $1 AND upload_status = 'processing'",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "upload_video_uid",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "exercises",
+            "name": "upload_video_uid"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "88bdf9f53b9c048df43ea54edf82275ff4708ad560bc92734c844da848cfb874"
+}
