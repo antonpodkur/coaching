@@ -51,7 +51,7 @@ Telegram opens Mini Apps and the Login Widget only over HTTPS on a known domain,
    cloudflared tunnel --url http://localhost:5173
    ```
 3. In @BotFather:
-   - `/setdomain`: the tunnel domain, for the coach's Login Widget.
+   - `/setdomain`: the tunnel domain, for the coach's Login Widget. Telegram now calls this widget legacy. It's being replaced by sign-in confirmed through the bot (next steps, item 1).
    - `/setmenubutton` (or `/newapp`): `https://<tunnel>/app`, for the Mini App.
 4. Add yourself. Invites via the bot are not built yet, so insert rows directly. When someone without access tries to sign in, the backend logs their Telegram ID ("sign-in by a non-client" / "by a non-coach").
    ```sql
@@ -88,9 +88,13 @@ TypeScript is pinned to 5.9. TypeScript 7 has no JavaScript API yet, and typescr
 
 In order, following [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md):
 
-1. Bot and invites: teloxide webhook, `/start <code>` links a client, "Open" button.
-2. Exercise library and Cloudflare Stream uploads.
+1. Bot and invites: teloxide webhook, `/start <code>` links a client, "Open" button. Also replace the coach's Login Widget with sign-in confirmed through the bot.
+2. Exercise library and Bunny Stream uploads.
 3. Builder: whole-workout save with `version`, copy, templates, publish.
 4. Client workout screens and offline set logging.
 5. Finish and report, then notifications (background jobs).
-6. Deploy: backend image (`backend/Dockerfile`) to Fly.io, Neon Postgres, frontend on Cloudflare Pages.
+6. Deploy:
+   - A Render Blueprint (`render.yaml`) for the backend and Postgres in Frankfurt.
+   - The frontend on Cloudflare Workers.
+   - Videos on Bunny Stream.
+   - About $16.50/month in total; see "Hosting and costs" in the architecture doc.
