@@ -1,0 +1,267 @@
+/* Graphite: dark gym tones, white actions, a little pink. Matches the prototype. */
+:root {
+  --bg: #121212;
+  --surface: #1b1b1b;
+  --surface-sunken: #161616;
+  --line: #2a2a2a;
+  --line-strong: #3a3836;
+  --text: #f4f2ef;
+  --muted: #a19d98;
+  --pink: #f4b9c9;
+  --pink-soft: #f6d9e1;
+  --lilac: #cbc6f6;
+  --radius: 14px;
+  --font-body: 'Manrope', system-ui, sans-serif;
+  --font-display: 'Unbounded', var(--font-body);
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-weight: 500;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+p {
+  margin: 0;
+  line-height: 1.45;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.error {
+  color: var(--pink);
+}
+
+.button {
+  height: 44px;
+  padding: 0 18px;
+  border-radius: 12px;
+  border: 1px solid var(--line-strong);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.button.primary {
+  border-color: var(--text);
+  background: var(--text);
+  color: var(--bg);
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Mini App */
+
+.screen {
+  min-height: 100dvh;
+  padding: 28px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Coach workspace */
+
+.coach-login {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 16px;
+  text-align: center;
+}
+
+.coach {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+}
+
+.coach-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.wordmark {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.wordmark span:first-child {
+  font-family: var(--font-display);
+  font-size: 15px;
+}
+
+.import {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.import-intro {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 640px;
+}
+
+.import-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+
+@media (min-width: 900px) {
+  .import-grid {
+    grid-template-columns: minmax(0, 400px) minmax(0, 1fr);
+  }
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.field > span {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.field textarea {
+  width: 100%;
+  resize: vertical;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--surface-sunken);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.import-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border-radius: 20px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.preview-summary {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.warning {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid #5a3a45;
+  background: #2a1e22;
+  color: var(--pink-soft);
+  font-size: 13px;
+}
+
+.preview-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.preview-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface-sunken);
+}
+
+.preview-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.preview-name {
+  flex-grow: 1;
+  font-weight: 700;
+}
+
+.preview-sets {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.preview-note {
+  font-size: 12.5px;
+  color: var(--pink);
+}
+
+.tag {
+  flex: none;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #262626;
+  color: #d8d5d1;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.tag-new {
+  background: #2b2433;
+  color: var(--lilac);
+}
+
+.import-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}

@@ -1,0 +1,43 @@
+use axum::{
+    extract::FromRequestParts,
+    http::{header::AUTHORIZATION, request::Parts},
+};
+use uuid::Uuid;
+
+use crate::{auth::Role, error::AppError, state::AppState};
+
+/// The signed-in client. Handlers take `client_id` only from here, never from the request.
+pub struct CurrentClient(pub Uuid);
+
+/// The signed-in coach.
+pub struct CurrentCoach(pub Uuid);
+
+impl FromRequestParts<AppState> for CurrentClient {
+    type Rejection = AppError;
+
+    async fn from_request_parts(parts: &mut Parts, state: &AppState) -> Result<Self, AppError> {
+        subject_with_role(parts, state, Role::Client).map(Self)
+    }
+}
+
+impl FromRequestParts<AppState> for CurrentCoach {
+    type Rejection = AppError;
+
+    async fn from_request_parts(parts: &mut Parts, state: &AppState) -> Result<Self, AppError> {
+        subject_with_role(parts, state, Role::Coach).map(Self)
+    }
+}
+
+fn subject_with_role(parts: &Parts, state: &AppState, role: Role) -> Result<Uuid, AppError> {
+    let token = parts
+        .headers
+        .get(AUTHORIZATION)
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.strip_prefix("Bearer "))
+        .ok_or(AppError::Unauthorized)?;
+    let claims = state.jwt.verify(token).ok_or(AppError::Unauthorized)?;
+    if claims.role != role {
+        return Err(AppError::Forbidden("wrong_role"));
+    }
+    Ok(claims.sub)
+}

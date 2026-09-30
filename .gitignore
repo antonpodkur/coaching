@@ -1,0 +1,17 @@
+# Rust
+/backend/target/
+
+# Node
+node_modules/
+/frontend/dist/
+/frontend/openapi.json
+
+# Local env
+.env
+.env.local
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/
+*.log
