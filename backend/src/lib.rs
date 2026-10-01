@@ -7,6 +7,7 @@ pub mod bot;
 pub mod codes;
 pub mod config;
 pub mod error;
+pub mod history;
 pub mod import;
 pub mod invites;
 pub mod notify;

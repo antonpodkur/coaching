@@ -332,6 +332,83 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/workouts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The client's published and finished workouts, by date. */
+        get: operations["list_my_workouts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sets/{id}/result": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Logs one set. Safe to repeat; a change older than what is stored is ignored,
+         *     so sets queued offline cannot undo newer ones.
+         */
+        put: operations["log_set"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/workouts/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One workout with everything the gym needs: targets, logged results,
+         *     Dasha's videos and notes, and last time's numbers.
+         */
+        get: operations["get_my_workout"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/workouts/{id}/finish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Finishes the workout with a short report, and has the bot tell Dasha.
+         *     Sending it again updates the report without messaging her twice.
+         */
+        post: operations["finish_workout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -364,12 +441,81 @@ export interface components {
             /** @description Keep in the page; send it to `/auth/bot-login/poll` to collect the token. */
             poll_secret: string;
         };
+        ClientExercise: {
+            /** Format: uuid */
+            id: string;
+            /** @description Completed sets from the last earlier workout with this exercise. */
+            last_time: components["schemas"]["PastSet"][];
+            name: string;
+            note?: string | null;
+            per_side_label?: string | null;
+            sets: components["schemas"]["ClientSet"][];
+            video?: components["schemas"]["ClientVideo"] | null;
+        };
         ClientProfile: {
             /** Format: uuid */
             id: string;
             name: string;
             /** @description IANA timezone reported by the client's phone, e.g. `Europe/Kyiv`. */
             timezone?: string | null;
+        };
+        ClientSet: {
+            /**
+             * Format: double
+             * @description What the client logged.
+             */
+            actual_kg?: number | null;
+            /** Format: int32 */
+            actual_reps?: number | null;
+            /**
+             * Format: date-time
+             * @description The phone's time of the latest logged change, for offline merging.
+             */
+            client_updated_at?: string | null;
+            completed: boolean;
+            /** Format: uuid */
+            id: string;
+            /**
+             * Format: double
+             * @description Dasha's target; `null` kg is bodyweight.
+             */
+            target_kg?: number | null;
+            /** Format: int32 */
+            target_reps_max: number;
+            /** Format: int32 */
+            target_reps_min: number;
+        };
+        ClientVideo: {
+            hls_url: string;
+            /** Format: int32 */
+            length_secs?: number | null;
+            thumbnail_url: string;
+        };
+        ClientWorkout: {
+            /** Format: date */
+            date: string;
+            exercises: components["schemas"]["ClientExercise"][];
+            /** Format: uuid */
+            id: string;
+            report?: components["schemas"]["Report"] | null;
+            status: components["schemas"]["WorkoutStatus"];
+            title: string;
+        };
+        ClientWorkoutSummary: {
+            /** Format: date */
+            date: string;
+            /** Format: int64 */
+            done_set_count: number;
+            /** Format: int64 */
+            exercise_count: number;
+            /** Format: uuid */
+            id: string;
+            /** Format: int64 */
+            set_count: number;
+            status: components["schemas"]["WorkoutStatus"];
+            /** @description The first exercise's video thumbnail, for the card. */
+            thumbnail_url?: string | null;
+            title: string;
         };
         CoachClient: {
             /** Format: date-time */
@@ -396,6 +542,8 @@ export interface components {
             client: components["schemas"]["CoachClient"];
             invite: components["schemas"]["InviteLink"];
         };
+        /** @enum {string} */
+        Effort: "easy" | "ok" | "hard";
         ErrorBody: {
             /** @description Machine-readable code, e.g. `unauthorized`, `not_invited`, `unknown_timezone`. */
             error: string;
@@ -425,6 +573,15 @@ export interface components {
             /** Format: int32 */
             length_secs?: number | null;
             thumbnail_url: string;
+        };
+        FinishWorkout: {
+            comment?: string;
+            /**
+             * Format: int32
+             * @description From the first ticked set to finishing, as the phone measured it.
+             */
+            duration_min?: number | null;
+            effort: components["schemas"]["Effort"];
         };
         Health: {
             database: boolean;
@@ -501,10 +658,45 @@ export interface components {
              */
             date?: string | null;
         };
+        /** @description A logged set from an earlier workout. */
+        PastSet: {
+            /**
+             * Format: double
+             * @description `null` for bodyweight.
+             */
+            kg?: number | null;
+            /** Format: int32 */
+            reps?: number | null;
+        };
         PublishedWorkout: {
             /** @description The bot has told the client; `false` while they have not joined the app. */
             client_notified: boolean;
             workout: components["schemas"]["Workout"];
+        };
+        Report: {
+            comment: string;
+            /** Format: int32 */
+            duration_min?: number | null;
+            effort: components["schemas"]["Effort"];
+            /** Format: date-time */
+            finished_at: string;
+        };
+        /**
+         * @description One set as logged on the phone. Sending it again is harmless, and a write
+         *     older than the stored one (it waited offline) is ignored.
+         */
+        SetResult: {
+            /** Format: double */
+            actual_kg?: number | null;
+            /** Format: int32 */
+            actual_reps?: number | null;
+            /**
+             * Format: date-time
+             * @description When the phone recorded this change.
+             */
+            client_updated_at: string;
+            /** @description Ticked ✓. */
+            completed: boolean;
         };
         SetTimezone: {
             /** @description IANA name from `Intl.DateTimeFormat().resolvedOptions().timeZone`. */
@@ -578,6 +770,8 @@ export interface components {
             exercise_id: string;
             /** Format: uuid */
             id: string;
+            /** @description What the client did the last time this exercise came up ("Минулого разу"). */
+            last_time: components["schemas"]["PastSet"][];
             /** @description From the library, for display. */
             name: string;
             note?: string | null;
@@ -1512,6 +1706,170 @@ export interface operations {
                 };
             };
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    list_my_workouts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClientWorkoutSummary"][];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    log_set: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Set id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetResult"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `invalid_result` */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_my_workout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workout id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClientWorkout"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not theirs, or not published */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    finish_workout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workout id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FinishWorkout"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `invalid_report` */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

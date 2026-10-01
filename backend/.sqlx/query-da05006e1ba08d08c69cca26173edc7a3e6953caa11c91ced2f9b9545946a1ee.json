@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO workout_reports (workout_id, effort, comment, duration_min)\n         VALUES ($1, $2, $3, $4)\n         ON CONFLICT (workout_id) DO UPDATE SET\n             effort = EXCLUDED.effort,\n             comment = EXCLUDED.comment,\n             duration_min = EXCLUDED.duration_min",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        {
+          "Custom": {
+            "name": "effort",
+            "kind": {
+              "Enum": [
+                "easy",
+                "ok",
+                "hard"
+              ]
+            }
+          }
+        },
+        "Text",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "da05006e1ba08d08c69cca26173edc7a3e6953caa11c91ced2f9b9545946a1ee"
+}

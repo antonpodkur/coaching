@@ -4,7 +4,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { ApiError, type Schemas, api, setSessionToken, unwrap } from '../api/client'
 import { CoachWorkspace } from '../coach/CoachWorkspace'
 import { Screen } from '../shared/Screen'
-import { ClientHome } from './ClientHome'
+import { ClientApp } from './ClientApp'
+import { recalledSession, rememberSession } from './session'
 import { telegramWebApp } from './telegram'
 
 const webApp = telegramWebApp()
@@ -12,17 +13,28 @@ const webApp = telegramWebApp()
 /**
  * Trades Telegram's `initData` for a session. The backend decides the role:
  * Dasha gets her workspace, everyone else with an invite gets their workouts.
+ * Without a network, a session from the last few hours is reused, so the app
+ * still opens in a gym with no signal.
  */
 async function signIn(initData: string): Promise<Schemas['MiniAppSession']> {
-  const session = unwrap(
-    await api.POST('/auth/telegram-webapp', { body: { init_data: initData } }),
-  )
+  const telegramUserId = webApp?.initDataUnsafe.user?.id
+  let session: Schemas['MiniAppSession']
+  try {
+    session = unwrap(await api.POST('/auth/telegram-webapp', { body: { init_data: initData } }))
+  } catch (err) {
+    const recalled = err instanceof ApiError ? null : recalledSession(telegramUserId)
+    if (!recalled) throw err
+    setSessionToken(recalled.token)
+    return recalled
+  }
   setSessionToken(session.token)
+  rememberSession(session, telegramUserId)
 
   if (session.role === 'client') {
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
     if (timezone && session.client.timezone !== timezone) {
-      unwrap(await api.PUT('/me/timezone', { body: { timezone } }))
+      // Only reminders depend on it; the next launch tries again.
+      await api.PUT('/me/timezone', { body: { timezone } }).catch(() => undefined)
     }
   }
   return session
@@ -45,6 +57,9 @@ export function MiniApp() {
     enabled: webApp !== null,
     staleTime: Infinity,
     retry: false,
+    // Run even when the phone says it is offline: sign-in then falls back to
+    // the remembered session instead of waiting for a network.
+    networkMode: 'always',
   })
 
   if (!webApp) {
@@ -101,5 +116,5 @@ export function MiniApp() {
   if (session.data.role === 'coach') {
     return <CoachWorkspace base="/app" onUnauthorized={onUnauthorized} />
   }
-  return <ClientHome client={session.data.client} />
+  return <ClientApp client={session.data.client} />
 }

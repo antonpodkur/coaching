@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT coach_id FROM clients WHERE id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "coach_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "clients",
+            "name": "coach_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "984fa81636861409b1b5e2623d1e791804f00b60aef37fd16bfad4b58fb33292"
+}

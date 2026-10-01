@@ -1,0 +1,50 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH latest AS (\n               SELECT DISTINCT ON (we.exercise_id) we.exercise_id, we.id\n               FROM workout_exercises we\n               JOIN workouts w ON w.id = we.workout_id\n               WHERE w.client_id = $1 AND w.id <> $2 AND w.date IS NOT NULL\n                 AND ($3::date IS NULL OR w.date <= $3)\n                 AND we.exercise_id = ANY($4)\n                 AND EXISTS (\n                     SELECT 1 FROM workout_sets s\n                     WHERE s.workout_exercise_id = we.id AND s.completed_at IS NOT NULL\n                 )\n               ORDER BY we.exercise_id, w.date DESC, w.created_at DESC\n           )\n           SELECT latest.exercise_id AS \"exercise_id!\", s.actual_kg::float8 AS kg, s.actual_reps\n           FROM latest\n           JOIN workout_sets s ON s.workout_exercise_id = latest.id\n           WHERE s.completed_at IS NOT NULL\n           ORDER BY s.position",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "exercise_id!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "workout_exercises",
+            "name": "exercise_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "kg",
+        "type_info": "Float8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "actual_reps",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "workout_sets",
+            "name": "actual_reps"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Date",
+        "UuidArray"
+      ]
+    },
+    "nullable": [
+      false,
+      null,
+      true
+    ]
+  },
+  "hash": "09efda167176f36e468290a8550d99c9de79e15bcd2636e94f88158befa9117d"
+}

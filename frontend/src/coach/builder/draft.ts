@@ -1,5 +1,5 @@
 import type { Schemas } from '../../api/client'
-import { formatKg } from '../../shared/format'
+import { formatDone, formatTarget } from '../../shared/format'
 
 export type Workout = Schemas['Workout']
 
@@ -20,6 +20,8 @@ export interface DraftExercise {
   per_side_label: string | null
   note: string | null
   sets: DraftSet[]
+  /** What the client did last time, e.g. `34 × 12 · 34 × 9`. Read-only. */
+  last_time: string
 }
 
 /** The workout the builder holds; saved to the server as a whole. */
@@ -49,6 +51,7 @@ export function toDraft(workout: Workout): Draft {
         reps_min: set.reps_min,
         reps_max: set.reps_max,
       })),
+      last_time: exercise.last_time.map((set) => formatDone(set.kg, set.reps)).join(' · '),
     })),
   }
 }
@@ -83,8 +86,7 @@ export function formatReps(set: Pick<DraftSet, 'reps_min' | 'reps_max'>): string
 
 /** What a set chip says: `79 × 8–10`, or `17 повт.` for bodyweight. */
 export function setLabel(set: DraftSet): string {
-  const reps = formatReps(set).replace('-', '–')
-  return set.kg === null ? `${reps} повт.` : `${formatKg(set.kg)} × ${reps}`
+  return formatTarget(set.kg, set.reps_min, set.reps_max)
 }
 
 /** `79`, `27,5` or `` for bodyweight → a number, `null`, or `undefined` if unreadable. */

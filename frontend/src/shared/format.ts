@@ -57,3 +57,23 @@ export function formatSet(set: { kg?: number | null; reps_min: number; reps_max:
   const reps = set.reps_min === set.reps_max ? `${set.reps_min}` : `${set.reps_min}-${set.reps_max}`
   return set.kg == null ? `× ${reps}` : `${formatKg(set.kg)} × ${reps}`
 }
+
+/** A set target in the apps: `36 × 8–10`, or `17 повт.` for bodyweight. */
+export function formatTarget(kg: number | null | undefined, repsMin: number, repsMax: number): string {
+  const reps = repsMin === repsMax ? `${repsMin}` : `${repsMin}–${repsMax}`
+  return kg == null ? `${reps} повт.` : `${formatKg(kg)} × ${reps}`
+}
+
+/** A logged set: `34 × 12`, or `12` for bodyweight. */
+export function formatDone(kg: number | null | undefined, reps: number | null | undefined): string {
+  const count = reps ?? '—'
+  return kg == null ? `${count}` : `${formatKg(kg)} × ${count}`
+}
+
+/** `Date` → `2026-10-06` in the phone's own timezone. */
+export function localDate(date: Date): string {
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${date.getFullYear()}-${month}-${day}`
+}
+

@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE workout_sets SET\n             actual_kg = $2::float8::numeric(6, 2),\n             actual_reps = $3,\n             completed_at = CASE\n                 WHEN $4 THEN COALESCE(completed_at, LEAST($5, now()))\n                 ELSE NULL\n             END,\n             client_updated_at = $5\n         WHERE id = $1 AND (client_updated_at IS NULL OR client_updated_at <= $5)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Float8",
+        "Int4",
+        "Bool",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a33cb2b2bd2bfcca91d3e0012b0d22cf0acc31e5cfa7aa557a32f5abee71380c"
+}

@@ -1,0 +1,132 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT w.title, w.date AS \"date!\", c.id AS client_id, c.name AS client_name,\n                  co.telegram_id AS coach_telegram_id,\n                  r.effort AS \"effort: crate::api::workouts::Effort\", r.comment,\n                  (SELECT count(*) FROM workout_sets s\n                   JOIN workout_exercises we ON we.id = s.workout_exercise_id\n                   WHERE we.workout_id = w.id) AS \"sets!\",\n                  (SELECT count(*) FROM workout_sets s\n                   JOIN workout_exercises we ON we.id = s.workout_exercise_id\n                   WHERE we.workout_id = w.id AND s.completed_at IS NOT NULL) AS \"done!\",\n                  (SELECT count(*) FROM workout_sets s\n                   JOIN workout_exercises we ON we.id = s.workout_exercise_id\n                   WHERE we.workout_id = w.id AND s.completed_at IS NOT NULL\n                     AND (s.actual_kg IS DISTINCT FROM s.target_kg\n                          OR s.actual_reps NOT BETWEEN s.target_reps_min AND s.target_reps_max))\n                      AS \"different!\"\n           FROM workouts w\n           JOIN clients c ON c.id = w.client_id\n           JOIN coaches co ON co.id = w.coach_id\n           JOIN workout_reports r ON r.workout_id = w.id\n           WHERE w.id = $1 AND w.date IS NOT NULL",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "title",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "workouts",
+            "name": "title"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "date!",
+        "type_info": "Date",
+        "origin": {
+          "Table": {
+            "table": "workouts",
+            "name": "date"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "client_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "clients",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "client_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "clients",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "coach_telegram_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "coaches",
+            "name": "telegram_id"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "effort: crate::api::workouts::Effort",
+        "type_info": {
+          "Custom": {
+            "name": "effort",
+            "kind": {
+              "Enum": [
+                "easy",
+                "ok",
+                "hard"
+              ]
+            }
+          }
+        },
+        "origin": {
+          "Table": {
+            "table": "workout_reports",
+            "name": "effort"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "comment",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "workout_reports",
+            "name": "comment"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "sets!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 8,
+        "name": "done!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 9,
+        "name": "different!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "18562647066ad5e992e60639a01f2c52c63bf57cf77919b97d7b99864d2a4562"
+}

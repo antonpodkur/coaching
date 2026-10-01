@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO notifications (kind, entity_id, local_date)\n         VALUES ('workout_finished', $1, $2)\n         ON CONFLICT (kind, entity_id, local_date) DO NOTHING\n         RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "notifications",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Date"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "77fe5bb330892b23715da8b6b32663554d3efe94bd130f1daff45a44dcb2a55a"
+}

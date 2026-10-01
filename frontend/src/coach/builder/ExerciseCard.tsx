@@ -46,7 +46,12 @@ export function ExerciseCard({
             <CameraIcon />
           </span>
         )}
-        <span className="builder-card-name">{exercise.name}</span>
+        <span className="builder-card-name">
+          {exercise.name}
+          {exercise.last_time && (
+            <span className="builder-last-time">Минулого разу: {exercise.last_time}</span>
+          )}
+        </span>
         <button
           type="button"
           className="icon-button"

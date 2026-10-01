@@ -19,6 +19,7 @@ Dasha's online coaching app. She builds workouts from her exercise library and p
 - **Client:** `GET /me`, and `PUT /me/timezone` so reminders can use local time.
 - **Coach:** `GET/POST /coach/clients`, `POST /coach/clients/{id}/invite`, and `POST /coach/import/parse`, which reads an old Telegram plan and matches it against the library.
 - **Workout builder:** a client's page lists their workouts; a new one starts blank or as a copy of the latest, a week later. The builder follows the phone prototype (set chips, a −/+ set editor, the library as a bottom sheet) and autosaves the whole workout with version checks. Publishing has the bot message the client once.
+- **Client screens:** Today (week strip, today's or the next workout), the workout, each exercise with Dasha's video and note, "Минулого разу", and sets ticked ✓ as planned or corrected; then Finish with effort and a comment, which the bot sends to Dasha. Logging works without signal: changes queue on the phone and send themselves later.
 - **Exercise library and videos:** add, rename, group and archive exercises. Videos upload from the phone straight to Bunny Stream with tus; the backend signs each upload, follows the encoding (webhook, or asking Bunny when Dasha looks), swaps the new video in when it is ready and deletes the old one.
 - **Frontend:** the Mini App signs in and greets the client, or opens Dasha's workspace: a phone layout with a bottom tab bar, the client list, inviting through Telegram's share sheet, the client page and workout builder, the exercise library with video upload and playback, and the import preview. The same workspace runs in a browser at `/coach`.
 - **API types:** `frontend/src/api/schema.ts` is generated from the backend's OpenAPI spec.
@@ -107,8 +108,8 @@ TypeScript is pinned to 5.9. TypeScript 7 has no JavaScript API yet, and typescr
 In order, following [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md):
 
 1. Test a large video upload from the Mini App on Dasha's iPhone (see "Local video uploads").
-2. Client workout screens and offline set logging; the publish message then opens the workout itself.
-3. Finish and report, "Минулого разу" in the builder, then reminders (background jobs).
+2. Dasha's report view: the client page's "differences first" report from the prototype.
+3. Background jobs: reminders on the workout day, retrying failed bot messages, "not opened" and "renew" summaries for Dasha.
 4. Builder extras: templates, and the Telegram import inside the builder (today it is a separate tab).
 5. Deploy:
    - A Render Blueprint (`render.yaml`) for the backend and Postgres in Frankfurt.

@@ -71,12 +71,100 @@ pub async fn workout_published(state: &AppState, workout_id: Uuid) -> anyhow::Re
     } else {
         format!("Нове тренування від Даші: «{}», {when}.", workout.title)
     };
+    // The Mini App opens straight on the workout.
     let message = OutgoingMessage::text(chat_id, text).with_row(vec![Button::WebApp {
         text: "Відкрити тренування".to_owned(),
-        url: state.config.mini_app_url(),
+        url: format!("{}/workouts/{workout_id}", state.config.mini_app_url()),
     }]);
+    send_claimed(state, notification_id, message).await?;
+    Ok(true)
+}
+
+/// Tells Dasha a client finished a workout: how much was done, how it felt,
+/// and the comment. Once per workout and date.
+pub async fn workout_finished(state: &AppState, workout_id: Uuid) -> anyhow::Result<()> {
+    let workout = sqlx::query!(
+        r#"SELECT w.title, w.date AS "date!", c.id AS client_id, c.name AS client_name,
+                  co.telegram_id AS coach_telegram_id,
+                  r.effort AS "effort: crate::api::workouts::Effort", r.comment,
+                  (SELECT count(*) FROM workout_sets s
+                   JOIN workout_exercises we ON we.id = s.workout_exercise_id
+                   WHERE we.workout_id = w.id) AS "sets!",
+                  (SELECT count(*) FROM workout_sets s
+                   JOIN workout_exercises we ON we.id = s.workout_exercise_id
+                   WHERE we.workout_id = w.id AND s.completed_at IS NOT NULL) AS "done!",
+                  (SELECT count(*) FROM workout_sets s
+                   JOIN workout_exercises we ON we.id = s.workout_exercise_id
+                   WHERE we.workout_id = w.id AND s.completed_at IS NOT NULL
+                     AND (s.actual_kg IS DISTINCT FROM s.target_kg
+                          OR s.actual_reps NOT BETWEEN s.target_reps_min AND s.target_reps_max))
+                      AS "different!"
+           FROM workouts w
+           JOIN clients c ON c.id = w.client_id
+           JOIN coaches co ON co.id = w.coach_id
+           JOIN workout_reports r ON r.workout_id = w.id
+           WHERE w.id = $1 AND w.date IS NOT NULL"#,
+        workout_id,
+    )
+    .fetch_one(&state.db)
+    .await?;
+
+    let claimed = sqlx::query_scalar!(
+        "INSERT INTO notifications (kind, entity_id, local_date)
+         VALUES ('workout_finished', $1, $2)
+         ON CONFLICT (kind, entity_id, local_date) DO NOTHING
+         RETURNING id",
+        workout_id,
+        workout.date,
+    )
+    .fetch_optional(&state.db)
+    .await?;
+    let Some(notification_id) = claimed else {
+        return Ok(());
+    };
+
+    let title = if workout.title.is_empty() {
+        "тренування".to_owned()
+    } else {
+        format!("«{}»", workout.title)
+    };
+    let mut summary = format!("{} з {} підходів", workout.done, workout.sets);
+    if workout.different > 0 {
+        summary.push_str(&format!(" · {} інакше, ніж у плані", workout.different));
+    }
+    summary.push_str(match workout.effort {
+        crate::api::workouts::Effort::Easy => " · легко",
+        crate::api::workouts::Effort::Ok => " · нормально",
+        crate::api::workouts::Effort::Hard => " · важко",
+    });
+    let mut text = format!(
+        "{}: звіт про {title}, {}.\n{summary}",
+        workout.client_name,
+        short_date(workout.date)
+    );
+    if !workout.comment.is_empty() {
+        text.push_str(&format!("\n\n«{}»", workout.comment));
+    }
+    let message =
+        OutgoingMessage::text(workout.coach_telegram_id, text).with_row(vec![Button::WebApp {
+            text: "Відкрити клієнта".to_owned(),
+            url: format!(
+                "{}/clients/{}",
+                state.config.mini_app_url(),
+                workout.client_id
+            ),
+        }]);
+    send_claimed(state, notification_id, message).await
+}
+
+/// Sends a message whose `notifications` row is claimed. A failed send frees the
+/// claim, so repeating the step retries.
+async fn send_claimed(
+    state: &AppState,
+    notification_id: Uuid,
+    message: OutgoingMessage,
+) -> anyhow::Result<()> {
     if let Err(err) = state.telegram.send_message(message).await {
-        // Free the claim so publishing again can retry.
         sqlx::query!("DELETE FROM notifications WHERE id = $1", notification_id)
             .execute(&state.db)
             .await?;
@@ -88,7 +176,7 @@ pub async fn workout_published(state: &AppState, workout_id: Uuid) -> anyhow::Re
     )
     .execute(&state.db)
     .await?;
-    Ok(true)
+    Ok(())
 }
 
 #[cfg(test)]

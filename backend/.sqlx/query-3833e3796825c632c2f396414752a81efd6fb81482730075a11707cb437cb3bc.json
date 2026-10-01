@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT s.id FROM workout_sets s\n         JOIN workout_exercises we ON we.id = s.workout_exercise_id\n         JOIN workouts w ON w.id = we.workout_id\n         WHERE s.id = $1 AND w.client_id = $2 AND w.status IN ('published', 'done')",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "workout_sets",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "3833e3796825c632c2f396414752a81efd6fb81482730075a11707cb437cb3bc"
+}

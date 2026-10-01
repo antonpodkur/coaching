@@ -69,7 +69,7 @@ Chosen for low cost with no servers to maintain. Prices were checked on the prov
 
 - **Libraries:**
   - React Router for the two areas and their screens.
-  - TanStack Query for server state, persisted to IndexedDB so an opened workout survives losing signal.
+  - TanStack Query for server state. The client's workouts are also kept in `localStorage`, so an opened workout survives losing signal (see "Offline set logging").
   - `dnd-kit` for reordering exercises in the builder.
   - `hls.js` where the browser cannot play HLS natively (Android WebView). iOS plays it natively. Bunny's MP4 fallback covers any WebView where HLS misbehaves.
 - **Telegram:** `telegram-web-app.js`, loaded in `index.html` before the app so it can read the launch parameters from the URL. It provides `initData`, `start_param`, theme colours, the back button, haptics and `openTelegramLink`. Outside Telegram it does nothing.
@@ -187,11 +187,12 @@ Client (`role = client`):
 | Method | Path | Purpose |
 | --- | --- | --- |
 | POST | `/auth/telegram-webapp` | `initData` → client or coach session, decided by the Telegram user |
-| GET | `/me` | Profile, this week's workouts |
+| GET | `/me` | Profile |
+| GET | `/me/workouts` | Published and finished workouts, by date, with set progress |
 | PUT | `/me/timezone` | Set once from the phone |
 | GET | `/workouts/{id}` | Workout with sets, video playback info and "last time" per exercise |
 | PUT | `/sets/{id}/result` | `{actual_kg, actual_reps, completed, client_updated_at}`. Idempotent. |
-| POST | `/workouts/{id}/finish` | `{effort, comment}`. Marks the workout done and notifies Dasha. |
+| POST | `/workouts/{id}/finish` | `{effort, comment, duration_min}`. Marks the workout done and notifies Dasha once; repeating it updates the report quietly. |
 
 Coach (`role = coach`):
 
@@ -222,11 +223,14 @@ Coach (`role = coach`):
 
 Gyms often have no signal, so logging must never block on the network:
 
-1. Opening a workout caches it (TanStack Query persisted to IndexedDB).
-2. Each ✓ or edited number updates the screen immediately and goes into an outbox in IndexedDB.
-3. The outbox sends set results in order whenever the app is online, and retries with backoff.
-4. `PUT /sets/{id}/result` sends absolute values, not increments. The server ignores a write whose `client_updated_at` is older than the stored one. Retries and duplicates are therefore harmless.
-5. "Надіслати звіт" is queued the same way. The Finish screen says "will be sent when you're online" instead of failing.
+1. Each workout screen keeps its last server copy in `localStorage` and shows it at once, then refreshes when there is a network.
+2. Each ✓ or corrected number goes into an outbox (`localStorage`, so it survives Telegram closing the app) and shows on screen immediately: the screens overlay queued changes on the server copy.
+3. The outbox sends changes oldest first: on every change, when the phone comes back online or to the front, and on a retry timer (2 s, 5 s, 15 s, 30 s, then every minute). A change the server refuses (4xx other than 401) is dropped; anything else waits. When it drains, the screens refresh from the server.
+4. `PUT /sets/{id}/result` sends absolute values, not increments. The server ignores a write whose `client_updated_at` is older than the stored one, so retries, duplicates and late arrivals are harmless. Results are accepted after the report too.
+5. "Надіслати звіт" is queued the same way, after the sets. The Finish screen says it will be sent once the phone connects instead of failing.
+6. The Mini App remembers its session for 11 hours (with the Telegram user it belongs to). If sign-in fails for lack of a network, it reuses it, so the app also opens inside the gym. Sign-in runs even when the phone reports being offline, so it can fall back instead of waiting.
+
+**Not yet:** a message to Dasha that fails at the moment of sending (Telegram down) is not retried until background jobs exist; publishing again re-sends a "new workout" message.
 
 ## Notifications
 
@@ -236,7 +240,7 @@ All messages come from the bot and are written in Ukrainian. Each send first ins
 | --- | --- | --- |
 | Workout published | Client | "Нове тренування від Даші: «Спина», вт, 6 жовтня.", with a button opening the Mini App (the workout itself once client screens exist, `startapp=w_<id>`). Not sent until the client has joined; publishing again after they join sends it. |
 | 09:00 client time on the workout date, if published and not done | Client | Reminder with the same button |
-| Workout finished | Dasha | "Максим завершив «Спина»: 2 підходи інакше, є коментар", with a link to the report |
+| Workout finished | Dasha | "Максим К.: звіт про «Спина», вт, 6 жовтня. 18 з 20 підходів · 2 інакше, ніж у плані · важко" and the comment, with a button opening that client in her workspace |
 | Published workout not opened by 20:00 on its date | Dasha | One summary message per day, not one per client |
 | 3 days before `paid_until` | Dasha | Who needs to renew |
 
@@ -303,6 +307,7 @@ coaching/
 - **Backend:** integration tests with `#[sqlx::test]`, which gives each test a fresh database, for auth, copy, publish, offline-style duplicate writes and notification de-duplication.
 - **Import parser:** unit tests using her real Telegram plans as fixtures (starting with `backend/tests/fixtures/example-back.txt`).
 - **Auth:** `initData` verification against captured real payloads, plus tampered copies that must fail. Mini App sign-in returns the right role, and the coach wins for an account that is both. For bot login: codes expire, work once, and only the Confirm button approves them.
+- **Client side:** only their own published workouts are visible; logging is idempotent and late offline writes do not win; "last time" shows only ticked sets from earlier dates; finishing sends Dasha one report message.
 - **Workouts:** saving as one document (row IDs and logged results survive reordering and edits), version conflicts, validation and ownership, copying to next week, and publishing (one message per workout and date; none before the client joins).
 - **Bot:** updates are posted to the real webhook route, with a recording Telegram client. Covered: invites (spent, expired, replaced, one account per profile), the secret header, greetings by role, sign-in with confirm and cancel, and the webhook and menu button set on startup.
 - **Video:** a fake Bunny library behind the same client covers the upload ticket and its signature, encoding to ready, replacing a video (the old one is deleted on Bunny), abandoned and failed uploads, and webhook signatures.

@@ -6,6 +6,7 @@ pub mod coach;
 pub mod health;
 pub mod stream;
 pub mod telegram;
+pub mod workouts;
 
 use axum::{
     Router,
@@ -36,6 +37,10 @@ use crate::state::AppState;
         auth::bot_login_poll,
         client::me,
         client::set_timezone,
+        workouts::list,
+        workouts::get,
+        workouts::log_set,
+        workouts::finish,
         coach::clients::list,
         coach::clients::create,
         coach::clients::get,
@@ -105,6 +110,10 @@ pub fn router(state: AppState) -> Router {
         .route("/auth/bot-login/poll", post(auth::bot_login_poll))
         .route("/me", get(client::me))
         .route("/me/timezone", put(client::set_timezone))
+        .route("/me/workouts", get(workouts::list))
+        .route("/workouts/{id}", get(workouts::get))
+        .route("/workouts/{id}/finish", post(workouts::finish))
+        .route("/sets/{id}/result", put(workouts::log_set))
         .route(
             "/coach/clients",
             get(coach::clients::list).post(coach::clients::create),

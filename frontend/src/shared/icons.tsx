@@ -131,3 +131,19 @@ export function CopyIcon({ size = 16 }: { size?: number }) {
     </Icon>
   )
 }
+
+export function CalendarIcon({ size = 16 }: { size?: number }) {
+  return (
+    <Icon size={size}>
+      <path d="M4 6h16v14H4zM4 10h16M8 3v4M16 3v4" />
+    </Icon>
+  )
+}
+
+export function ChevronIcon({ size = 18 }: { size?: number }) {
+  return (
+    <Icon size={size}>
+      <path d="M9 5l7 7-7 7" strokeWidth={2.2} />
+    </Icon>
+  )
+}

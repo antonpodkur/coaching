@@ -87,6 +87,7 @@ function Builder({ workout, onReload }: { workout: Workout; onReload: () => void
       per_side_label: null,
       note: null,
       sets: [newSet()],
+      last_time: '',
     }
     update((current) => ({ ...current, exercises: [...current.exercises, row] }))
     setSheetOpen(false)

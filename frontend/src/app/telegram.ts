@@ -5,7 +5,7 @@
 export interface TelegramWebApp {
   /** Signed launch data; the backend verifies it. Empty outside Telegram. */
   initData: string
-  initDataUnsafe: { start_param?: string }
+  initDataUnsafe: { start_param?: string; user?: { id: number } }
   ready(): void
   /** Opens a t.me link inside Telegram; the Mini App stays open. */
   openTelegramLink(url: string): void

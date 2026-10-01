@@ -13,6 +13,7 @@ use uuid::Uuid;
 use crate::{
     auth::CurrentCoach,
     error::{AppError, AppResult, ErrorBody},
+    history::{self, PastSet},
     notify,
     state::AppState,
 };
@@ -65,6 +66,8 @@ pub struct WorkoutExercise {
     pub per_side_label: Option<String>,
     pub note: Option<String>,
     pub sets: Vec<WorkoutSet>,
+    /// What the client did the last time this exercise came up ("Минулого разу").
+    pub last_time: Vec<PastSet>,
 }
 
 /// One set's target, as Dasha writes it.
@@ -593,7 +596,7 @@ async fn fetch(state: &AppState, coach_id: Uuid, id: Uuid) -> AppResult<Workout>
             });
     }
 
-    let exercises = sqlx::query!(
+    let rows = sqlx::query!(
         "SELECT we.id, we.exercise_id, e.name, e.video_uid, we.per_side_label, we.note
          FROM workout_exercises we
          JOIN exercises e ON e.id = we.exercise_id
@@ -602,21 +605,30 @@ async fn fetch(state: &AppState, coach_id: Uuid, id: Uuid) -> AppResult<Workout>
         id,
     )
     .fetch_all(&state.db)
-    .await?
-    .into_iter()
-    .map(|row| WorkoutExercise {
-        thumbnail_url: row
-            .video_uid
-            .zip(state.video.as_ref())
-            .map(|(uid, stream)| stream.thumbnail_url(&uid)),
-        sets: sets_by_row.remove(&row.id).unwrap_or_default(),
-        id: row.id,
-        exercise_id: row.exercise_id,
-        name: row.name,
-        per_side_label: row.per_side_label,
-        note: row.note,
-    })
-    .collect();
+    .await?;
+    let mut last_time = match workout.client_id {
+        Some(client_id) => {
+            let exercise_ids: Vec<Uuid> = rows.iter().map(|row| row.exercise_id).collect();
+            history::last_time(&state.db, client_id, id, workout.date, &exercise_ids).await?
+        }
+        None => HashMap::new(),
+    };
+    let exercises = rows
+        .into_iter()
+        .map(|row| WorkoutExercise {
+            last_time: last_time.remove(&row.exercise_id).unwrap_or_default(),
+            thumbnail_url: row
+                .video_uid
+                .zip(state.video.as_ref())
+                .map(|(uid, stream)| stream.thumbnail_url(&uid)),
+            sets: sets_by_row.remove(&row.id).unwrap_or_default(),
+            id: row.id,
+            exercise_id: row.exercise_id,
+            name: row.name,
+            per_side_label: row.per_side_label,
+            note: row.note,
+        })
+        .collect();
 
     Ok(Workout {
         id: workout.id,
