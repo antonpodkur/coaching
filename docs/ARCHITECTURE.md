@@ -163,14 +163,15 @@ workout_sets      id, workout_exercise_id, position,
                   target_kg NUMERIC(6,2) NULL, target_reps_min INT, target_reps_max INT,
                   actual_kg NUMERIC(6,2) NULL, actual_reps INT NULL,
                   completed_at NULL, client_updated_at NULL
-workout_reports   workout_id PK, effort (easy|ok|hard), comment, finished_at, duration_min
+workout_reports   workout_id PK, effort (easy|ok|hard), comment, finished_at, duration_min,
+                  seen_at NULL                          -- Dasha opened it
 notifications     id, kind, entity_id, local_date, sent_at,
                   UNIQUE (kind, entity_id, local_date)
 coach_logins      id, code_hash UNIQUE, poll_secret_hash UNIQUE, display_code, coach_id NULL,
                   status (pending|approved|cancelled|used), expires_at
 ```
 
-- **Targets and results share a row.** Dasha writes the `target_*` columns and the client writes the `actual_*` columns. Tapping ✓ copies the target into the actual and sets `completed_at`. "Different from the plan" is a column comparison, so no report data is stored twice.
+- **Targets and results share a row.** Dasha writes the `target_*` columns and the client writes the `actual_*` columns. Tapping ✓ copies the target into the actual and sets `completed_at`. "Different from the plan" is a column comparison, so no report data is stored twice. It is defined once, as the SQL function `set_differs(workout_sets)`: a ticked set with another weight, or reps missing or outside the target range. The report view, the clients list and the bot's message all use it.
 - **Rep ranges** are stored as min and max, so `8-10` becomes 8 and 10 and a plain `12` becomes 12 and 12. `target_kg` is NULL for bodyweight, and the numeric type keeps weights like `120.5`.
 - **Copies are deep.** Copying to the next workout or from a template duplicates every exercise and set row. Clients never share rows, and templates are just workouts without a client.
 - **"Минулого разу"** is the latest completed `workout_sets` for the same client and exercise. It is served by indexes on `workouts (client_id, date DESC)` and `workout_exercises (exercise_id, workout_id)`.
@@ -200,9 +201,11 @@ Coach (`role = coach`):
 | --- | --- | --- |
 | POST | `/auth/bot-login` | New login code, bot link and display code |
 | POST | `/auth/bot-login/poll` | `{poll_secret}` → `pending`, `cancelled`, `expired`, or `approved` with the coach token (once) |
-| GET/POST/PATCH | `/coach/clients`, `/coach/clients/{id}` | List; add (returns the first invite link); edit (name, `paid_until`, archive) |
+| GET/POST/PATCH | `/coach/clients`, `/coach/clients/{id}` | List (with each client's unseen reports); add (returns the first invite link); edit (name, `paid_until`, archive) |
 | POST | `/coach/clients/{id}/invite` | New invite link |
-| GET | `/coach/clients/{id}/workouts` | Her workouts for this client: undated drafts first, then newest date first (results and reports come with client logging) |
+| GET | `/coach/clients/{id}/workouts` | Her workouts for this client: undated drafts first, then newest date first, with done and differing set counts and the report's effort and seen state |
+| GET | `/coach/workouts/{id}/results` | Every set's target next to what the client logged, `differs` per set, and the report |
+| POST | `/coach/workouts/{id}/report/seen` | Marks the report seen, so it stops showing as new |
 | GET/POST/PATCH | `/coach/exercises`, `/coach/exercises/{id}` | Library |
 | POST | `/coach/exercises/{id}/video-upload` | Creates the Bunny video and returns a tus upload ticket (endpoint, IDs, expiry, signature) |
 | POST | `/coach/exercises/{id}/video-uploaded` | The phone finished uploading; Bunny encodes next |
@@ -215,6 +218,7 @@ Coach (`role = coach`):
 
 - **The builder saves the whole workout.** It sends one PUT with all exercises and sets, debounced (0.7 s), instead of one endpoint per field. `version` is optimistic locking: if Dasha has the same workout open on her laptop and phone, the older save gets a 409 instead of silently overwriting, and the builder offers to reload.
 - **Rows keep their IDs.** The app gives new exercise and set rows their IDs (`crypto.randomUUID()`), so a retried save cannot duplicate them. The server upserts by ID, deletes rows that are gone, and refuses IDs that belong to another workout. Updating a set touches only its `target_*` columns, so results the client logged stay attached through edits.
+- **Reports, differences first.** The client page opens with the newest report: effort, comment, and the exercises where a set differed from the plan or was skipped, with the rest behind "show all". Differing sets read like `36 × 10 · план 12`. "Copy to the next workout" sits under it, since that is usually her next step. Opening a new report marks it seen; until then the clients list puts that client first, marked "Новий звіт".
 - **The phone builder** (as in the prototype): sets are chips; tapping one docks an editor with −/+ steppers for weight and reps (typing `8-10` works too), the per-arm/leg label and "copy to all sets". The library opens as a bottom sheet, where a missing exercise can be added by name. A ⋯ menu per exercise moves it, adds a note or removes it. Telegram asks before closing while changes are unsaved.
 - **Editing after publishing is allowed.** A set that already has a result cannot be removed without confirmation in the UI.
 - **Import parsing runs on the backend.** There is one implementation, matched against the real library, and tested against her real plans in `backend/tests/fixtures/`.

@@ -1814,3 +1814,116 @@ button.save-status {
   color: var(--bg);
 }
 
+/* Dasha's report view */
+
+.report {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 20px;
+  border: 1px solid #262626;
+  background: var(--surface);
+}
+
+.report.new {
+  border-color: var(--pink);
+}
+
+.report-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.report-head h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.report-label {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.report.new .report-label {
+  color: var(--pink);
+}
+
+.report-feedback {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 14px;
+  background: var(--surface-sunken);
+}
+
+.report-feedback p {
+  font-size: 14px;
+}
+
+.report-rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.report-rows .section-title {
+  margin-bottom: 2px;
+}
+
+.report-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 0;
+  border-bottom: 1px solid #242424;
+}
+
+.report-exercise {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.result-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.result-chip {
+  padding: 5px 9px;
+  border-radius: 9px;
+  background: #262626;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.result-chip.differs {
+  background: #3a2a30;
+  color: var(--pink);
+}
+
+.result-chip.skipped {
+  border: 1px dashed #4a4744;
+  background: transparent;
+  color: #8e8a85;
+}
+
+.report-rows .link-button {
+  margin-top: 10px;
+}
+
+.report-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+

@@ -45,7 +45,10 @@ export function ClientsPage() {
     },
   })
 
-  const all = clients.data ?? []
+  // Clients with a report Dasha has not opened come first.
+  const all = [...(clients.data ?? [])].sort(
+    (a, b) => Number(b.unseen_reports > 0) - Number(a.unseen_reports > 0),
+  )
   const needle = query.trim().toLocaleLowerCase('uk')
   const shown = needle
     ? all.filter((client) => client.name.toLocaleLowerCase('uk').includes(needle))
@@ -125,6 +128,13 @@ export function ClientsPage() {
 }
 
 function ClientStatus({ client }: { client: Client }) {
+  if (client.unseen_reports > 0) {
+    return (
+      <span className="client-status warn">
+        {client.unseen_reports === 1 ? 'Новий звіт' : `Нових звітів: ${client.unseen_reports}`}
+      </span>
+    )
+  }
   if (client.joined) return <span className="client-status">У застосунку</span>
   if (!client.invite_expires_at) return <span className="client-status">Без запрошення</span>
   const expired = new Date(client.invite_expires_at) < new Date()

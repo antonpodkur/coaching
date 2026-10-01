@@ -1,0 +1,159 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT w.id, w.client_id, w.title, w.date, w.status AS \"status: WorkoutStatus\",\n                  r.effort AS \"effort?: Effort\", r.comment AS \"comment?\", r.duration_min,\n                  r.finished_at AS \"finished_at?\", r.seen_at\n           FROM workouts w\n           LEFT JOIN workout_reports r ON r.workout_id = w.id\n           WHERE w.id = $1 AND w.coach_id = $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "workouts",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "client_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "workouts",
+            "name": "client_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "title",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "workouts",
+            "name": "title"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "date",
+        "type_info": "Date",
+        "origin": {
+          "Table": {
+            "table": "workouts",
+            "name": "date"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "status: WorkoutStatus",
+        "type_info": {
+          "Custom": {
+            "name": "workout_status",
+            "kind": {
+              "Enum": [
+                "draft",
+                "published",
+                "done"
+              ]
+            }
+          }
+        },
+        "origin": {
+          "Table": {
+            "table": "workouts",
+            "name": "status"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "effort?: Effort",
+        "type_info": {
+          "Custom": {
+            "name": "effort",
+            "kind": {
+              "Enum": [
+                "easy",
+                "ok",
+                "hard"
+              ]
+            }
+          }
+        },
+        "origin": {
+          "Table": {
+            "table": "workout_reports",
+            "name": "effort"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "comment?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "workout_reports",
+            "name": "comment"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "duration_min",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "workout_reports",
+            "name": "duration_min"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "finished_at?",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "workout_reports",
+            "name": "finished_at"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "seen_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "workout_reports",
+            "name": "seen_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      false,
+      true,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "a3a394d9da02a09031cfc7bc7e3a3874962fceb24546f367cdd58425a09568c6"
+}

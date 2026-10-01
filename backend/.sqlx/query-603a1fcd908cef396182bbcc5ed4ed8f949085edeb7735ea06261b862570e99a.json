@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE workout_reports r SET seen_at = COALESCE(r.seen_at, now())\n         FROM workouts w\n         WHERE r.workout_id = $1 AND w.id = r.workout_id AND w.coach_id = $2\n         RETURNING r.workout_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "workout_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "workout_reports",
+            "name": "workout_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "603a1fcd908cef396182bbcc5ed4ed8f949085edeb7735ea06261b862570e99a"
+}

@@ -20,6 +20,8 @@ export function useCoach(): CoachContextValue {
 export const CLIENTS_KEY = ['coach-clients']
 /** Workouts; lists and single workouts both live under it. */
 export const WORKOUTS_KEY = ['coach-workouts']
+/** A workout's results for the report view: `[...RESULTS_KEY, id]`. */
+export const RESULTS_KEY = ['coach-workout-results']
 /** The library; one exercise is `[...EXERCISES_KEY, id]`. */
 export const EXERCISES_KEY = ['coach-exercises']
 

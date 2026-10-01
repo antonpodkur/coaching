@@ -27,6 +27,8 @@ pub struct CoachClient {
     pub invite_expires_at: Option<DateTime<Utc>>,
     pub paid_until: Option<NaiveDate>,
     pub created_at: DateTime<Utc>,
+    /// Reports Dasha has not opened yet.
+    pub unseen_reports: i64,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -65,11 +67,13 @@ pub async fn list(
 ) -> AppResult<Json<Vec<CoachClient>>> {
     let clients = sqlx::query_as!(
         CoachClient,
-        r#"SELECT id, name, telegram_id IS NOT NULL AS "joined!", invite_expires_at, paid_until,
-                  created_at
-           FROM clients
-           WHERE coach_id = $1 AND archived_at IS NULL
-           ORDER BY created_at DESC"#,
+        r#"SELECT c.id, c.name, c.telegram_id IS NOT NULL AS "joined!", c.invite_expires_at,
+                  c.paid_until, c.created_at,
+                  (SELECT count(*) FROM workout_reports r JOIN workouts w ON w.id = r.workout_id
+                   WHERE w.client_id = c.id AND r.seen_at IS NULL) AS "unseen_reports!"
+           FROM clients c
+           WHERE c.coach_id = $1 AND c.archived_at IS NULL
+           ORDER BY c.created_at DESC"#,
         coach_id,
     )
     .fetch_all(&state.db)
@@ -184,9 +188,11 @@ pub async fn get(
 async fn fetch_client(state: &AppState, coach_id: Uuid, client_id: Uuid) -> AppResult<CoachClient> {
     sqlx::query_as!(
         CoachClient,
-        r#"SELECT id, name, telegram_id IS NOT NULL AS "joined!", invite_expires_at, paid_until,
-                  created_at
-           FROM clients WHERE id = $1 AND coach_id = $2"#,
+        r#"SELECT c.id, c.name, c.telegram_id IS NOT NULL AS "joined!", c.invite_expires_at,
+                  c.paid_until, c.created_at,
+                  (SELECT count(*) FROM workout_reports r JOIN workouts w ON w.id = r.workout_id
+                   WHERE w.client_id = c.id AND r.seen_at IS NULL) AS "unseen_reports!"
+           FROM clients c WHERE c.id = $1 AND c.coach_id = $2"#,
         client_id,
         coach_id,
     )

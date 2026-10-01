@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, name, telegram_id IS NOT NULL AS \"joined!\", invite_expires_at, paid_until,\n                  created_at\n           FROM clients\n           WHERE coach_id = $1 AND archived_at IS NULL\n           ORDER BY created_at DESC",
+  "query": "SELECT c.id, c.name, c.telegram_id IS NOT NULL AS \"joined!\", c.invite_expires_at,\n                  c.paid_until, c.created_at,\n                  (SELECT count(*) FROM workout_reports r JOIN workouts w ON w.id = r.workout_id\n                   WHERE w.client_id = c.id AND r.seen_at IS NULL) AS \"unseen_reports!\"\n           FROM clients c\n           WHERE c.coach_id = $1 AND c.archived_at IS NULL\n           ORDER BY c.created_at DESC",
   "describe": {
     "columns": [
       {
@@ -63,6 +63,12 @@
             "name": "created_at"
           }
         }
+      },
+      {
+        "ordinal": 6,
+        "name": "unseen_reports!",
+        "type_info": "Int8",
+        "origin": "Expression"
       }
     ],
     "parameters": {
@@ -76,8 +82,9 @@
       null,
       true,
       true,
-      false
+      false,
+      null
     ]
   },
-  "hash": "6c45fdc0f31bbdfdc96bf9d44442699fc2889ccc7b16832e3e2ae67a4912c570"
+  "hash": "de522154030dca80579ad58973d5e3c064ffde6e323f25c926376d58c20ec98f"
 }

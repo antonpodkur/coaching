@@ -58,6 +58,8 @@ use crate::state::AppState;
         coach::workouts::publish,
         coach::workouts::delete,
         coach::workouts::list_for_client,
+        coach::workouts::results,
+        coach::workouts::mark_report_seen,
     ),
     modifiers(&BearerAuth),
     tags(
@@ -134,6 +136,14 @@ pub fn router(state: AppState) -> Router {
         .route(
             "/coach/workouts/{id}/publish",
             post(coach::workouts::publish),
+        )
+        .route(
+            "/coach/workouts/{id}/results",
+            get(coach::workouts::results),
+        )
+        .route(
+            "/coach/workouts/{id}/report/seen",
+            post(coach::workouts::mark_report_seen),
         )
         .route(
             "/coach/exercises",

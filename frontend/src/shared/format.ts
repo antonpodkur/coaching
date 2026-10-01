@@ -77,3 +77,16 @@ export function localDate(date: Date): string {
   return `${date.getFullYear()}-${month}-${day}`
 }
 
+
+/** `сьогодні, 19:40`, `учора, 19:40`, or `6 жовтня, 19:40`. */
+export function formatWhen(iso: string): string {
+  const at = new Date(iso)
+  const time = at.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' })
+  const day = localDate(at)
+  const now = new Date()
+  const yesterday = new Date(now)
+  yesterday.setDate(now.getDate() - 1)
+  if (day === localDate(now)) return `сьогодні, ${time}`
+  if (day === localDate(yesterday)) return `учора, ${time}`
+  return `${formatDay(iso)}, ${time}`
+}

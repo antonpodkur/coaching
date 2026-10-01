@@ -281,6 +281,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/coach/workouts/{id}/report/seen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Marks the workout's report as seen, so it stops showing as new. */
+        post: operations["mark_report_seen"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/coach/workouts/{id}/results": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** What the client did, set by set next to the plan, and their report. */
+        get: operations["get_workout_results"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -532,11 +566,25 @@ export interface components {
             name: string;
             /** Format: date */
             paid_until?: string | null;
+            /**
+             * Format: int64
+             * @description Reports Dasha has not opened yet.
+             */
+            unseen_reports: number;
         };
         CoachProfile: {
             /** Format: uuid */
             id: string;
             name: string;
+        };
+        CoachReport: {
+            comment: string;
+            /** Format: int32 */
+            duration_min?: number | null;
+            effort: components["schemas"]["Effort"];
+            /** Format: date-time */
+            finished_at: string;
+            seen: boolean;
         };
         CreatedClient: {
             client: components["schemas"]["CoachClient"];
@@ -681,6 +729,38 @@ export interface components {
             /** Format: date-time */
             finished_at: string;
         };
+        ReportSummary: {
+            effort: components["schemas"]["Effort"];
+            /** Format: date-time */
+            finished_at: string;
+            has_comment: boolean;
+            /** @description Dasha has opened it. */
+            seen: boolean;
+        };
+        ResultExercise: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            per_side_label?: string | null;
+            sets: components["schemas"]["ResultSet"][];
+        };
+        ResultSet: {
+            /** Format: double */
+            actual_kg?: number | null;
+            /** Format: int32 */
+            actual_reps?: number | null;
+            completed: boolean;
+            /** @description Ticked with other numbers than planned. */
+            differs: boolean;
+            /** Format: uuid */
+            id: string;
+            /** Format: double */
+            target_kg?: number | null;
+            /** Format: int32 */
+            target_reps_max: number;
+            /** Format: int32 */
+            target_reps_min: number;
+        };
         /**
          * @description One set as logged on the phone. Sending it again is harmless, and a write
          *     older than the stored one (it waited offline) is ignored.
@@ -793,6 +873,19 @@ export interface components {
             /** @description In order. */
             sets: components["schemas"]["WorkoutSet"][];
         };
+        /** @description Targets next to what the client did, for Dasha's report view. */
+        WorkoutResults: {
+            /** Format: uuid */
+            client_id?: string | null;
+            /** Format: date */
+            date?: string | null;
+            exercises: components["schemas"]["ResultExercise"][];
+            /** Format: uuid */
+            id: string;
+            report?: components["schemas"]["CoachReport"] | null;
+            status: components["schemas"]["WorkoutStatus"];
+            title: string;
+        };
         /** @description One set's target, as Dasha writes it. */
         WorkoutSet: {
             /** Format: uuid */
@@ -815,12 +908,23 @@ export interface components {
         WorkoutSummary: {
             /** Format: date */
             date?: string | null;
+            /**
+             * Format: int64
+             * @description Ticked sets with other numbers than planned.
+             */
+            different_count: number;
+            /**
+             * Format: int64
+             * @description Sets the client ticked.
+             */
+            done_set_count: number;
             /** Format: int64 */
             exercise_count: number;
             /** Format: uuid */
             id: string;
             /** Format: date-time */
             published_at?: string | null;
+            report?: components["schemas"]["ReportSummary"] | null;
             /** Format: int64 */
             set_count: number;
             status: components["schemas"]["WorkoutStatus"];
@@ -1611,6 +1715,81 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    mark_report_seen: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workout id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such workout, or no report yet */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_workout_results: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workout id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkoutResults"];
                 };
             };
             401: {

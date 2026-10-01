@@ -7,7 +7,8 @@ import { BackLink } from '../shared/BackLink'
 import { formatDay, formatShortDate, initials, plural } from '../shared/format'
 import { CopyIcon, PlusIcon } from '../shared/icons'
 import { InviteCard, type ShownInvite } from './InviteCard'
-import { CLIENTS_KEY, WORKOUTS_KEY, isUnauthorized, useCoach } from './context'
+import { ReportCard } from './ReportCard'
+import { CLIENTS_KEY, RESULTS_KEY, WORKOUTS_KEY, isUnauthorized, useCoach } from './context'
 
 type Summary = Schemas['WorkoutSummary']
 
@@ -89,6 +90,8 @@ export function ClientPage() {
   const person = client.data
   // "Copy to the next one" starts from the latest workout that has something in it.
   const latest = workouts.data?.find((workout) => workout.date && workout.exercise_count > 0)
+  // The newest report leads the page, the way Dasha checks in on a client.
+  const reported = workouts.data?.find((workout) => workout.report)
   const status = person.joined
     ? 'У застосунку'
     : person.invite_expires_at && new Date(person.invite_expires_at) > new Date()
@@ -123,6 +126,14 @@ export function ClientPage() {
       )}
       {invite && <InviteCard invite={invite} onClose={() => setInvite(null)} />}
 
+      {reported && (
+        <LatestReport
+          workoutId={reported.id}
+          onCopy={() => create.mutate(reported.id)}
+          copying={create.isPending}
+        />
+      )}
+
       <div className="stack">
         <button
           type="button"
@@ -133,7 +144,7 @@ export function ClientPage() {
           <PlusIcon />
           Нове тренування
         </button>
-        {latest && (
+        {latest && latest.id !== reported?.id && (
           <button
             type="button"
             className="button block"
@@ -160,20 +171,27 @@ export function ClientPage() {
         <ul className="workout-list">
           {workouts.data?.map((workout) => (
             <li key={workout.id}>
-              <Link className="workout-row" to={`${base}/workouts/${workout.id}`}>
+              <Link
+                className="workout-row"
+                to={
+                  workout.done_set_count > 0 || workout.report
+                    ? `${base}/workouts/${workout.id}/report`
+                    : `${base}/workouts/${workout.id}`
+                }
+              >
                 <span className="workout-text">
                   <span className="workout-title">
                     {workout.title || 'Без назви'}
                     {' · '}
                     {workout.date ? formatShortDate(workout.date) : 'без дати'}
                   </span>
-                  <span className="muted small">
-                    {workout.exercise_count}{' '}
-                    {plural(workout.exercise_count, 'вправа', 'вправи', 'вправ')} ·{' '}
-                    {workout.set_count} {plural(workout.set_count, 'підхід', 'підходи', 'підходів')}
-                  </span>
+                  <span className="muted small">{workoutMeta(workout)}</span>
                 </span>
-                <span className={STATUS[workout.status].className}>{STATUS[workout.status].text}</span>
+                {workout.report && !workout.report.seen ? (
+                  <span className="tag tag-warn">Новий звіт</span>
+                ) : (
+                  <span className={STATUS[workout.status].className}>{STATUS[workout.status].text}</span>
+                )}
               </Link>
             </li>
           ))}
@@ -182,3 +200,52 @@ export function ClientPage() {
     </section>
   )
 }
+
+function workoutMeta(workout: Summary): string {
+  if (workout.done_set_count === 0) {
+    return `${workout.exercise_count} ${plural(workout.exercise_count, 'вправа', 'вправи', 'вправ')} · ${workout.set_count} ${plural(workout.set_count, 'підхід', 'підходи', 'підходів')}`
+  }
+  const parts = [`${workout.done_set_count} з ${workout.set_count} підходів`]
+  if (workout.different_count > 0) parts.push(`${workout.different_count} інакше`)
+  if (workout.report?.has_comment) parts.push('є коментар')
+  return parts.join(' · ')
+}
+
+/** The newest report, differences first, with the step Dasha usually takes next. */
+function LatestReport({
+  workoutId,
+  onCopy,
+  copying,
+}: {
+  workoutId: string
+  onCopy: () => void
+  copying: boolean
+}) {
+  const { base } = useCoach()
+  const results = useQuery({
+    queryKey: [...RESULTS_KEY, workoutId],
+    queryFn: async () =>
+      unwrap(
+        await api.GET('/coach/workouts/{id}/results', { params: { path: { id: workoutId } } }),
+      ),
+  })
+  if (!results.data) return null
+  return (
+    <ReportCard
+      results={results.data}
+      compact
+      actions={
+        <div className="report-actions">
+          <button type="button" className="button block" disabled={copying} onClick={onCopy}>
+            <CopyIcon />
+            Скопіювати в наступне тренування
+          </button>
+          <Link className="link-button" to={`${base}/workouts/${workoutId}/report`}>
+            Відкрити звіт повністю
+          </Link>
+        </div>
+      }
+    />
+  )
+}
+

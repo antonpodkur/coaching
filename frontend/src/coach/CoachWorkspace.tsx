@@ -9,6 +9,7 @@ import { ImportPage } from './ImportPage'
 import { InvitePage } from './InvitePage'
 import { LibraryPage } from './LibraryPage'
 import { NewExercisePage } from './NewExercisePage'
+import { ReportPage } from './ReportPage'
 import { BuilderPage } from './builder/BuilderPage'
 import { CoachContext } from './context'
 
@@ -58,6 +59,7 @@ export function CoachWorkspace({ base, onUnauthorized, onSignOut }: Props) {
             <Route path="invite" element={<InvitePage />} />
             <Route path="clients/:id" element={<ClientPage />} />
             <Route path="workouts/:id" element={<BuilderPage />} />
+            <Route path="workouts/:id/report" element={<ReportPage />} />
             <Route path="exercises" element={<LibraryPage />} />
             <Route path="exercises/new" element={<NewExercisePage />} />
             <Route path="exercises/:id" element={<ExercisePage />} />

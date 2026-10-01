@@ -1,0 +1,104 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT s.id, s.workout_exercise_id, s.target_kg::float8 AS target_kg,\n                  s.target_reps_min, s.target_reps_max, s.actual_kg::float8 AS actual_kg,\n                  s.actual_reps, s.completed_at IS NOT NULL AS \"completed!\",\n                  set_differs(s) AS \"differs!\"\n           FROM workout_sets s\n           JOIN workout_exercises we ON we.id = s.workout_exercise_id\n           WHERE we.workout_id = $1\n           ORDER BY s.position",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "workout_sets",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "workout_exercise_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "workout_sets",
+            "name": "workout_exercise_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "target_kg",
+        "type_info": "Float8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "target_reps_min",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "workout_sets",
+            "name": "target_reps_min"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "target_reps_max",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "workout_sets",
+            "name": "target_reps_max"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "actual_kg",
+        "type_info": "Float8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 6,
+        "name": "actual_reps",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "workout_sets",
+            "name": "actual_reps"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "completed!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 8,
+        "name": "differs!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      null,
+      false,
+      false,
+      null,
+      true,
+      null,
+      null
+    ]
+  },
+  "hash": "34495733287fd1857d4f899011644106dd93d6cd7b822d5589bb400c885c318e"
+}

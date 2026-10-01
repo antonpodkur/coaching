@@ -95,10 +95,7 @@ pub async fn workout_finished(state: &AppState, workout_id: Uuid) -> anyhow::Res
                    WHERE we.workout_id = w.id AND s.completed_at IS NOT NULL) AS "done!",
                   (SELECT count(*) FROM workout_sets s
                    JOIN workout_exercises we ON we.id = s.workout_exercise_id
-                   WHERE we.workout_id = w.id AND s.completed_at IS NOT NULL
-                     AND (s.actual_kg IS DISTINCT FROM s.target_kg
-                          OR s.actual_reps NOT BETWEEN s.target_reps_min AND s.target_reps_max))
-                      AS "different!"
+                   WHERE we.workout_id = w.id AND set_differs(s)) AS "different!"
            FROM workouts w
            JOIN clients c ON c.id = w.client_id
            JOIN coaches co ON co.id = w.coach_id

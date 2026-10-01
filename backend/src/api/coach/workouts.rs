@@ -11,6 +11,7 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::{
+    api::workouts::Effort,
     auth::CurrentCoach,
     error::{AppError, AppResult, ErrorBody},
     history::{self, PastSet},
@@ -120,6 +121,63 @@ pub struct WorkoutSummary {
     pub published_at: Option<DateTime<Utc>>,
     pub exercise_count: i64,
     pub set_count: i64,
+    /// Sets the client ticked.
+    pub done_set_count: i64,
+    /// Ticked sets with other numbers than planned.
+    pub different_count: i64,
+    /// Present once the client finished it.
+    pub report: Option<ReportSummary>,
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct ReportSummary {
+    pub effort: Effort,
+    pub has_comment: bool,
+    pub finished_at: DateTime<Utc>,
+    /// Dasha has opened it.
+    pub seen: bool,
+}
+
+/// Targets next to what the client did, for Dasha's report view.
+#[derive(Serialize, ToSchema)]
+pub struct WorkoutResults {
+    pub id: Uuid,
+    pub client_id: Option<Uuid>,
+    pub title: String,
+    pub date: Option<NaiveDate>,
+    pub status: WorkoutStatus,
+    pub report: Option<CoachReport>,
+    pub exercises: Vec<ResultExercise>,
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct CoachReport {
+    pub effort: Effort,
+    pub comment: String,
+    pub duration_min: Option<i32>,
+    pub finished_at: DateTime<Utc>,
+    pub seen: bool,
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct ResultExercise {
+    pub id: Uuid,
+    pub name: String,
+    pub per_side_label: Option<String>,
+    pub sets: Vec<ResultSet>,
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct ResultSet {
+    pub id: Uuid,
+    pub target_kg: Option<f64>,
+    pub target_reps_min: i32,
+    pub target_reps_max: i32,
+    pub actual_kg: Option<f64>,
+    pub actual_reps: Option<i32>,
+    pub completed: bool,
+    /// Ticked with other numbers than planned.
+    pub differs: bool,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -542,22 +600,186 @@ pub async fn list_for_client(
     if client.is_none() {
         return Err(AppError::NotFound);
     }
-    let workouts = sqlx::query_as!(
-        WorkoutSummary,
+    let rows = sqlx::query!(
         r#"SELECT w.id, w.title, w.date, w.status AS "status: WorkoutStatus", w.published_at,
-                  count(DISTINCT we.id) AS "exercise_count!", count(s.id) AS "set_count!"
+                  count(DISTINCT we.id) AS "exercise_count!", count(s.id) AS "set_count!",
+                  count(s.completed_at) AS "done_set_count!",
+                  count(*) FILTER (WHERE set_differs(s)) AS "different_count!",
+                  r.effort AS "effort?: Effort", r.comment AS "comment?",
+                  r.finished_at AS "finished_at?", r.seen_at
            FROM workouts w
            LEFT JOIN workout_exercises we ON we.workout_id = w.id
            LEFT JOIN workout_sets s ON s.workout_exercise_id = we.id
+           LEFT JOIN workout_reports r ON r.workout_id = w.id
            WHERE w.client_id = $1 AND w.coach_id = $2
-           GROUP BY w.id
+           GROUP BY w.id, r.workout_id
            ORDER BY w.date DESC NULLS FIRST, w.created_at DESC"#,
         client_id,
         coach_id,
     )
     .fetch_all(&state.db)
     .await?;
-    Ok(Json(workouts))
+    Ok(Json(
+        rows.into_iter()
+            .map(|row| WorkoutSummary {
+                report: row
+                    .effort
+                    .zip(row.finished_at)
+                    .map(|(effort, finished_at)| ReportSummary {
+                        effort,
+                        has_comment: row.comment.as_deref().is_some_and(|c| !c.is_empty()),
+                        finished_at,
+                        seen: row.seen_at.is_some(),
+                    }),
+                id: row.id,
+                title: row.title,
+                date: row.date,
+                status: row.status,
+                published_at: row.published_at,
+                exercise_count: row.exercise_count,
+                set_count: row.set_count,
+                done_set_count: row.done_set_count,
+                different_count: row.different_count,
+            })
+            .collect(),
+    ))
+}
+
+/// What the client did, set by set next to the plan, and their report.
+#[utoipa::path(
+    get,
+    operation_id = "get_workout_results",
+    path = "/coach/workouts/{id}/results",
+    tag = "coach",
+    security(("bearer" = [])),
+    params(("id" = Uuid, Path, description = "Workout id")),
+    responses(
+        (status = 200, body = WorkoutResults),
+        (status = 401, body = ErrorBody),
+        (status = 404, body = ErrorBody),
+    )
+)]
+pub async fn results(
+    State(state): State<AppState>,
+    CurrentCoach(coach_id): CurrentCoach,
+    Path(id): Path<Uuid>,
+) -> AppResult<Json<WorkoutResults>> {
+    let workout = sqlx::query!(
+        r#"SELECT w.id, w.client_id, w.title, w.date, w.status AS "status: WorkoutStatus",
+                  r.effort AS "effort?: Effort", r.comment AS "comment?", r.duration_min,
+                  r.finished_at AS "finished_at?", r.seen_at
+           FROM workouts w
+           LEFT JOIN workout_reports r ON r.workout_id = w.id
+           WHERE w.id = $1 AND w.coach_id = $2"#,
+        id,
+        coach_id,
+    )
+    .fetch_optional(&state.db)
+    .await?
+    .ok_or(AppError::NotFound)?;
+
+    let sets = sqlx::query!(
+        r#"SELECT s.id, s.workout_exercise_id, s.target_kg::float8 AS target_kg,
+                  s.target_reps_min, s.target_reps_max, s.actual_kg::float8 AS actual_kg,
+                  s.actual_reps, s.completed_at IS NOT NULL AS "completed!",
+                  set_differs(s) AS "differs!"
+           FROM workout_sets s
+           JOIN workout_exercises we ON we.id = s.workout_exercise_id
+           WHERE we.workout_id = $1
+           ORDER BY s.position"#,
+        id,
+    )
+    .fetch_all(&state.db)
+    .await?;
+    let mut sets_by_row: HashMap<Uuid, Vec<ResultSet>> = HashMap::new();
+    for set in sets {
+        sets_by_row
+            .entry(set.workout_exercise_id)
+            .or_default()
+            .push(ResultSet {
+                id: set.id,
+                target_kg: set.target_kg,
+                target_reps_min: set.target_reps_min,
+                target_reps_max: set.target_reps_max,
+                actual_kg: set.actual_kg,
+                actual_reps: set.actual_reps,
+                completed: set.completed,
+                differs: set.differs,
+            });
+    }
+    let exercises = sqlx::query!(
+        "SELECT we.id, e.name, we.per_side_label
+         FROM workout_exercises we
+         JOIN exercises e ON e.id = we.exercise_id
+         WHERE we.workout_id = $1
+         ORDER BY we.position",
+        id,
+    )
+    .fetch_all(&state.db)
+    .await?
+    .into_iter()
+    .map(|row| ResultExercise {
+        sets: sets_by_row.remove(&row.id).unwrap_or_default(),
+        id: row.id,
+        name: row.name,
+        per_side_label: row.per_side_label,
+    })
+    .collect();
+
+    let report = workout
+        .effort
+        .zip(workout.finished_at)
+        .map(|(effort, finished_at)| CoachReport {
+            effort,
+            comment: workout.comment.unwrap_or_default(),
+            duration_min: workout.duration_min,
+            finished_at,
+            seen: workout.seen_at.is_some(),
+        });
+    Ok(Json(WorkoutResults {
+        id: workout.id,
+        client_id: workout.client_id,
+        title: workout.title,
+        date: workout.date,
+        status: workout.status,
+        report,
+        exercises,
+    }))
+}
+
+/// Marks the workout's report as seen, so it stops showing as new.
+#[utoipa::path(
+    post,
+    operation_id = "mark_report_seen",
+    path = "/coach/workouts/{id}/report/seen",
+    tag = "coach",
+    security(("bearer" = [])),
+    params(("id" = Uuid, Path, description = "Workout id")),
+    responses(
+        (status = 204),
+        (status = 401, body = ErrorBody),
+        (status = 404, body = ErrorBody, description = "No such workout, or no report yet"),
+    )
+)]
+pub async fn mark_report_seen(
+    State(state): State<AppState>,
+    CurrentCoach(coach_id): CurrentCoach,
+    Path(id): Path<Uuid>,
+) -> AppResult<StatusCode> {
+    let marked = sqlx::query_scalar!(
+        "UPDATE workout_reports r SET seen_at = COALESCE(r.seen_at, now())
+         FROM workouts w
+         WHERE r.workout_id = $1 AND w.id = r.workout_id AND w.coach_id = $2
+         RETURNING r.workout_id",
+        id,
+        coach_id,
+    )
+    .fetch_optional(&state.db)
+    .await?;
+    match marked {
+        Some(_) => Ok(StatusCode::NO_CONTENT),
+        None => Err(AppError::NotFound),
+    }
 }
 
 async fn fetch(state: &AppState, coach_id: Uuid, id: Uuid) -> AppResult<Workout> {

@@ -352,3 +352,86 @@ async fn finishing_sends_dasha_one_report(db: PgPool) {
         true
     );
 }
+
+#[sqlx::test]
+async fn dasha_sees_the_report_with_differences_and_marks_it_seen(db: PgPool) {
+    let s = setup(db.clone()).await;
+    let id = workout(&s, "2026-10-06", true).await;
+    let sets = open(&s, &id).await["exercises"][0]["sets"]
+        .as_array()
+        .unwrap()
+        .clone();
+    log(&s, &sets[0], Some(36.0), 12, true, "2026-10-06T10:00:00Z").await;
+    log(&s, &sets[1], Some(34.0), 9, true, "2026-10-06T10:05:00Z").await;
+    let report = json!({ "effort": "ok", "comment": "Вага трохи легша.", "duration_min": 40 });
+    call(
+        &s.app,
+        "POST",
+        &format!("/workouts/{id}/finish"),
+        Some(&s.client),
+        Some(report),
+    )
+    .await;
+
+    let (status, results) = call(
+        &s.app,
+        "GET",
+        &format!("/coach/workouts/{id}/results"),
+        Some(&s.coach),
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{results}");
+    let row = &results["exercises"][0];
+    assert_eq!(row["per_side_label"], "на кожну руку");
+    assert_eq!(row["sets"][0]["differs"], false);
+    assert_eq!(row["sets"][1]["differs"], true, "34 kg instead of 36");
+    assert_eq!(row["sets"][1]["actual_reps"], 9);
+    assert_eq!(row["sets"][2]["completed"], false);
+    assert_eq!(results["report"]["comment"], "Вага трохи легша.");
+    assert_eq!(results["report"]["seen"], false);
+
+    let (_, workouts) = call(
+        &s.app,
+        "GET",
+        &format!("/coach/clients/{}/workouts", s.client_id),
+        Some(&s.coach),
+        None,
+    )
+    .await;
+    assert_eq!(workouts[0]["done_set_count"], 2);
+    assert_eq!(workouts[0]["different_count"], 1);
+    assert_eq!(workouts[0]["report"]["effort"], "ok");
+    assert_eq!(workouts[0]["report"]["has_comment"], true);
+    let (_, clients) = call(&s.app, "GET", "/coach/clients", Some(&s.coach), None).await;
+    assert_eq!(clients[0]["unseen_reports"], 1);
+
+    let seen = format!("/coach/workouts/{id}/report/seen");
+    let (status, _) = call(&s.app, "POST", &seen, Some(&s.coach), None).await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    let (_, clients) = call(&s.app, "GET", "/coach/clients", Some(&s.coach), None).await;
+    assert_eq!(clients[0]["unseen_reports"], 0);
+
+    // No report yet, or someone else's workout: nothing to mark.
+    let unfinished = workout(&s, "2026-10-08", true).await;
+    let (status, _) = call(
+        &s.app,
+        "POST",
+        &format!("/coach/workouts/{unfinished}/report/seen"),
+        Some(&s.coach),
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    let other_coach = seed_coach(&db, 111).await;
+    let other = coach_token(&s.state, other_coach);
+    let (status, _) = call(
+        &s.app,
+        "GET",
+        &format!("/coach/workouts/{id}/results"),
+        Some(&other),
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+}
