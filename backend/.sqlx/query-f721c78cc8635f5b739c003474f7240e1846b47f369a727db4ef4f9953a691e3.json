@@ -1,0 +1,54 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE notifications SET attempts = attempts + 1, last_attempt_at = $2\n         WHERE id = $1 AND sent_at IS NULL\n           AND (last_attempt_at IS NULL\n                OR last_attempt_at < $2::timestamptz - make_interval(secs => $3))\n         RETURNING kind, entity_id, local_date",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "notifications",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "entity_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "notifications",
+            "name": "entity_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "local_date",
+        "type_info": "Date",
+        "origin": {
+          "Table": {
+            "table": "notifications",
+            "name": "local_date"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Timestamptz",
+        "Float8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "f721c78cc8635f5b739c003474f7240e1846b47f369a727db4ef4f9953a691e3"
+}

@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE notifications SET sent_at = $2, skipped = true WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "1d35b75247c0cb3c75626a7886eab9e6c5d8f6dea1bc305467d02bf33683d52b"
+}

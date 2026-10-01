@@ -122,7 +122,14 @@ pub enum TelegramClient {
         /// `https://api.telegram.org/bot<token>`.
         base_url: String,
     },
-    Recording(Arc<Mutex<Vec<Sent>>>),
+    Recording(Arc<Recorder>),
+}
+
+/// What the test client keeps: calls made, and whether to fail them.
+#[derive(Default)]
+pub struct Recorder {
+    sent: Mutex<Vec<Sent>>,
+    failing: std::sync::atomic::AtomicBool,
 }
 
 impl TelegramClient {
@@ -141,11 +148,24 @@ impl TelegramClient {
         Self::Recording(Arc::default())
     }
 
+    /// Test hook: make every call fail, as if Telegram were down.
+    pub fn set_failing(&self, failing: bool) {
+        if let Self::Recording(recorder) = self {
+            recorder
+                .failing
+                .store(failing, std::sync::atomic::Ordering::SeqCst);
+        }
+    }
+
     /// Everything sent so far; always empty for the live client.
     pub fn sent(&self) -> Vec<Sent> {
         match self {
             Self::Live { .. } => Vec::new(),
-            Self::Recording(sent) => sent.lock().expect("lock is never poisoned").clone(),
+            Self::Recording(recorder) => recorder
+                .sent
+                .lock()
+                .expect("lock is never poisoned")
+                .clone(),
         }
     }
 
@@ -215,8 +235,15 @@ impl TelegramClient {
 
     async fn call(&self, method: &str, body: Value, record: Sent) -> anyhow::Result<()> {
         let (http, base_url) = match self {
-            Self::Recording(sent) => {
-                sent.lock().expect("lock is never poisoned").push(record);
+            Self::Recording(recorder) => {
+                if recorder.failing.load(std::sync::atomic::Ordering::SeqCst) {
+                    bail!("{method} failed: Telegram is unreachable (test)");
+                }
+                recorder
+                    .sent
+                    .lock()
+                    .expect("lock is never poisoned")
+                    .push(record);
                 return Ok(());
             }
             Self::Live { http, base_url } => (http, base_url),

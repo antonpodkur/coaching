@@ -1,0 +1,42 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO notifications (kind, entity_id, local_date)\n         VALUES ($1, $2, $3)\n         ON CONFLICT (kind, entity_id, local_date) DO UPDATE SET kind = EXCLUDED.kind\n         RETURNING id, sent_at",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "notifications",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "sent_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "notifications",
+            "name": "sent_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Uuid",
+        "Date"
+      ]
+    },
+    "nullable": [
+      false,
+      true
+    ]
+  },
+  "hash": "b8b3921b64b71c92058978d3635145a16e8ccc485669066e6cb27fc958062db2"
+}

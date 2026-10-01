@@ -1,0 +1,41 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT c.name, w.title\n         FROM workouts w JOIN clients c ON c.id = w.client_id\n         WHERE w.coach_id = $1 AND w.date = $2 AND w.status = 'published'\n           AND w.opened_at IS NULL AND c.archived_at IS NULL\n         ORDER BY c.name",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "clients",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "title",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "workouts",
+            "name": "title"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Date"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "47c20c20091d4ae90014003467c25113174d3e728d88701726120d636c3f92a6"
+}

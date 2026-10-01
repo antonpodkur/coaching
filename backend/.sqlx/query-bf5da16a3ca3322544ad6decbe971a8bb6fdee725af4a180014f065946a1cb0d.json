@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE workouts SET opened_at = now() WHERE id = $1 AND opened_at IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "bf5da16a3ca3322544ad6decbe971a8bb6fdee725af4a180014f065946a1cb0d"
+}

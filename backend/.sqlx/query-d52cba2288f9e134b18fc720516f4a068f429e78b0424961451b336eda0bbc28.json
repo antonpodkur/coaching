@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT telegram_id FROM coaches WHERE id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "telegram_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "coaches",
+            "name": "telegram_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "d52cba2288f9e134b18fc720516f4a068f429e78b0424961451b336eda0bbc28"
+}

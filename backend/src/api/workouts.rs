@@ -209,6 +209,13 @@ pub async fn get(
     .fetch_optional(&state.db)
     .await?
     .ok_or(AppError::NotFound)?;
+    // Dasha's evening summary lists workouts nobody opened.
+    sqlx::query!(
+        "UPDATE workouts SET opened_at = now() WHERE id = $1 AND opened_at IS NULL",
+        id,
+    )
+    .execute(&state.db)
+    .await?;
 
     let sets = sqlx::query!(
         r#"SELECT s.id, s.workout_exercise_id, s.target_kg::float8 AS target_kg,

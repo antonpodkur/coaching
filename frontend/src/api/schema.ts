@@ -922,6 +922,8 @@ export interface components {
             exercise_count: number;
             /** Format: uuid */
             id: string;
+            /** @description The client has opened it in the app. */
+            opened: boolean;
             /** Format: date-time */
             published_at?: string | null;
             report?: components["schemas"]["ReportSummary"] | null;

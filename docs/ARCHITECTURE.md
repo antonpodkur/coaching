@@ -96,7 +96,8 @@ backend/
     codes.rs         random link secrets, stored hashed
     db/              sqlx queries and row types
     import/          Telegram plan parser (port of the prototype's parse_plan.py)
-    jobs/            reminders and notifications
+    jobs.rs          background rounds: reminders, Dasha's summary, retries
+    notify.rs        every bot message the app starts: queue, build, send
     video/           upload lifecycle; stream.rs is the Bunny Stream client (create, status,
                      delete, tus signatures, webhook signatures)
   migrations/        sqlx migrations, run on startup
@@ -110,7 +111,7 @@ backend/
   - **Failures:** those that may be temporary answer 500, so Telegram retries. Handling is safe to repeat: tapping a spent invite again just offers the app.
   - **Tests** swap in a client that records messages instead of sending them.
 - **Sessions:** HS256 JWTs (`jsonwebtoken`) carrying `role` and `client_id` or `coach_id`. Mini App tokens (either role) last 12 hours; the browser coach token lasts 30 days. Rotating the secret signs everyone out.
-- **Background jobs:** one tokio task that wakes every 5 minutes and sends whatever is due. v1 runs one instance. If that changes, the task takes a Postgres advisory lock first.
+- **Background jobs:** one tokio task in the same process (no extra Render service), spawned at startup. Every 5 minutes it queues reminders and Dasha's summary, then sends whatever is due, retries included. Each round takes a Postgres advisory lock first, so a second instance or a deploy overlap skips the round instead of doubling it. Rounds take an explicit `now`, so tests run them on any clock.
 
 ## Authentication and onboarding
 
@@ -146,7 +147,7 @@ This replaces the Telegram Login Widget, which Telegram now labels legacy. Teleg
 ## Data model
 
 ```sql
-coaches           id, telegram_id UNIQUE, name
+coaches           id, telegram_id UNIQUE, name, timezone (default Europe/Kyiv)
 clients           id, coach_id, name, telegram_id UNIQUE NULL, invite_code_hash UNIQUE NULL,
                   invite_expires_at, paid_until DATE NULL, timezone TEXT NULL,
                   created_at, archived_at
@@ -157,7 +158,7 @@ exercises         id, coach_id, name, muscle_group, aliases TEXT[],
 workouts          id, coach_id, client_id NULL,            -- NULL client = template
                   date DATE NULL, title, status (draft|published|done),
                   source (builder|copy|template|import), copied_from_id NULL,
-                  version INT, published_at, updated_at
+                  version INT, published_at, opened_at NULL, updated_at
 workout_exercises id, workout_id, exercise_id, position, per_side_label NULL, note NULL
 workout_sets      id, workout_exercise_id, position,
                   target_kg NUMERIC(6,2) NULL, target_reps_min INT, target_reps_max INT,
@@ -165,8 +166,8 @@ workout_sets      id, workout_exercise_id, position,
                   completed_at NULL, client_updated_at NULL
 workout_reports   workout_id PK, effort (easy|ok|hard), comment, finished_at, duration_min,
                   seen_at NULL                          -- Dasha opened it
-notifications     id, kind, entity_id, local_date, sent_at,
-                  UNIQUE (kind, entity_id, local_date)
+notifications     id, kind, entity_id, local_date, sent_at NULL, skipped,
+                  attempts, last_attempt_at NULL, UNIQUE (kind, entity_id, local_date)
 coach_logins      id, code_hash UNIQUE, poll_secret_hash UNIQUE, display_code, coach_id NULL,
                   status (pending|approved|cancelled|used), expires_at
 ```
@@ -234,19 +235,20 @@ Gyms often have no signal, so logging must never block on the network:
 5. "Надіслати звіт" is queued the same way, after the sets. The Finish screen says it will be sent once the phone connects instead of failing.
 6. The Mini App remembers its session for 11 hours (with the Telegram user it belongs to). If sign-in fails for lack of a network, it reuses it, so the app also opens inside the gym. Sign-in runs even when the phone reports being offline, so it can fall back instead of waiting.
 
-**Not yet:** a message to Dasha that fails at the moment of sending (Telegram down) is not retried until background jobs exist; publishing again re-sends a "new workout" message.
-
 ## Notifications
 
-All messages come from the bot and are written in Ukrainian. Each send first inserts a row into `notifications`. The unique key makes restarts and duplicate job runs harmless.
+All messages come from the bot and are written in Ukrainian. Each one is first a row in `notifications`, unique per kind, subject and date, so restarts and repeated steps never send twice.
+
+- **Sent at once, retried later.** A request (publish, finish) queues its row and sends it right away. If Telegram fails, the row stays unsent and the background round retries it every 10 minutes, up to 8 attempts, for a day.
+- **Built when sent.** The text comes from the data at sending time. A reminder for a workout finished or deleted meanwhile is skipped (`skipped`), not sent.
+- **No double sends.** A delivery holds its row for 2 minutes, so a request and a round never send the same row at once.
 
 | Trigger | To | Message |
 | --- | --- | --- |
 | Workout published | Client | "Нове тренування від Даші: «Спина», вт, 6 жовтня.", with a button opening the Mini App (the workout itself once client screens exist, `startapp=w_<id>`). Not sent until the client has joined; publishing again after they join sends it. |
-| 09:00 client time on the workout date, if published and not done | Client | Reminder with the same button |
+| 09:00–21:00 client time on the workout date, if published, not done, and not published in the last 12 hours | Client | "Нагадування: сьогодні тренування «Спина».", with a button opening the workout. Clients without a timezone count as Kyiv. |
 | Workout finished | Dasha | "Максим К.: звіт про «Спина», вт, 6 жовтня. 18 з 20 підходів · 2 інакше, ніж у плані · важко" and the comment, with a button opening that client in her workspace |
-| Published workout not opened by 20:00 on its date | Dasha | One summary message per day, not one per client |
-| 3 days before `paid_until` | Dasha | Who needs to renew |
+| 20:00–22:00 in Dasha's timezone, daily | Dasha | One summary: today's published workouts nobody opened (opening a workout sets `opened_at`), and clients whose `paid_until` is within 3 days. No message on a quiet day. |
 
 ## Video pipeline
 
@@ -312,6 +314,7 @@ coaching/
 - **Import parser:** unit tests using her real Telegram plans as fixtures (starting with `backend/tests/fixtures/example-back.txt`).
 - **Auth:** `initData` verification against captured real payloads, plus tampered copies that must fail. Mini App sign-in returns the right role, and the coach wins for an account that is both. For bot login: codes expire, work once, and only the Confirm button approves them.
 - **Client side:** only their own published workouts are visible; logging is idempotent and late offline writes do not win; "last time" shows only ticked sets from earlier dates; finishing sends Dasha one report message.
+- **Jobs:** rounds on a fixed clock: reminders in each client's morning (Kyiv and New York), not repeated and not right after publishing; retries after Telegram refused a message; Dasha's summary only with something to say; one instance per round via the lock.
 - **Workouts:** saving as one document (row IDs and logged results survive reordering and edits), version conflicts, validation and ownership, copying to next week, and publishing (one message per workout and date; none before the client joins).
 - **Bot:** updates are posted to the real webhook route, with a recording Telegram client. Covered: invites (spent, expired, replaced, one account per profile), the secret header, greetings by role, sign-in with confirm and cancel, and the webhook and menu button set on startup.
 - **Video:** a fake Bunny library behind the same client covers the upload ticket and its signature, encoding to ready, replacing a video (the old one is deleted on Bunny), abandoned and failed uploads, and webhook signatures.

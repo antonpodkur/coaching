@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT date AS \"date!\" FROM workouts WHERE id = $1 AND date IS NOT NULL",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "date!",
+        "type_info": "Date",
+        "origin": {
+          "Table": {
+            "table": "workouts",
+            "name": "date"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "8351b81acfcbf2d9031709412398205231b1287ea16ea75697b7f3bce8556436"
+}

@@ -125,6 +125,8 @@ pub struct WorkoutSummary {
     pub done_set_count: i64,
     /// Ticked sets with other numbers than planned.
     pub different_count: i64,
+    /// The client has opened it in the app.
+    pub opened: bool,
     /// Present once the client finished it.
     pub report: Option<ReportSummary>,
 }
@@ -602,6 +604,7 @@ pub async fn list_for_client(
     }
     let rows = sqlx::query!(
         r#"SELECT w.id, w.title, w.date, w.status AS "status: WorkoutStatus", w.published_at,
+                  w.opened_at IS NOT NULL AS "opened!",
                   count(DISTINCT we.id) AS "exercise_count!", count(s.id) AS "set_count!",
                   count(s.completed_at) AS "done_set_count!",
                   count(*) FILTER (WHERE set_differs(s)) AS "different_count!",
@@ -640,6 +643,7 @@ pub async fn list_for_client(
                 set_count: row.set_count,
                 done_set_count: row.done_set_count,
                 different_count: row.different_count,
+                opened: row.opened,
             })
             .collect(),
     ))

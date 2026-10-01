@@ -203,7 +203,9 @@ export function ClientPage() {
 
 function workoutMeta(workout: Summary): string {
   if (workout.done_set_count === 0) {
-    return `${workout.exercise_count} ${plural(workout.exercise_count, 'вправа', 'вправи', 'вправ')} · ${workout.set_count} ${plural(workout.set_count, 'підхід', 'підходи', 'підходів')}`
+    const size = `${workout.exercise_count} ${plural(workout.exercise_count, 'вправа', 'вправи', 'вправ')} · ${workout.set_count} ${plural(workout.set_count, 'підхід', 'підходи', 'підходів')}`
+    if (workout.status !== 'published') return size
+    return `${size} · ${workout.opened ? 'відкрито' : 'ще не відкрито'}`
   }
   const parts = [`${workout.done_set_count} з ${workout.set_count} підходів`]
   if (workout.different_count > 0) parts.push(`${workout.different_count} інакше`)

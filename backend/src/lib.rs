@@ -10,6 +10,7 @@ pub mod error;
 pub mod history;
 pub mod import;
 pub mod invites;
+pub mod jobs;
 pub mod notify;
 pub mod state;
 pub mod telegram;

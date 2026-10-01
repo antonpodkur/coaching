@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT w.title, c.telegram_id AS \"telegram_id!\"\n           FROM workouts w JOIN clients c ON c.id = w.client_id\n           WHERE w.id = $1 AND w.status = 'published' AND c.telegram_id IS NOT NULL\n             AND c.archived_at IS NULL",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "title",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "workouts",
+            "name": "title"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "telegram_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "clients",
+            "name": "telegram_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      true
+    ]
+  },
+  "hash": "0ffedbf5e88a095efd1b8a0955718db0e9a249addf52b914edde8fbf9130b832"
+}

@@ -35,7 +35,10 @@ async fn main() -> anyhow::Result<()> {
     }
 
     let addr = config.bind_addr;
-    let app = coaching_backend::router(AppState::new(db, config, telegram).with_video(video));
+    let state = AppState::new(db, config, telegram).with_video(video);
+    // Reminders, Dasha's summary and retries run inside this process.
+    tokio::spawn(coaching_backend::jobs::run(state.clone()));
+    let app = coaching_backend::router(state);
     let listener = tokio::net::TcpListener::bind(addr).await?;
     tracing::info!(%addr, "listening");
     axum::serve(listener, app)
