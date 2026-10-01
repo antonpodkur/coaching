@@ -34,6 +34,7 @@ pub fn test_config() -> Config {
         bot_username: BOT_USERNAME.to_owned(),
         webhook_secret: WEBHOOK_SECRET.to_owned(),
         telegram_webhook_url: None,
+        coach_telegram_id: None,
         jwt_secret: "test-secret-that-is-long-enough-for-hs256".to_owned(),
         frontend_url: FRONTEND_URL.to_owned(),
         frontend_origin: header::HeaderValue::from_static(FRONTEND_URL),

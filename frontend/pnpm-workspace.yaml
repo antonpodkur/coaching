@@ -1,0 +1,5 @@
+# pnpm runs no dependency install scripts unless they are listed here.
+# Wrangler's esbuild and workerd work without theirs for an assets-only deploy.
+allowBuilds:
+  esbuild: false
+  workerd: false

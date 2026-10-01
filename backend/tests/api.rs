@@ -91,6 +91,34 @@ async fn uninvited_or_forged_logins_are_refused(db: PgPool) {
 }
 
 #[sqlx::test]
+async fn the_configured_coach_is_created_once(db: PgPool) {
+    assert!(
+        coaching_backend::coaches::ensure(&db, 555_000_222)
+            .await
+            .unwrap()
+    );
+    assert!(
+        !coaching_backend::coaches::ensure(&db, 555_000_222)
+            .await
+            .unwrap()
+    );
+    let app = coaching_backend::router(test_state(db));
+
+    let init_data = signed_init_data(555_000_222, BOT_TOKEN);
+    let (status, session) = call(
+        &app,
+        "POST",
+        "/auth/telegram-webapp",
+        None,
+        Some(json!({ "init_data": init_data })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(session["role"], "coach");
+    assert_eq!(session["coach"]["name"], "Даша");
+}
+
+#[sqlx::test]
 async fn the_coach_gets_the_coach_area_in_the_mini_app(db: PgPool) {
     let coach_id = seed_coach(&db, 555_000_222).await;
     // She is also her own test client; the coach area still wins.

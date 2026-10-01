@@ -1,0 +1,71 @@
+# Render Blueprint: the backend and its Postgres, both in Frankfurt.
+# Applied once from the Render dashboard (New > Blueprint); see docs/DEPLOY.md.
+# Values marked `sync: false` are secrets or per-deployment settings. Render asks
+# for them when the Blueprint is first applied, so they never live in the repo.
+
+services:
+  - type: web
+    name: coaching-api
+    runtime: docker
+    region: frankfurt
+    # 0.5 CPU, 512 MB, always on (formerly "Starter").
+    plan: 0.5c-512mb
+    branch: main
+    dockerContext: ./backend
+    dockerfilePath: ./backend/Dockerfile
+    # Deploys once GitHub CI (tests, lint, API types) has passed, and only when
+    # something under backend/ changed.
+    autoDeployTrigger: checksPass
+    buildFilter:
+      paths:
+        - backend/**
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: coaching-db
+          property: connectionString
+      # The image listens on 0.0.0.0:8080; PORT tells Render where to send traffic.
+      - key: PORT
+        value: "8080"
+      - key: RUST_LOG
+        value: coaching_backend=info,tower_http=info
+      - key: JWT_SECRET
+        generateValue: true
+      # Letters, digits, _ and - only (Telegram's rule): `openssl rand -hex 24`.
+      - key: WEBHOOK_SECRET
+        sync: false
+      # The production bot from @BotFather, never the dev bot.
+      - key: BOT_TOKEN
+        sync: false
+      - key: BOT_USERNAME
+        sync: false
+      # Where the frontend is served, e.g. https://coaching.<subdomain>.workers.dev
+      - key: FRONTEND_ORIGIN
+        sync: false
+      # Dasha's numeric Telegram ID; her coach account is created on startup.
+      - key: COACH_TELEGRAM_ID
+        sync: false
+      # Bunny Stream library for exercise videos; all four are on its API page.
+      - key: BUNNY_STREAM_LIBRARY_ID
+        sync: false
+      - key: BUNNY_STREAM_API_KEY
+        sync: false
+      - key: BUNNY_STREAM_READ_ONLY_API_KEY
+        sync: false
+      - key: BUNNY_CDN_HOSTNAME
+        sync: false
+    # The Telegram webhook needs no setting: the backend registers
+    # $RENDER_EXTERNAL_URL/telegram/webhook on startup.
+
+databases:
+  - name: coaching-db
+    region: frankfurt
+    # 0.1 CPU, 256 MB (formerly "Basic-256mb"), with point-in-time restore.
+    plan: 0.1c-256mb
+    postgresMajorVersion: "16"
+    databaseName: coaching
+    user: coaching
+    # Health-related data: no access from the internet, only from Render
+    # services in the same region.
+    ipAllowList: []

@@ -49,8 +49,8 @@ Chosen for low cost with no servers to maintain. Prices were checked on the prov
 
 | Part | Service | Per month |
 | --- | --- | --- |
-| Backend | Render web service, Starter (512 MB), Frankfurt, built from `backend/Dockerfile` | $7 |
-| Postgres | Render Postgres, Basic 256 MB, Frankfurt, with 3-day point-in-time restore and 7 days of logical backups | $6 (+$0.30/GB over 1 GB) |
+| Backend | Render web service, 0.5 CPU / 512 MB (`0.5c-512mb`, formerly Starter), Frankfurt, built from `backend/Dockerfile` | $7 |
+| Postgres | Render Postgres, 0.1 CPU / 256 MB (`0.1c-256mb`, formerly Basic 256 MB), Frankfurt, with 3-day point-in-time restore and 7 days of logical backups | $6 (+$0.30/GB over 1 GB) |
 | Frontend | Cloudflare Workers static assets, built from GitHub. The free plan allows commercial use. | $0 |
 | Video | Bunny Stream: about 200 GB delivered at $0.01/GB, plus storage. $1 monthly minimum. | ~$2.50 |
 | Domain | `.com` at Cloudflare Registrar, at cost. DNS has to be on Cloudflare for Workers anyway. | ~$1 ($11/year) |
@@ -286,6 +286,7 @@ coaching/
   docs/           this document, ADRs later
   docker-compose.yml   local Postgres
   render.yaml     Render Blueprint: backend service + Postgres
+  docs/DEPLOY.md  step-by-step first deploy and day-to-day operations
 ```
 
 - **Local development:** Postgres in docker-compose, `cargo run` for the backend and `vite` for the frontend. Mini Apps need HTTPS, so a `cloudflared` tunnel exposes the Vite dev server, which proxies `/api` to the backend. There is a separate dev bot so real clients never see test messages. Steps are in the README.
@@ -295,13 +296,14 @@ coaching/
   - A check that `schema.ts` matches the backend's OpenAPI output.
 - **Deploy:**
   - **Backend and Postgres:** a Render Blueprint (`render.yaml`) defines both.
-    - Web service: Docker from `backend/Dockerfile`, Frankfurt, Starter, health check `/health`.
-    - Database: Basic 256 MB, Postgres 16, Frankfurt.
-    - Render deploys `main` automatically, and migrations run at startup. The service reaches the database over Render's private network.
-  - **Frontend:** Cloudflare Workers builds `frontend/` on push. `assets.not_found_handling = "single-page-application"` makes every path serve the app, and `VITE_API_URL` points at `https://api.<domain>`.
-  - **Bot webhook and menu button:** set on startup from `TELEGRAM_WEBHOOK_URL` (`https://api.<domain>/telegram/webhook`) and `FRONTEND_ORIGIN`.
+    - Web service: Docker from `backend/Dockerfile`, Frankfurt, `0.5c-512mb`, health check `/health`.
+    - Database: `0.1c-256mb`, Postgres 16, Frankfurt, closed to the internet (`ipAllowList: []`).
+    - Render deploys `main` once GitHub CI passes (`autoDeployTrigger: checksPass`) and only for changes under `backend/`. Migrations run at startup. The service reaches the database over Render's private network.
+  - **Frontend:** Cloudflare Workers Builds builds `frontend/` on push (`frontend/wrangler.jsonc`, assets only, no Worker code). `assets.not_found_handling = "single-page-application"` makes every path serve the app. `public/_headers` caches the hashed `/assets/*` for a year. `VITE_API_URL` is a build variable pointing at the backend: the `onrender.com` address at first, `https://api.<domain>` once there is a domain.
+  - **Bot webhook and menu button:** set on startup. The webhook URL comes from `TELEGRAM_WEBHOOK_URL`, or on Render from `RENDER_EXTERNAL_URL` (`…/telegram/webhook`). The menu button comes from `FRONTEND_ORIGIN`.
+  - **Coach account:** `COACH_TELEGRAM_ID` creates Dasha's coach row on startup, so production needs no manual SQL.
   - **Environments:** development uses the dev bot and local Postgres. Production has its own bot, database and Bunny library. A staging environment can be added later as a second Render service.
-- **Secrets:** `BOT_TOKEN`, `WEBHOOK_SECRET`, `JWT_SECRET`, `DATABASE_URL`, `BUNNY_STREAM_LIBRARY_ID`, `BUNNY_STREAM_API_KEY`, `BUNNY_STREAM_READ_ONLY_API_KEY`, `BUNNY_CDN_HOSTNAME`, `SENTRY_DSN`. They are set in the Render dashboard and marked `sync: false` in the Blueprint, so they never live in the repo. Other settings: `BOT_USERNAME`, `TELEGRAM_WEBHOOK_URL`, `FRONTEND_ORIGIN`.
+- **Secrets:** `BOT_TOKEN`, `WEBHOOK_SECRET`, `BUNNY_STREAM_API_KEY` and `BUNNY_STREAM_READ_ONLY_API_KEY` are entered in the Render dashboard (`sync: false` in the Blueprint), so they never live in the repo. Render generates `JWT_SECRET` and provides `DATABASE_URL`. Other settings, entered the same way: `BOT_USERNAME`, `FRONTEND_ORIGIN`, `COACH_TELEGRAM_ID`, `BUNNY_STREAM_LIBRARY_ID`, `BUNNY_CDN_HOSTNAME`. `SENTRY_DSN` comes with error tracking, later.
 
 ## Security and privacy
 

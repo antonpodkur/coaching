@@ -25,6 +25,11 @@ async fn main() -> anyhow::Result<()> {
         .run(&db)
         .await
         .context("running migrations")?;
+    if let Some(telegram_id) = config.coach_telegram_id
+        && coaching_backend::coaches::ensure(&db, telegram_id).await?
+    {
+        tracing::info!(telegram_id, "created the coach from COACH_TELEGRAM_ID");
+    }
 
     let telegram = TelegramClient::live(&config.bot_token)?;
     bot::register(&telegram, &config).await;

@@ -4,6 +4,7 @@
 pub mod api;
 pub mod auth;
 pub mod bot;
+pub mod coaches;
 pub mod codes;
 pub mod config;
 pub mod error;

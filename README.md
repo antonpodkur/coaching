@@ -9,7 +9,8 @@ Dasha's online coaching app. She builds workouts from her exercise library and p
 | --- | --- |
 | `backend/` | Rust: axum, sqlx (Postgres), Telegram auth, plan import parser |
 | `frontend/` | React + TypeScript + Vite: `/app` is the Mini App (the client's screens, or Dasha's workspace), `/coach` is her workspace in a browser |
-| `docs/` | Architecture |
+| `docs/` | Architecture, and the deploy guide |
+| `render.yaml` | Render Blueprint: backend and Postgres |
 
 ## What works so far
 
@@ -62,12 +63,7 @@ Telegram only opens Mini Apps and bot buttons over HTTPS, and it has to reach th
    - `TELEGRAM_WEBHOOK_URL=https://<tunnel>/api/telegram/webhook`
 
    Then restart the backend. It registers the webhook, points the bot's menu button at the tunnel, and logs "Telegram webhook registered" and "menu button opens the Mini App".
-4. Make yourself the coach, once:
-   - Send `/start` to the bot. The backend logs your ID ("message from an unknown Telegram user").
-   - Then run this in `psql postgres://coaching:coaching@localhost:5434/coaching`:
-     ```sql
-     INSERT INTO coaches (telegram_id, name) VALUES (<your id>, 'Даша');
-     ```
+4. Make yourself the coach, once: send `/start` to the bot, and the backend logs your ID ("message from an unknown Telegram user"). Set `COACH_TELEGRAM_ID` to it in `backend/.env` and restart the backend.
 5. In the chat with the bot, tap the menu button ("Відкрити"). The Mini App opens your workspace.
 6. Invite a client: "Запросити", enter a name, "Надіслати в Telegram", and pick a chat. Any second Telegram account works. Tapping Start there links it, and the bot's button opens the client's screens.
 7. Optional, the browser version: open `https://<tunnel>/coach`, choose "Увійти через Telegram", tap Start in the bot, check that the code matches, and confirm.
@@ -110,10 +106,10 @@ TypeScript is pinned to 5.9. TypeScript 7 has no JavaScript API yet, and typescr
 
 In order, following [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md):
 
-1. Test on real phones in Telegram: a large video upload on Dasha's iPhone (see "Local video uploads"), the back button, the share sheet, the menu button, and logging without signal.
-2. Deploy:
-   - A Render Blueprint (`render.yaml`) for the backend and Postgres in Frankfurt.
-   - The frontend on Cloudflare Workers.
+1. Deploy, following [docs/DEPLOY.md](docs/DEPLOY.md):
+   - The backend and Postgres in Frankfurt from the Render Blueprint (`render.yaml`).
+   - The frontend on Cloudflare Workers (`frontend/wrangler.jsonc`).
    - Videos on Bunny Stream.
    - About $16.50/month in total; see "Hosting and costs" in the architecture doc.
+2. Test on real phones in Telegram, using the checklist in the deploy guide. It covers a large video upload on Dasha's iPhone, the back button, the share sheet, the menu button and logging without signal.
 3. Builder extras: templates, and the Telegram import inside the builder (today it is a separate tab).

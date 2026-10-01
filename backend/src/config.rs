@@ -19,6 +19,8 @@ pub struct Config {
     pub webhook_secret: String,
     /// When set, the webhook is registered with Telegram on startup.
     pub telegram_webhook_url: Option<String>,
+    /// Dasha's Telegram account; her coach profile is created on startup.
+    pub coach_telegram_id: Option<i64>,
     pub jwt_secret: String,
     /// Where the frontend is served, e.g. `https://example.com`; used for bot buttons.
     pub frontend_url: String,
@@ -71,7 +73,15 @@ impl Config {
             bot_token: var("BOT_TOKEN")?,
             bot_username: var("BOT_USERNAME")?.trim_start_matches('@').to_owned(),
             webhook_secret,
-            telegram_webhook_url: optional_var("TELEGRAM_WEBHOOK_URL"),
+            // On Render the service's own URL is known, so the webhook needs no setting.
+            telegram_webhook_url: optional_var("TELEGRAM_WEBHOOK_URL").or_else(|| {
+                optional_var("RENDER_EXTERNAL_URL")
+                    .map(|url| format!("{}/telegram/webhook", url.trim_end_matches('/')))
+            }),
+            coach_telegram_id: optional_var("COACH_TELEGRAM_ID")
+                .map(|id| id.trim().parse())
+                .transpose()
+                .context("COACH_TELEGRAM_ID must be a Telegram user ID, digits only")?,
             jwt_secret,
             frontend_url,
             frontend_origin,

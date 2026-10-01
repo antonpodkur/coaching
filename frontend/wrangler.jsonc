@@ -1,0 +1,14 @@
+// Cloudflare Workers: serves the built app (dist/) as static assets, with no
+// Worker code. Workers Builds runs `pnpm build` here on every push to main;
+// see docs/DEPLOY.md.
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "coaching",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "./dist",
+    // Paths without a file (/app, /coach/clients/…) get index.html, and the
+    // router takes over.
+    "not_found_handling": "single-page-application",
+  },
+}
