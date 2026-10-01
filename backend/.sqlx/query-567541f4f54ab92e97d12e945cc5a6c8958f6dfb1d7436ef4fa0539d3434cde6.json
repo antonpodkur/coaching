@@ -1,0 +1,102 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT w.id, w.title, w.date, w.status AS \"status: WorkoutStatus\", w.published_at,\n                  count(DISTINCT we.id) AS \"exercise_count!\", count(s.id) AS \"set_count!\"\n           FROM workouts w\n           LEFT JOIN workout_exercises we ON we.workout_id = w.id\n           LEFT JOIN workout_sets s ON s.workout_exercise_id = we.id\n           WHERE w.client_id = $1 AND w.coach_id = $2\n           GROUP BY w.id\n           ORDER BY w.date DESC NULLS FIRST, w.created_at DESC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "workouts",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "title",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "workouts",
+            "name": "title"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "date",
+        "type_info": "Date",
+        "origin": {
+          "Table": {
+            "table": "workouts",
+            "name": "date"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "status: WorkoutStatus",
+        "type_info": {
+          "Custom": {
+            "name": "workout_status",
+            "kind": {
+              "Enum": [
+                "draft",
+                "published",
+                "done"
+              ]
+            }
+          }
+        },
+        "origin": {
+          "Table": {
+            "table": "workouts",
+            "name": "status"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "published_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "workouts",
+            "name": "published_at"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "exercise_count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 6,
+        "name": "set_count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false,
+      true,
+      null,
+      null
+    ]
+  },
+  "hash": "567541f4f54ab92e97d12e945cc5a6c8958f6dfb1d7436ef4fa0539d3434cde6"
+}

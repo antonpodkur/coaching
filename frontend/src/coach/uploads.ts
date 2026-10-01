@@ -3,7 +3,7 @@ import { useSyncExternalStore } from 'react'
 import { Upload } from 'tus-js-client'
 
 import { ApiError, api, unwrap } from '../api/client'
-import { telegramWebApp } from '../app/telegram'
+import { holdClosing } from '../shared/closingGuard'
 import { EXERCISES_KEY } from './context'
 
 /**
@@ -35,10 +35,10 @@ function publish() {
   snapshot = [...uploads.values()]
   for (const listener of listeners) listener()
   // Ask before Telegram closes the app in the middle of an upload.
-  const webApp = telegramWebApp()
-  const busy = snapshot.some((upload) => upload.phase !== 'failed')
-  if (busy) webApp?.enableClosingConfirmation()
-  else webApp?.disableClosingConfirmation()
+  holdClosing(
+    'video-upload',
+    snapshot.some((upload) => upload.phase !== 'failed'),
+  )
 }
 
 function set(exerciseId: string, patch: Partial<UploadProgress>) {

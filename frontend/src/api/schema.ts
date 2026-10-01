@@ -73,6 +73,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/coach/clients/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One client. */
+        get: operations["get_client"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/coach/clients/{id}/invite": {
         parameters: {
             query?: never;
@@ -88,6 +105,23 @@ export interface paths {
          *     opens it, e.g. after they switched Telegram accounts.
          */
         post: operations["reinvite_client"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/coach/clients/{id}/workouts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A client's workouts: undated drafts first, then newest date first. */
+        get: operations["list_client_workouts"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -181,6 +215,66 @@ export interface paths {
         put?: never;
         /** Reads an old Telegram plan and matches it against the library. Saves nothing. */
         post: operations["parse"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/coach/workouts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Starts a workout for a client: blank, or as a copy of an earlier one. */
+        post: operations["create_workout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/coach/workouts/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One workout, for the builder. */
+        get: operations["get_workout"];
+        /**
+         * Saves the whole workout. `If-Match` must carry the version the builder
+         *     loaded; if the workout changed since (say, on her laptop), the save is
+         *     refused with 409 instead of overwriting.
+         */
+        put: operations["save_workout"];
+        post?: never;
+        /** Deletes a workout, published or not. */
+        delete: operations["delete_workout"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/coach/workouts/{id}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Makes the workout visible to the client and has the bot tell them. Safe to
+         *     repeat: the client is told once, e.g. after they join the app.
+         */
+        post: operations["publish_workout"];
         delete?: never;
         options?: never;
         head?: never;
@@ -393,6 +487,25 @@ export interface components {
             muscle_group?: string | null;
             name: string;
         };
+        NewWorkout: {
+            /** Format: uuid */
+            client_id: string;
+            /**
+             * Format: uuid
+             * @description Start as a copy of this workout (any of the coach's), instead of blank.
+             */
+            copy_from?: string | null;
+            /**
+             * Format: date
+             * @description For a copy, defaults to a week after the copied workout's date.
+             */
+            date?: string | null;
+        };
+        PublishedWorkout: {
+            /** @description The bot has told the client; `false` while they have not joined the app. */
+            client_notified: boolean;
+            workout: components["schemas"]["Workout"];
+        };
         SetTimezone: {
             /** @description IANA name from `Intl.DateTimeFormat().resolvedOptions().timeZone`. */
             timezone: string;
@@ -423,6 +536,101 @@ export interface components {
         WebAppAuthRequest: {
             /** @description `Telegram.WebApp.initData`, exactly as the Mini App received it. */
             init_data: string;
+        };
+        /** @description A workout as one document: what the builder loads and saves. */
+        Workout: {
+            /**
+             * Format: uuid
+             * @description `null` for a template.
+             */
+            client_id?: string | null;
+            /**
+             * Format: date
+             * @description A calendar date for the client. Needed to publish.
+             */
+            date?: string | null;
+            exercises: components["schemas"]["WorkoutExercise"][];
+            /** Format: uuid */
+            id: string;
+            /** Format: date-time */
+            published_at?: string | null;
+            status: components["schemas"]["WorkoutStatus"];
+            title: string;
+            /**
+             * Format: int32
+             * @description Send it back as `If-Match` when saving.
+             */
+            version: number;
+        };
+        /**
+         * @description The whole workout as the builder has it now. Rows keep their IDs across
+         *     saves, so results the client already logged stay attached.
+         */
+        WorkoutChanges: {
+            /** Format: date */
+            date?: string | null;
+            /** @description In order. */
+            exercises: components["schemas"]["WorkoutExerciseChanges"][];
+            title: string;
+        };
+        WorkoutExercise: {
+            /** Format: uuid */
+            exercise_id: string;
+            /** Format: uuid */
+            id: string;
+            /** @description From the library, for display. */
+            name: string;
+            note?: string | null;
+            /** @description E.g. `на кожну руку`: the targets are per arm or leg. */
+            per_side_label?: string | null;
+            sets: components["schemas"]["WorkoutSet"][];
+            thumbnail_url?: string | null;
+        };
+        WorkoutExerciseChanges: {
+            /** Format: uuid */
+            exercise_id: string;
+            /**
+             * Format: uuid
+             * @description A new row gets its ID from the app, so a retried save cannot duplicate it.
+             */
+            id: string;
+            note?: string | null;
+            per_side_label?: string | null;
+            /** @description In order. */
+            sets: components["schemas"]["WorkoutSet"][];
+        };
+        /** @description One set's target, as Dasha writes it. */
+        WorkoutSet: {
+            /** Format: uuid */
+            id: string;
+            /**
+             * Format: double
+             * @description `null` for bodyweight.
+             */
+            kg?: number | null;
+            /** Format: int32 */
+            reps_max: number;
+            /**
+             * Format: int32
+             * @description `8-10` is 8 and 10; a plain `12` is 12 and 12.
+             */
+            reps_min: number;
+        };
+        /** @enum {string} */
+        WorkoutStatus: "draft" | "published" | "done";
+        WorkoutSummary: {
+            /** Format: date */
+            date?: string | null;
+            /** Format: int64 */
+            exercise_count: number;
+            /** Format: uuid */
+            id: string;
+            /** Format: date-time */
+            published_at?: string | null;
+            /** Format: int64 */
+            set_count: number;
+            status: components["schemas"]["WorkoutStatus"];
+            title: string;
         };
     };
     responses: never;
@@ -583,6 +791,44 @@ export interface operations {
             };
         };
     };
+    get_client: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Client id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CoachClient"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     reinvite_client: {
         parameters: {
             query?: never;
@@ -601,6 +847,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["InviteLink"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    list_client_workouts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Client id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkoutSummary"][];
                 };
             };
             401: {
@@ -920,6 +1204,230 @@ export interface operations {
             };
             /** @description `wrong_role` */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    create_workout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NewWorkout"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Workout"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such client, or no such workout to copy */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_workout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workout id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Workout"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    save_workout: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The `version` the changes are based on */
+                "If-Match": string;
+            };
+            path: {
+                /** @description Workout id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkoutChanges"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Workout"];
+                };
+            };
+            /** @description `version_required`, `invalid_title`, `invalid_text`, `invalid_set`, `too_many_exercises`, `too_many_sets`, `invalid_ids` or `unknown_exercise` */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description `version_conflict`: reload and apply the changes again */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_workout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workout id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    publish_workout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workout id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublishedWorkout"];
+                };
+            };
+            /** @description `template`, `date_required`, `empty_workout` or `exercise_without_sets` */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

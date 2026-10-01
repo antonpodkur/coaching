@@ -98,13 +98,15 @@ export function ClientsPage() {
       <ul className="client-list">
         {shown.map((client) => (
           <li key={client.id} className="client-row">
-            <span className="avatar" aria-hidden="true">
-              {initials(client.name)}
-            </span>
-            <span className="client-text">
-              <span className="client-name">{client.name}</span>
-              <ClientStatus client={client} />
-            </span>
+            <Link className="client-link" to={`${base}/clients/${client.id}`}>
+              <span className="avatar" aria-hidden="true">
+                {initials(client.name)}
+              </span>
+              <span className="client-text">
+                <span className="client-name">{client.name}</span>
+                <ClientStatus client={client} />
+              </span>
+            </Link>
             {!client.joined && (
               <button
                 type="button"

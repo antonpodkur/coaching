@@ -159,6 +159,28 @@ fn invite_link(state: &AppState, invite: invites::Invite) -> InviteLink {
     }
 }
 
+/// One client.
+#[utoipa::path(
+    get,
+    operation_id = "get_client",
+    path = "/coach/clients/{id}",
+    tag = "coach",
+    security(("bearer" = [])),
+    params(("id" = Uuid, Path, description = "Client id")),
+    responses(
+        (status = 200, body = CoachClient),
+        (status = 401, body = ErrorBody),
+        (status = 404, body = ErrorBody),
+    )
+)]
+pub async fn get(
+    State(state): State<AppState>,
+    CurrentCoach(coach_id): CurrentCoach,
+    Path(client_id): Path<Uuid>,
+) -> AppResult<Json<CoachClient>> {
+    Ok(Json(fetch_client(&state, coach_id, client_id).await?))
+}
+
 async fn fetch_client(state: &AppState, coach_id: Uuid, client_id: Uuid) -> AppResult<CoachClient> {
     sqlx::query_as!(
         CoachClient,

@@ -9,6 +9,7 @@ pub mod config;
 pub mod error;
 pub mod import;
 pub mod invites;
+pub mod notify;
 pub mod state;
 pub mod telegram;
 pub mod video;

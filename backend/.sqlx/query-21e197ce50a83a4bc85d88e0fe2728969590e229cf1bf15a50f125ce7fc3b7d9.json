@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE workout_sets SET actual_kg = 36, actual_reps = 12, completed_at = now() WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "21e197ce50a83a4bc85d88e0fe2728969590e229cf1bf15a50f125ce7fc3b7d9"
+}

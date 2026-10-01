@@ -18,8 +18,9 @@ Dasha's online coaching app. She builds workouts from her exercise library and p
 - **Bot and invites:** the webhook checks Telegram's secret header. On startup the bot's menu button is pointed at the Mini App. Dasha adds a client and sends the single-use invite link (valid 7 days) through Telegram's share sheet. The client taps Start, their Telegram account is linked, and the bot replies with a button for the Mini App and tells Dasha.
 - **Client:** `GET /me`, and `PUT /me/timezone` so reminders can use local time.
 - **Coach:** `GET/POST /coach/clients`, `POST /coach/clients/{id}/invite`, and `POST /coach/import/parse`, which reads an old Telegram plan and matches it against the library.
+- **Workout builder:** a client's page lists their workouts; a new one starts blank or as a copy of the latest, a week later. The builder follows the phone prototype (set chips, a −/+ set editor, the library as a bottom sheet) and autosaves the whole workout with version checks. Publishing has the bot message the client once.
 - **Exercise library and videos:** add, rename, group and archive exercises. Videos upload from the phone straight to Bunny Stream with tus; the backend signs each upload, follows the encoding (webhook, or asking Bunny when Dasha looks), swaps the new video in when it is ready and deletes the old one.
-- **Frontend:** the Mini App signs in and greets the client, or opens Dasha's workspace: a phone layout with a bottom tab bar, the client list, inviting through Telegram's share sheet, the exercise library with video upload and playback, and the import preview. The same workspace runs in a browser at `/coach`.
+- **Frontend:** the Mini App signs in and greets the client, or opens Dasha's workspace: a phone layout with a bottom tab bar, the client list, inviting through Telegram's share sheet, the client page and workout builder, the exercise library with video upload and playback, and the import preview. The same workspace runs in a browser at `/coach`.
 - **API types:** `frontend/src/api/schema.ts` is generated from the backend's OpenAPI spec.
 
 ## Prerequisites
@@ -106,9 +107,9 @@ TypeScript is pinned to 5.9. TypeScript 7 has no JavaScript API yet, and typescr
 In order, following [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md):
 
 1. Test a large video upload from the Mini App on Dasha's iPhone (see "Local video uploads").
-2. Builder, following the prototype's phone design: whole-workout save with `version`, copy, templates, publish.
-3. Client workout screens and offline set logging.
-4. Finish and report, then notifications (background jobs).
+2. Client workout screens and offline set logging; the publish message then opens the workout itself.
+3. Finish and report, "Минулого разу" in the builder, then reminders (background jobs).
+4. Builder extras: templates, and the Telegram import inside the builder (today it is a separate tab).
 5. Deploy:
    - A Render Blueprint (`render.yaml`) for the backend and Postgres in Frankfurt.
    - The frontend on Cloudflare Workers.

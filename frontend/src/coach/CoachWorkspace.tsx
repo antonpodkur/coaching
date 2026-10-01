@@ -2,12 +2,14 @@ import { useMemo } from 'react'
 import { Link, Route, Routes, useLocation } from 'react-router'
 
 import { ImportIcon, LibraryIcon, PeopleIcon } from '../shared/icons'
+import { ClientPage } from './ClientPage'
 import { ClientsPage } from './ClientsPage'
 import { ExercisePage } from './ExercisePage'
 import { ImportPage } from './ImportPage'
 import { InvitePage } from './InvitePage'
 import { LibraryPage } from './LibraryPage'
 import { NewExercisePage } from './NewExercisePage'
+import { BuilderPage } from './builder/BuilderPage'
 import { CoachContext } from './context'
 
 interface Props {
@@ -32,8 +34,9 @@ export function CoachWorkspace({ base, onUnauthorized, onSignOut }: Props) {
       ? 'exercises'
       : 'clients'
   // Sub-pages take the whole screen and go back with Telegram's back arrow.
-  const subPage =
-    pathname.startsWith(`${base}/invite`) || pathname.startsWith(`${base}/exercises/`)
+  const subPage = ['invite', 'clients/', 'workouts/', 'exercises/'].some((page) =>
+    pathname.startsWith(`${base}/${page}`),
+  )
 
   return (
     <CoachContext value={context}>
@@ -53,6 +56,8 @@ export function CoachWorkspace({ base, onUnauthorized, onSignOut }: Props) {
           <Routes>
             <Route index element={<ClientsPage />} />
             <Route path="invite" element={<InvitePage />} />
+            <Route path="clients/:id" element={<ClientPage />} />
+            <Route path="workouts/:id" element={<BuilderPage />} />
             <Route path="exercises" element={<LibraryPage />} />
             <Route path="exercises/new" element={<NewExercisePage />} />
             <Route path="exercises/:id" element={<ExercisePage />} />

@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO workout_exercises (id, workout_id, exercise_id, position, per_side_label, note)\n         SELECT row.id, $1, row.exercise_id, row.position, row.label, row.note\n         FROM UNNEST($2::uuid[], $3::uuid[], $4::int4[], $5::text[], $6::text[])\n             AS row (id, exercise_id, position, label, note)\n         ON CONFLICT (id) DO UPDATE SET\n             exercise_id = EXCLUDED.exercise_id,\n             position = EXCLUDED.position,\n             per_side_label = EXCLUDED.per_side_label,\n             note = EXCLUDED.note",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "UuidArray",
+        "UuidArray",
+        "Int4Array",
+        "TextArray",
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "be9bf04e8ede642ffe76c23aa4e674b5e6ae973389eb425c1320ce56a334b9f5"
+}

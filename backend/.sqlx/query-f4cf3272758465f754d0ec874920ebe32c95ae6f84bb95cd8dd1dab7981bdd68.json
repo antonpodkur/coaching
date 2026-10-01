@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE workouts SET status = 'published', published_at = now(), updated_at = now()\n         WHERE id = $1 AND status = 'draft'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f4cf3272758465f754d0ec874920ebe32c95ae6f84bb95cd8dd1dab7981bdd68"
+}

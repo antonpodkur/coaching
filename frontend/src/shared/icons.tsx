@@ -91,3 +91,43 @@ export function UploadIcon({ size = 18 }: { size?: number }) {
     </Icon>
   )
 }
+
+export function MinusIcon({ size = 16 }: { size?: number }) {
+  return (
+    <Icon size={size}>
+      <path d="M5 12h14" strokeWidth={2.4} />
+    </Icon>
+  )
+}
+
+export function MoreIcon({ size = 20 }: { size?: number }) {
+  return (
+    <Icon size={size}>
+      <path d="M5 12h.01M12 12h.01M19 12h.01" strokeWidth={3} />
+    </Icon>
+  )
+}
+
+export function CloseIcon({ size = 16 }: { size?: number }) {
+  return (
+    <Icon size={size}>
+      <path d="M6 6l12 12M18 6L6 18" strokeWidth={2.2} />
+    </Icon>
+  )
+}
+
+export function CheckIcon({ size = 16 }: { size?: number }) {
+  return (
+    <Icon size={size}>
+      <path d="M5 12.5l4.5 4.5L19 7" strokeWidth={2.6} />
+    </Icon>
+  )
+}
+
+export function CopyIcon({ size = 16 }: { size?: number }) {
+  return (
+    <Icon size={size}>
+      <path d="M8 8h12v12H8zM4 16V4h12" />
+    </Icon>
+  )
+}

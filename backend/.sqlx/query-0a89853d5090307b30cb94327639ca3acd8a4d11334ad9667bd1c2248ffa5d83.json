@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO workout_exercises (id, workout_id, exercise_id, position, per_side_label, note)\n         SELECT m.new_id, $2, we.exercise_id, we.position, we.per_side_label, we.note\n         FROM UNNEST($3::uuid[], $4::uuid[]) AS m (old_id, new_id)\n         JOIN workout_exercises we ON we.id = m.old_id AND we.workout_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "UuidArray",
+        "UuidArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "0a89853d5090307b30cb94327639ca3acd8a4d11334ad9667bd1c2248ffa5d83"
+}

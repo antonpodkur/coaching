@@ -3,3 +3,4 @@
 pub mod clients;
 pub mod exercises;
 pub mod import;
+pub mod workouts;

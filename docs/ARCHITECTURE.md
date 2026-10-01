@@ -201,18 +201,20 @@ Coach (`role = coach`):
 | POST | `/auth/bot-login/poll` | `{poll_secret}` → `pending`, `cancelled`, `expired`, or `approved` with the coach token (once) |
 | GET/POST/PATCH | `/coach/clients`, `/coach/clients/{id}` | List; add (returns the first invite link); edit (name, `paid_until`, archive) |
 | POST | `/coach/clients/{id}/invite` | New invite link |
-| GET | `/coach/clients/{id}/workouts` | History with results and reports |
+| GET | `/coach/clients/{id}/workouts` | Her workouts for this client: undated drafts first, then newest date first (results and reports come with client logging) |
 | GET/POST/PATCH | `/coach/exercises`, `/coach/exercises/{id}` | Library |
 | POST | `/coach/exercises/{id}/video-upload` | Creates the Bunny video and returns a tus upload ticket (endpoint, IDs, expiry, signature) |
 | POST | `/coach/exercises/{id}/video-uploaded` | The phone finished uploading; Bunny encodes next |
-| POST | `/coach/workouts` | New: blank, `copy_from`, or `template_id` |
-| GET/PUT | `/coach/workouts/{id}` | Whole workout as one document, with `If-Match: <version>` |
-| POST | `/coach/workouts/{id}/publish` | Publish and message the client |
+| POST | `/coach/workouts` | New: blank, or `copy_from` (dated a week after the original unless `date` is given); `template_id` later |
+| GET/PUT/DELETE | `/coach/workouts/{id}` | Whole workout as one document; PUT needs `If-Match: <version>` |
+| POST | `/coach/workouts/{id}/publish` | Publish and message the client (once); needs a date and sets in every exercise |
 | POST | `/coach/import/parse` | Telegram text → preview with library matches (nothing saved) |
 | POST | `/webhooks/stream` | Bunny Stream state changes (signature-checked); prompts a check with Bunny's API |
 | POST | `/telegram/webhook` | Bot updates (secret-header-checked) |
 
-- **The builder saves the whole workout.** It sends one PUT with all exercises and sets, debounced, instead of one endpoint per field. `version` is optimistic locking: if Dasha has the same workout open on her laptop and phone, the older save gets a 409 instead of silently overwriting.
+- **The builder saves the whole workout.** It sends one PUT with all exercises and sets, debounced (0.7 s), instead of one endpoint per field. `version` is optimistic locking: if Dasha has the same workout open on her laptop and phone, the older save gets a 409 instead of silently overwriting, and the builder offers to reload.
+- **Rows keep their IDs.** The app gives new exercise and set rows their IDs (`crypto.randomUUID()`), so a retried save cannot duplicate them. The server upserts by ID, deletes rows that are gone, and refuses IDs that belong to another workout. Updating a set touches only its `target_*` columns, so results the client logged stay attached through edits.
+- **The phone builder** (as in the prototype): sets are chips; tapping one docks an editor with −/+ steppers for weight and reps (typing `8-10` works too), the per-arm/leg label and "copy to all sets". The library opens as a bottom sheet, where a missing exercise can be added by name. A ⋯ menu per exercise moves it, adds a note or removes it. Telegram asks before closing while changes are unsaved.
 - **Editing after publishing is allowed.** A set that already has a result cannot be removed without confirmation in the UI.
 - **Import parsing runs on the backend.** There is one implementation, matched against the real library, and tested against her real plans in `backend/tests/fixtures/`.
 
@@ -232,7 +234,7 @@ All messages come from the bot and are written in Ukrainian. Each send first ins
 
 | Trigger | To | Message |
 | --- | --- | --- |
-| Workout published | Client | "Нове тренування від Даші: Спина, вт 6 жовтня", with a button opening that workout (`startapp=w_<id>`) |
+| Workout published | Client | "Нове тренування від Даші: «Спина», вт, 6 жовтня.", with a button opening the Mini App (the workout itself once client screens exist, `startapp=w_<id>`). Not sent until the client has joined; publishing again after they join sends it. |
 | 09:00 client time on the workout date, if published and not done | Client | Reminder with the same button |
 | Workout finished | Dasha | "Максим завершив «Спина»: 2 підходи інакше, є коментар", with a link to the report |
 | Published workout not opened by 20:00 on its date | Dasha | One summary message per day, not one per client |
@@ -301,6 +303,7 @@ coaching/
 - **Backend:** integration tests with `#[sqlx::test]`, which gives each test a fresh database, for auth, copy, publish, offline-style duplicate writes and notification de-duplication.
 - **Import parser:** unit tests using her real Telegram plans as fixtures (starting with `backend/tests/fixtures/example-back.txt`).
 - **Auth:** `initData` verification against captured real payloads, plus tampered copies that must fail. Mini App sign-in returns the right role, and the coach wins for an account that is both. For bot login: codes expire, work once, and only the Confirm button approves them.
+- **Workouts:** saving as one document (row IDs and logged results survive reordering and edits), version conflicts, validation and ownership, copying to next week, and publishing (one message per workout and date; none before the client joins).
 - **Bot:** updates are posted to the real webhook route, with a recording Telegram client. Covered: invites (spent, expired, replaced, one account per profile), the secret header, greetings by role, sign-in with confirm and cancel, and the webhook and menu button set on startup.
 - **Video:** a fake Bunny library behind the same client covers the upload ticket and its signature, encoding to ready, replacing a video (the old one is deleted on Bunny), abandoned and failed uploads, and webhook signatures.
 - **Frontend:** typecheck plus a few Playwright smoke tests of the builder, publish, log and report flow against a seeded backend. Before each release, check manually inside the Telegram apps on iOS and Android.

@@ -22,6 +22,21 @@ export function formatToday(): string {
   return today.charAt(0).toUpperCase() + today.slice(1)
 }
 
+/** A calendar date like `2026-10-06`, read as local time, not UTC. */
+export function parseDate(date: string): Date {
+  const [year = 1970, month = 1, day = 1] = date.split('-').map(Number)
+  return new Date(year, month - 1, day)
+}
+
+/** `2026-10-06` → `вт, 6 жовтня`. */
+export function formatShortDate(date: string): string {
+  return parseDate(date).toLocaleDateString('uk-UA', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'long',
+  })
+}
+
 /** `Максим К.` → `МК`. */
 export function initials(name: string): string {
   return name

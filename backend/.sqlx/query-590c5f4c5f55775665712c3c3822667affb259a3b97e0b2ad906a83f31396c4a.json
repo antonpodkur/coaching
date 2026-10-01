@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM workout_sets s USING workout_exercises we\n         WHERE s.workout_exercise_id = we.id AND we.workout_id = $1 AND NOT (s.id = ANY($2))",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "UuidArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "590c5f4c5f55775665712c3c3822667affb259a3b97e0b2ad906a83f31396c4a"
+}

@@ -38,6 +38,7 @@ use crate::state::AppState;
         client::set_timezone,
         coach::clients::list,
         coach::clients::create,
+        coach::clients::get,
         coach::clients::reinvite,
         coach::exercises::list,
         coach::exercises::create,
@@ -46,6 +47,12 @@ use crate::state::AppState;
         coach::exercises::start_video_upload,
         coach::exercises::finish_video_upload,
         coach::import::parse,
+        coach::workouts::create,
+        coach::workouts::get,
+        coach::workouts::save,
+        coach::workouts::publish,
+        coach::workouts::delete,
+        coach::workouts::list_for_client,
     ),
     modifiers(&BearerAuth),
     tags(
@@ -102,7 +109,23 @@ pub fn router(state: AppState) -> Router {
             "/coach/clients",
             get(coach::clients::list).post(coach::clients::create),
         )
+        .route("/coach/clients/{id}", get(coach::clients::get))
         .route("/coach/clients/{id}/invite", post(coach::clients::reinvite))
+        .route(
+            "/coach/clients/{id}/workouts",
+            get(coach::workouts::list_for_client),
+        )
+        .route("/coach/workouts", post(coach::workouts::create))
+        .route(
+            "/coach/workouts/{id}",
+            get(coach::workouts::get)
+                .put(coach::workouts::save)
+                .delete(coach::workouts::delete),
+        )
+        .route(
+            "/coach/workouts/{id}/publish",
+            post(coach::workouts::publish),
+        )
         .route(
             "/coach/exercises",
             get(coach::exercises::list).post(coach::exercises::create),
