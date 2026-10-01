@@ -33,6 +33,8 @@ pub struct ClientProfile {
 pub struct CoachProfile {
     pub id: Uuid,
     pub name: String,
+    /// IANA timezone of Dasha's phone; her evening summary follows it.
+    pub timezone: String,
 }
 
 /// Who opened the Mini App decides which screens they get.
@@ -76,7 +78,7 @@ pub async fn telegram_webapp(
 
     let coach = sqlx::query_as!(
         CoachProfile,
-        "SELECT id, name FROM coaches WHERE telegram_id = $1",
+        "SELECT id, name, timezone FROM coaches WHERE telegram_id = $1",
         telegram_id,
     )
     .fetch_optional(&state.db)
@@ -173,7 +175,7 @@ pub async fn bot_login_poll(
         Polled::Approved { coach_id } => {
             let coach = sqlx::query_as!(
                 CoachProfile,
-                "SELECT id, name FROM coaches WHERE id = $1",
+                "SELECT id, name, timezone FROM coaches WHERE id = $1",
                 coach_id,
             )
             .fetch_one(&state.db)

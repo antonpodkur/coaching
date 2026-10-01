@@ -147,3 +147,11 @@ export function ChevronIcon({ size = 18 }: { size?: number }) {
     </Icon>
   )
 }
+
+export function EditIcon({ size = 18 }: { size?: number }) {
+  return (
+    <Icon size={size}>
+      <path d="M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4" />
+    </Icon>
+  )
+}

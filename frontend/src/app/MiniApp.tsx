@@ -30,12 +30,14 @@ async function signIn(initData: string): Promise<Schemas['MiniAppSession']> {
   setSessionToken(session.token)
   rememberSession(session, telegramUserId)
 
-  if (session.role === 'client') {
-    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
-    if (timezone && session.client.timezone !== timezone) {
-      // Only reminders depend on it; the next launch tries again.
-      await api.PUT('/me/timezone', { body: { timezone } }).catch(() => undefined)
-    }
+  // Bot messages follow the phone's clock: the client's reminders, Dasha's
+  // evening summary. Best effort; the next launch tries again.
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+  if (session.role === 'client' && timezone && session.client.timezone !== timezone) {
+    await api.PUT('/me/timezone', { body: { timezone } }).catch(() => undefined)
+  }
+  if (session.role === 'coach' && timezone && session.coach.timezone !== timezone) {
+    await api.PUT('/coach/me/timezone', { body: { timezone } }).catch(() => undefined)
   }
   return session
 }

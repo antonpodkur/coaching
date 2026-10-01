@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, name FROM coaches WHERE telegram_id = $1",
+  "query": "SELECT id, name, timezone FROM coaches WHERE id = $1",
   "describe": {
     "columns": [
       {
@@ -24,17 +24,29 @@
             "name": "name"
           }
         }
+      },
+      {
+        "ordinal": 2,
+        "name": "timezone",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "coaches",
+            "name": "timezone"
+          }
+        }
       }
     ],
     "parameters": {
       "Left": [
-        "Int8"
+        "Uuid"
       ]
     },
     "nullable": [
       false,
+      false,
       false
     ]
   },
-  "hash": "fe6075029cfcd01a5e2043d749f6dcb780e7fd8d868b79f81907777aff736b3b"
+  "hash": "52f661ff63b392f994a8b455780fb22a64125e93ea41e69f0d2162e6480f11b4"
 }

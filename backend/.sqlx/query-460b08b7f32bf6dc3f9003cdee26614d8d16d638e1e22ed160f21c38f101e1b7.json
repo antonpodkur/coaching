@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE clients SET\n             name = COALESCE($3, name),\n             paid_until = CASE WHEN $4 THEN $5 ELSE paid_until END,\n             archived_at = CASE\n                 WHEN $6::boolean IS NULL THEN archived_at\n                 WHEN $6 THEN COALESCE(archived_at, now())\n                 ELSE NULL\n             END\n         WHERE id = $1 AND coach_id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Text",
+        "Bool",
+        "Date",
+        "Bool"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "460b08b7f32bf6dc3f9003cdee26614d8d16d638e1e22ed160f21c38f101e1b7"
+}

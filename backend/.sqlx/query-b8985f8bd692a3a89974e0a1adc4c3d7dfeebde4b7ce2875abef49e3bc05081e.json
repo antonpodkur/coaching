@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT c.id, c.name, c.telegram_id IS NOT NULL AS \"joined!\", c.invite_expires_at,\n                  c.paid_until, c.created_at,\n                  (SELECT count(*) FROM workout_reports r JOIN workouts w ON w.id = r.workout_id\n                   WHERE w.client_id = c.id AND r.seen_at IS NULL) AS \"unseen_reports!\"\n           FROM clients c WHERE c.id = $1 AND c.coach_id = $2",
+  "query": "SELECT c.id, c.name, c.telegram_id IS NOT NULL AS \"joined!\", c.invite_expires_at,\n                  c.paid_until, c.created_at,\n                  (SELECT count(*) FROM workout_reports r JOIN workouts w ON w.id = r.workout_id\n                   WHERE w.client_id = c.id AND r.seen_at IS NULL) AS \"unseen_reports!\",\n                  c.archived_at IS NOT NULL AS \"archived!\"\n           FROM clients c\n           WHERE c.coach_id = $1 AND (c.archived_at IS NOT NULL) = $2\n           ORDER BY c.archived_at DESC NULLS LAST, c.created_at DESC",
   "describe": {
     "columns": [
       {
@@ -69,12 +69,18 @@
         "name": "unseen_reports!",
         "type_info": "Int8",
         "origin": "Expression"
+      },
+      {
+        "ordinal": 7,
+        "name": "archived!",
+        "type_info": "Bool",
+        "origin": "Expression"
       }
     ],
     "parameters": {
       "Left": [
         "Uuid",
-        "Uuid"
+        "Bool"
       ]
     },
     "nullable": [
@@ -84,8 +90,9 @@
       true,
       true,
       false,
+      null,
       null
     ]
   },
-  "hash": "bc028a56e66d4cc6f73d5e5fb90c0c580463702ac7f2478f2c07253a4a82b301"
+  "hash": "b8985f8bd692a3a89974e0a1adc4c3d7dfeebde4b7ce2875abef49e3bc05081e"
 }

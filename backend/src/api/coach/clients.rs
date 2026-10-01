@@ -1,11 +1,11 @@
 use axum::{
     Json,
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::StatusCode,
 };
 use chrono::{DateTime, NaiveDate, Utc};
-use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
+use serde::{Deserialize, Deserializer, Serialize};
+use utoipa::{IntoParams, ToSchema};
 use uuid::Uuid;
 
 use crate::{
@@ -29,6 +29,8 @@ pub struct CoachClient {
     pub created_at: DateTime<Utc>,
     /// Reports Dasha has not opened yet.
     pub unseen_reports: i64,
+    /// Hidden from the list; the client cannot open the app until restored.
+    pub archived: bool,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -49,13 +51,42 @@ pub struct CreatedClient {
     pub invite: InviteLink,
 }
 
-/// All of the coach's clients, newest first.
+#[derive(Deserialize, IntoParams)]
+pub struct ClientFilter {
+    /// `true` lists the archive instead, most recently archived first.
+    #[serde(default)]
+    pub archived: bool,
+}
+
+/// Changes to one client. Fields left out stay as they are.
+#[derive(Deserialize, ToSchema)]
+pub struct ClientChanges {
+    pub name: Option<String>,
+    /// The last day the client has paid for. `null` clears it.
+    #[serde(default, deserialize_with = "present")]
+    #[schema(value_type = Option<NaiveDate>)]
+    pub paid_until: Option<Option<NaiveDate>>,
+    /// `true` archives the client and ends their sessions; `false` restores them.
+    pub archived: Option<bool>,
+}
+
+/// Tells a field sent as `null` (clear it) from one left out (keep it).
+fn present<'de, D, T>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
+where
+    D: Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    Option::<T>::deserialize(deserializer).map(Some)
+}
+
+/// The coach's clients, newest first. Archived clients only on request.
 #[utoipa::path(
     get,
     operation_id = "list_clients",
     path = "/coach/clients",
     tag = "coach",
     security(("bearer" = [])),
+    params(ClientFilter),
     responses(
         (status = 200, body = Vec<CoachClient>),
         (status = 401, body = ErrorBody),
@@ -64,17 +95,20 @@ pub struct CreatedClient {
 pub async fn list(
     State(state): State<AppState>,
     CurrentCoach(coach_id): CurrentCoach,
+    Query(filter): Query<ClientFilter>,
 ) -> AppResult<Json<Vec<CoachClient>>> {
     let clients = sqlx::query_as!(
         CoachClient,
         r#"SELECT c.id, c.name, c.telegram_id IS NOT NULL AS "joined!", c.invite_expires_at,
                   c.paid_until, c.created_at,
                   (SELECT count(*) FROM workout_reports r JOIN workouts w ON w.id = r.workout_id
-                   WHERE w.client_id = c.id AND r.seen_at IS NULL) AS "unseen_reports!"
+                   WHERE w.client_id = c.id AND r.seen_at IS NULL) AS "unseen_reports!",
+                  c.archived_at IS NOT NULL AS "archived!"
            FROM clients c
-           WHERE c.coach_id = $1 AND c.archived_at IS NULL
-           ORDER BY c.created_at DESC"#,
+           WHERE c.coach_id = $1 AND (c.archived_at IS NOT NULL) = $2
+           ORDER BY c.archived_at DESC NULLS LAST, c.created_at DESC"#,
         coach_id,
+        filter.archived,
     )
     .fetch_all(&state.db)
     .await?;
@@ -100,10 +134,7 @@ pub async fn create(
     CurrentCoach(coach_id): CurrentCoach,
     Json(body): Json<NewClient>,
 ) -> AppResult<(StatusCode, Json<CreatedClient>)> {
-    let name = body.name.trim();
-    if name.is_empty() || name.chars().count() > MAX_NAME_CHARS {
-        return Err(AppError::BadRequest("invalid_name"));
-    }
+    let name = clean_name(&body.name)?;
 
     let client_id = sqlx::query_scalar!(
         "INSERT INTO clients (coach_id, name) VALUES ($1, $2) RETURNING id",
@@ -163,7 +194,15 @@ fn invite_link(state: &AppState, invite: invites::Invite) -> InviteLink {
     }
 }
 
-/// One client.
+fn clean_name(name: &str) -> AppResult<&str> {
+    let name = name.trim();
+    if name.is_empty() || name.chars().count() > MAX_NAME_CHARS {
+        return Err(AppError::BadRequest("invalid_name"));
+    }
+    Ok(name)
+}
+
+/// One client, archived or not.
 #[utoipa::path(
     get,
     operation_id = "get_client",
@@ -185,13 +224,66 @@ pub async fn get(
     Ok(Json(fetch_client(&state, coach_id, client_id).await?))
 }
 
+/// Renames a client, records how long they have paid for, or archives them.
+///
+/// Archiving keeps their workouts and reports for Dasha. The client is signed
+/// out, gets no more bot messages, and their unused invite stops working until
+/// they are restored.
+#[utoipa::path(
+    patch,
+    operation_id = "update_client",
+    path = "/coach/clients/{id}",
+    tag = "coach",
+    security(("bearer" = [])),
+    params(("id" = Uuid, Path, description = "Client id")),
+    request_body = ClientChanges,
+    responses(
+        (status = 200, body = CoachClient),
+        (status = 400, body = ErrorBody, description = "`invalid_name`"),
+        (status = 401, body = ErrorBody),
+        (status = 404, body = ErrorBody),
+    )
+)]
+pub async fn update(
+    State(state): State<AppState>,
+    CurrentCoach(coach_id): CurrentCoach,
+    Path(client_id): Path<Uuid>,
+    Json(changes): Json<ClientChanges>,
+) -> AppResult<Json<CoachClient>> {
+    let name = changes.name.as_deref().map(clean_name).transpose()?;
+    let updated = sqlx::query!(
+        "UPDATE clients SET
+             name = COALESCE($3, name),
+             paid_until = CASE WHEN $4 THEN $5 ELSE paid_until END,
+             archived_at = CASE
+                 WHEN $6::boolean IS NULL THEN archived_at
+                 WHEN $6 THEN COALESCE(archived_at, now())
+                 ELSE NULL
+             END
+         WHERE id = $1 AND coach_id = $2",
+        client_id,
+        coach_id,
+        name,
+        changes.paid_until.is_some(),
+        changes.paid_until.flatten(),
+        changes.archived,
+    )
+    .execute(&state.db)
+    .await?;
+    if updated.rows_affected() == 0 {
+        return Err(AppError::NotFound);
+    }
+    Ok(Json(fetch_client(&state, coach_id, client_id).await?))
+}
+
 async fn fetch_client(state: &AppState, coach_id: Uuid, client_id: Uuid) -> AppResult<CoachClient> {
     sqlx::query_as!(
         CoachClient,
         r#"SELECT c.id, c.name, c.telegram_id IS NOT NULL AS "joined!", c.invite_expires_at,
                   c.paid_until, c.created_at,
                   (SELECT count(*) FROM workout_reports r JOIN workouts w ON w.id = r.workout_id
-                   WHERE w.client_id = c.id AND r.seen_at IS NULL) AS "unseen_reports!"
+                   WHERE w.client_id = c.id AND r.seen_at IS NULL) AS "unseen_reports!",
+                  c.archived_at IS NOT NULL AS "archived!"
            FROM clients c WHERE c.id = $1 AND c.coach_id = $2"#,
         client_id,
         coach_id,

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id FROM clients WHERE telegram_id = $1 AND id <> $2",
+  "query": "SELECT id FROM clients WHERE telegram_id = $1 AND id <> $2 AND archived_at IS NULL",
   "describe": {
     "columns": [
       {
@@ -25,5 +25,5 @@
       false
     ]
   },
-  "hash": "c8c2216352815bbd31ccca80fff99166d6816681e9ec61f0cc128ab38162cc86"
+  "hash": "b516a1c625d310405ef101e50a2f4452c4920be75f2f639593b67f83f3f794be"
 }

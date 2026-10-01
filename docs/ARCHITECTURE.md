@@ -177,8 +177,9 @@ coach_logins      id, code_hash UNIQUE, poll_secret_hash UNIQUE, display_code, c
 - **Copies are deep.** Copying to the next workout or from a template duplicates every exercise and set row. Clients never share rows, and templates are just workouts without a client.
 - **"Минулого разу"** is the latest completed `workout_sets` for the same client and exercise. It is served by indexes on `workouts (client_id, date DESC)` and `workout_exercises (exercise_id, workout_id)`.
 - **"Missed"** is not stored. It is a published workout whose date has passed without being marked done.
-- **Dates:** `workouts.date` is a calendar date in the client's timezone, not a timestamp. Reminders use `clients.timezone` via `chrono-tz`. The Mini App sends the phone's timezone on first launch.
+- **Dates:** `workouts.date` is a calendar date in the client's timezone, not a timestamp. Reminders use `clients.timezone` via `chrono-tz`, and Dasha's summary uses `coaches.timezone`. The Mini App sends the phone's timezone whenever it differs from the stored one, for clients and for Dasha.
 - **Exercises are archived, never deleted,** because old workouts refer to them.
+- **Clients are archived, never deleted,** so Dasha keeps their history. An archived client is signed out on their next request (the client extractor checks `archived_at`), gets no bot messages, and cannot use an invite. If they come back and Dasha adds them as a new client, the archived profile gives up the Telegram account to the new one.
 - **`coach_id`** is on the top-level tables even though there is one coach. It costs nothing and keeps the door open.
 - **Invite and login codes are stored hashed.** Until it is used, a code in a link works like a password.
 
@@ -202,7 +203,8 @@ Coach (`role = coach`):
 | --- | --- | --- |
 | POST | `/auth/bot-login` | New login code, bot link and display code |
 | POST | `/auth/bot-login/poll` | `{poll_secret}` → `pending`, `cancelled`, `expired`, or `approved` with the coach token (once) |
-| GET/POST/PATCH | `/coach/clients`, `/coach/clients/{id}` | List (with each client's unseen reports); add (returns the first invite link); edit (name, `paid_until`, archive) |
+| GET/POST/PATCH | `/coach/clients`, `/coach/clients/{id}` | List (with each client's unseen reports; `?archived=true` for the archive); add (returns the first invite link); edit (name, `paid_until`, archive or restore) |
+| PUT | `/coach/me/timezone` | From Dasha's phone; her evening summary follows it |
 | POST | `/coach/clients/{id}/invite` | New invite link |
 | GET | `/coach/clients/{id}/workouts` | Her workouts for this client: undated drafts first, then newest date first, with done and differing set counts and the report's effort and seen state |
 | GET | `/coach/workouts/{id}/results` | Every set's target next to what the client logged, `differs` per set, and the report |

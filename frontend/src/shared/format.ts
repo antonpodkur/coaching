@@ -28,6 +28,25 @@ export function parseDate(date: string): Date {
   return new Date(year, month - 1, day)
 }
 
+/** `2026-10-08` → `8 жовтня`, the same in every timezone. */
+export function formatDate(date: string): string {
+  return parseDate(date).toLocaleDateString('uk-UA', { day: 'numeric', month: 'long' })
+}
+
+/** `2026-01-31` plus one month → `2026-02-28`: the day is kept where the month allows. */
+export function addMonths(date: string, months: number): string {
+  const start = parseDate(date)
+  const target = new Date(start.getFullYear(), start.getMonth() + months, 1)
+  const lastDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate()
+  target.setDate(Math.min(start.getDate(), lastDay))
+  return localDate(target)
+}
+
+/** Whole days from `from` to `to`, both `2026-10-06`-style dates. */
+export function daysBetween(from: string, to: string): number {
+  return Math.round((parseDate(to).getTime() - parseDate(from).getTime()) / 86_400_000)
+}
+
 /** `2026-10-06` → `вт, 6 жовтня`. */
 export function formatShortDate(date: string): string {
   return parseDate(date).toLocaleDateString('uk-UA', {
@@ -76,7 +95,6 @@ export function localDate(date: Date): string {
   const day = String(date.getDate()).padStart(2, '0')
   return `${date.getFullYear()}-${month}-${day}`
 }
-
 
 /** `сьогодні, 19:40`, `учора, 19:40`, or `6 жовтня, 19:40`. */
 export function formatWhen(iso: string): string {

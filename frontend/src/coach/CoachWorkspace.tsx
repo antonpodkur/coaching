@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { Link, Route, Routes, useLocation } from 'react-router'
 
 import { ImportIcon, LibraryIcon, PeopleIcon } from '../shared/icons'
+import { ClientEditPage } from './ClientEditPage'
 import { ClientPage } from './ClientPage'
 import { ClientsPage } from './ClientsPage'
 import { ExercisePage } from './ExercisePage'
@@ -58,6 +59,7 @@ export function CoachWorkspace({ base, onUnauthorized, onSignOut }: Props) {
             <Route index element={<ClientsPage />} />
             <Route path="invite" element={<InvitePage />} />
             <Route path="clients/:id" element={<ClientPage />} />
+            <Route path="clients/:id/edit" element={<ClientEditPage />} />
             <Route path="workouts/:id" element={<BuilderPage />} />
             <Route path="workouts/:id/report" element={<ReportPage />} />
             <Route path="exercises" element={<LibraryPage />} />

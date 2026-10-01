@@ -2,13 +2,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 
-import { type Schemas, api, unwrap } from '../api/client'
+import { api, unwrap } from '../api/client'
 import { formatDay, formatToday, initials } from '../shared/format'
 import { PlusIcon, SearchIcon } from '../shared/icons'
 import { InviteCard, type ShownInvite } from './InviteCard'
+import { ARCHIVED_KEY, type Client, payment } from './clients'
 import { CLIENTS_KEY, isUnauthorized, useCoach } from './context'
-
-type Client = Schemas['CoachClient']
 
 /** Search appears once the list no longer fits on a phone screen. */
 const SEARCH_FROM = 7
@@ -123,6 +122,58 @@ export function ClientsPage() {
           </li>
         ))}
       </ul>
+
+      {clients.isSuccess && !needle && <Archive />}
+    </section>
+  )
+}
+
+/** Archived clients, loaded only when Dasha asks for them. */
+function Archive() {
+  const { base, onUnauthorized } = useCoach()
+  const [open, setOpen] = useState(false)
+  const archived = useQuery({
+    queryKey: ARCHIVED_KEY,
+    queryFn: async () =>
+      unwrap(await api.GET('/coach/clients', { params: { query: { archived: true } } })),
+    enabled: open,
+  })
+  useEffect(() => {
+    if (isUnauthorized(archived.error)) onUnauthorized()
+  }, [archived.error, onUnauthorized])
+
+  return (
+    <section className="stack archive" aria-label="Архів">
+      <button
+        type="button"
+        className="link-button"
+        aria-expanded={open}
+        onClick={() => setOpen(!open)}
+      >
+        {open ? 'Сховати архів' : 'Архів'}
+      </button>
+      {open && archived.isPending && <p className="muted">Завантаження…</p>}
+      {open && archived.isError && !isUnauthorized(archived.error) && (
+        <p className="error">Не вдалося завантажити архів.</p>
+      )}
+      {open && archived.data?.length === 0 && <p className="muted">В архіві нікого.</p>}
+      {open && (
+        <ul className="client-list">
+          {archived.data?.map((client) => (
+            <li key={client.id} className="client-row">
+              <Link className="client-link" to={`${base}/clients/${client.id}`}>
+                <span className="avatar" aria-hidden="true">
+                  {initials(client.name)}
+                </span>
+                <span className="client-text">
+                  <span className="client-name">{client.name}</span>
+                  <span className="client-status">В архіві</span>
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   )
 }
@@ -132,6 +183,14 @@ function ClientStatus({ client }: { client: Client }) {
     return (
       <span className="client-status warn">
         {client.unseen_reports === 1 ? 'Новий звіт' : `Нових звітів: ${client.unseen_reports}`}
+      </span>
+    )
+  }
+  const paid = payment(client.paid_until)
+  if (paid?.due) {
+    return (
+      <span className="client-status warn">
+        {paid.text.charAt(0).toUpperCase() + paid.text.slice(1)}
       </span>
     )
   }

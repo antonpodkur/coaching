@@ -16,7 +16,18 @@ impl FromRequestParts<AppState> for CurrentClient {
     type Rejection = AppError;
 
     async fn from_request_parts(parts: &mut Parts, state: &AppState) -> Result<Self, AppError> {
-        subject_with_role(parts, state, Role::Client).map(Self)
+        let client_id = subject_with_role(parts, state, Role::Client)?;
+        // Archiving a client ends their sessions now, not when the token runs out.
+        let active = sqlx::query_scalar!(
+            r#"SELECT EXISTS (SELECT 1 FROM clients WHERE id = $1 AND archived_at IS NULL) AS "active!""#,
+            client_id,
+        )
+        .fetch_one(&state.db)
+        .await?;
+        if !active {
+            return Err(AppError::Unauthorized);
+        }
+        Ok(Self(client_id))
     }
 }
 

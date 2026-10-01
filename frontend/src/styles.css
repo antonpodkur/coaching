@@ -109,6 +109,12 @@ a.button {
   cursor: pointer;
 }
 
+.field input[type='date'] {
+  appearance: none;
+  text-align: left;
+  color-scheme: dark;
+}
+
 .field input {
   height: 44px;
   padding: 0 14px;
@@ -399,6 +405,7 @@ a.button {
   color: var(--muted);
 }
 
+.client-status .warn,
 .client-status.warn {
   color: var(--pink);
 }
@@ -823,6 +830,19 @@ a.button {
 
 .client-head h1 {
   font-size: 22px;
+}
+
+.client-head .client-text {
+  flex-grow: 1;
+}
+
+.archive {
+  margin-top: 8px;
+}
+
+.archive .avatar,
+.archive .client-name {
+  opacity: 0.6;
 }
 
 .avatar.large {

@@ -5,9 +5,11 @@ import { Link, useNavigate, useParams } from 'react-router'
 import { ApiError, type Schemas, api, unwrap } from '../api/client'
 import { BackLink } from '../shared/BackLink'
 import { formatDay, formatShortDate, initials, plural } from '../shared/format'
-import { CopyIcon, PlusIcon } from '../shared/icons'
+import { CopyIcon, EditIcon, PlusIcon } from '../shared/icons'
+import { ArchivedNotice } from './ClientEditPage'
 import { InviteCard, type ShownInvite } from './InviteCard'
 import { ReportCard } from './ReportCard'
+import { clientQuery, payment } from './clients'
 import { CLIENTS_KEY, RESULTS_KEY, WORKOUTS_KEY, isUnauthorized, useCoach } from './context'
 
 type Summary = Schemas['WorkoutSummary']
@@ -26,11 +28,7 @@ export function ClientPage() {
   const queryClient = useQueryClient()
   const [invite, setInvite] = useState<ShownInvite | null>(null)
 
-  const client = useQuery({
-    queryKey: [...CLIENTS_KEY, id],
-    queryFn: async () =>
-      unwrap(await api.GET('/coach/clients/{id}', { params: { path: { id } } })),
-  })
+  const client = useQuery(clientQuery(id))
   const workouts = useQuery({
     queryKey: [...WORKOUTS_KEY, 'client', id],
     queryFn: async () =>
@@ -97,6 +95,9 @@ export function ClientPage() {
     : person.invite_expires_at && new Date(person.invite_expires_at) > new Date()
       ? `Запрошення до ${formatDay(person.invite_expires_at)}`
       : 'Ще не в застосунку'
+  const paid = payment(person.paid_until)
+  // An archived client gets no new workouts or invites until restored.
+  const active = !person.archived
 
   return (
     <section className="page">
@@ -108,13 +109,27 @@ export function ClientPage() {
         <div className="client-text">
           <h1>{person.name}</h1>
           <span className="client-status">
-            {status}
-            {person.paid_until && ` · оплачено до ${formatDay(person.paid_until)}`}
+            {person.archived ? 'В архіві' : status}
+            {paid && (
+              <>
+                {' · '}
+                <span className={paid.due && active ? 'warn' : undefined}>{paid.text}</span>
+              </>
+            )}
           </span>
         </div>
+        <Link
+          className="icon-button"
+          to={`${base}/clients/${id}/edit`}
+          aria-label="Змінити дані клієнта"
+        >
+          <EditIcon />
+        </Link>
       </header>
 
-      {!person.joined && !invite && (
+      {person.archived && <ArchivedNotice client={person} />}
+
+      {active && !person.joined && !invite && (
         <button
           type="button"
           className="button block"
@@ -129,36 +144,38 @@ export function ClientPage() {
       {reported && (
         <LatestReport
           workoutId={reported.id}
-          onCopy={() => create.mutate(reported.id)}
+          onCopy={active ? () => create.mutate(reported.id) : undefined}
           copying={create.isPending}
         />
       )}
 
-      <div className="stack">
-        <button
-          type="button"
-          className="button primary block"
-          disabled={create.isPending}
-          onClick={() => create.mutate(undefined)}
-        >
-          <PlusIcon />
-          Нове тренування
-        </button>
-        {latest && latest.id !== reported?.id && (
+      {active && (
+        <div className="stack">
           <button
             type="button"
-            className="button block"
+            className="button primary block"
             disabled={create.isPending}
-            onClick={() => create.mutate(latest.id)}
+            onClick={() => create.mutate(undefined)}
           >
-            <CopyIcon />
-            Скопіювати «{latest.title || 'тренування'}» на наступний тиждень
+            <PlusIcon />
+            Нове тренування
           </button>
-        )}
-        {create.isError && !isUnauthorized(create.error) && (
-          <p className="error">Не вдалося створити тренування.</p>
-        )}
-      </div>
+          {latest && latest.id !== reported?.id && (
+            <button
+              type="button"
+              className="button block"
+              disabled={create.isPending}
+              onClick={() => create.mutate(latest.id)}
+            >
+              <CopyIcon />
+              Скопіювати «{latest.title || 'тренування'}» на наступний тиждень
+            </button>
+          )}
+          {create.isError && !isUnauthorized(create.error) && (
+            <p className="error">Не вдалося створити тренування.</p>
+          )}
+        </div>
+      )}
 
       <section className="stack" aria-labelledby="workouts-title">
         <h2 id="workouts-title" className="section-title">
@@ -220,7 +237,8 @@ function LatestReport({
   copying,
 }: {
   workoutId: string
-  onCopy: () => void
+  /** Left out for an archived client. */
+  onCopy?: () => void
   copying: boolean
 }) {
   const { base } = useCoach()
@@ -238,10 +256,12 @@ function LatestReport({
       compact
       actions={
         <div className="report-actions">
-          <button type="button" className="button block" disabled={copying} onClick={onCopy}>
-            <CopyIcon />
-            Скопіювати в наступне тренування
-          </button>
+          {onCopy && (
+            <button type="button" className="button block" disabled={copying} onClick={onCopy}>
+              <CopyIcon />
+              Скопіювати в наступне тренування
+            </button>
+          )}
           <Link className="link-button" to={`${base}/workouts/${workoutId}/report`}>
             Відкрити звіт повністю
           </Link>

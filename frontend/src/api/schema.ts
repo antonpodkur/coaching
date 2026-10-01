@@ -62,7 +62,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** All of the coach's clients, newest first. */
+        /** The coach's clients, newest first. Archived clients only on request. */
         get: operations["list_clients"];
         put?: never;
         /** Adds a client and returns their first invite link. */
@@ -80,14 +80,20 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** One client. */
+        /** One client, archived or not. */
         get: operations["get_client"];
         put?: never;
         post?: never;
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Renames a client, records how long they have paid for, or archives them.
+         * @description Archiving keeps their workouts and reports for Dasha. The client is signed
+         *     out, gets no more bot messages, and their unused invite stops working until
+         *     they are restored.
+         */
+        patch: operations["update_client"];
         trace?: never;
     };
     "/coach/clients/{id}/invite": {
@@ -215,6 +221,26 @@ export interface paths {
         put?: never;
         /** Reads an old Telegram plan and matches it against the library. Saves nothing. */
         post: operations["parse"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/coach/me/timezone": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Stores the timezone of Dasha's phone, so her evening summary arrives at 20:00
+         *     her time wherever she is.
+         */
+        put: operations["set_coach_timezone"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -475,6 +501,17 @@ export interface components {
             /** @description Keep in the page; send it to `/auth/bot-login/poll` to collect the token. */
             poll_secret: string;
         };
+        /** @description Changes to one client. Fields left out stay as they are. */
+        ClientChanges: {
+            /** @description `true` archives the client and ends their sessions; `false` restores them. */
+            archived?: boolean | null;
+            name?: string | null;
+            /**
+             * Format: date
+             * @description The last day the client has paid for. `null` clears it.
+             */
+            paid_until?: string | null;
+        };
         ClientExercise: {
             /** Format: uuid */
             id: string;
@@ -552,6 +589,8 @@ export interface components {
             title: string;
         };
         CoachClient: {
+            /** @description Hidden from the list; the client cannot open the app until restored. */
+            archived: boolean;
             /** Format: date-time */
             created_at: string;
             /** Format: uuid */
@@ -576,6 +615,8 @@ export interface components {
             /** Format: uuid */
             id: string;
             name: string;
+            /** @description IANA timezone of Dasha's phone; her evening summary follows it. */
+            timezone: string;
         };
         CoachReport: {
             comment: string;
@@ -1026,7 +1067,10 @@ export interface operations {
     };
     list_clients: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description `true` lists the archive instead, most recently archived first. */
+                archived?: boolean;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -1109,6 +1153,57 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CoachClient"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_client: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Client id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClientChanges"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CoachClient"];
+                };
+            };
+            /** @description `invalid_name` */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
             401: {
@@ -1504,6 +1599,44 @@ export interface operations {
             };
             /** @description `wrong_role` */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    set_coach_timezone: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetTimezone"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `unknown_timezone` */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };

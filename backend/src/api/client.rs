@@ -59,10 +59,7 @@ pub async fn set_timezone(
     CurrentClient(client_id): CurrentClient,
     Json(body): Json<SetTimezone>,
 ) -> AppResult<StatusCode> {
-    let timezone: chrono_tz::Tz = body
-        .timezone
-        .parse()
-        .map_err(|_| AppError::BadRequest("unknown_timezone"))?;
+    let timezone = body.parse()?;
     sqlx::query!(
         "UPDATE clients SET timezone = $2 WHERE id = $1",
         client_id,
@@ -71,4 +68,13 @@ pub async fn set_timezone(
     .execute(&state.db)
     .await?;
     Ok(StatusCode::NO_CONTENT)
+}
+
+impl SetTimezone {
+    /// Anything but an IANA name is refused, so `AT TIME ZONE` never fails on it.
+    pub(crate) fn parse(&self) -> AppResult<chrono_tz::Tz> {
+        self.timezone
+            .parse()
+            .map_err(|_| AppError::BadRequest("unknown_timezone"))
+    }
 }

@@ -44,7 +44,9 @@ use crate::state::AppState;
         coach::clients::list,
         coach::clients::create,
         coach::clients::get,
+        coach::clients::update,
         coach::clients::reinvite,
+        coach::me::set_timezone,
         coach::exercises::list,
         coach::exercises::create,
         coach::exercises::get,
@@ -120,8 +122,12 @@ pub fn router(state: AppState) -> Router {
             "/coach/clients",
             get(coach::clients::list).post(coach::clients::create),
         )
-        .route("/coach/clients/{id}", get(coach::clients::get))
+        .route(
+            "/coach/clients/{id}",
+            get(coach::clients::get).patch(coach::clients::update),
+        )
         .route("/coach/clients/{id}/invite", post(coach::clients::reinvite))
+        .route("/coach/me/timezone", put(coach::me::set_timezone))
         .route(
             "/coach/clients/{id}/workouts",
             get(coach::workouts::list_for_client),

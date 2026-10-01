@@ -42,7 +42,7 @@ pub enum Accepted {
         client_name: String,
         coach_telegram_id: i64,
     },
-    /// This Telegram account already belongs to a different client profile.
+    /// This Telegram account already belongs to a different active client profile.
     LinkedElsewhere,
     /// Unknown, used or expired code.
     Invalid,
@@ -68,7 +68,7 @@ pub async fn accept(db: &PgPool, code: &str, telegram_id: i64) -> sqlx::Result<A
     };
 
     let linked_elsewhere = sqlx::query_scalar!(
-        "SELECT id FROM clients WHERE telegram_id = $1 AND id <> $2",
+        "SELECT id FROM clients WHERE telegram_id = $1 AND id <> $2 AND archived_at IS NULL",
         telegram_id,
         invite.id,
     )
@@ -78,6 +78,15 @@ pub async fn accept(db: &PgPool, code: &str, telegram_id: i64) -> sqlx::Result<A
     if linked_elsewhere {
         return Ok(Accepted::LinkedElsewhere);
     }
+    // A client who comes back may get a fresh profile rather than their archived
+    // one; the archived profile lets go of the account and keeps its history.
+    sqlx::query!(
+        "UPDATE clients SET telegram_id = NULL WHERE telegram_id = $1 AND id <> $2",
+        telegram_id,
+        invite.id,
+    )
+    .execute(&mut *tx)
+    .await?;
 
     sqlx::query!(
         "UPDATE clients SET telegram_id = $2, invite_code_hash = NULL, invite_expires_at = NULL
