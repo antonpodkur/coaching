@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react'
 
 import { ApiError, type Schemas, api, setSessionToken, unwrap } from '../api/client'
 import { CoachWorkspace } from '../coach/CoachWorkspace'
+import { checkHomeScreen } from '../shared/homeScreen'
 import { Screen } from '../shared/Screen'
 import { ClientApp } from './ClientApp'
 import { recalledSession, rememberSession } from './session'
@@ -64,6 +65,7 @@ export function MiniApp() {
     webApp?.expand()
     webApp?.setHeaderColor('#121212')
     webApp?.setBackgroundColor('#121212')
+    checkHomeScreen()
   }, [])
 
   const session = useQuery({

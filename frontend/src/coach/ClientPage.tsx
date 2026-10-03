@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 
-import { ApiError, api, unwrap } from '../api/client'
+import { ApiError, type Schemas, api, unwrap } from '../api/client'
 import { BackLink } from '../shared/BackLink'
 import { formatDay, initials } from '../shared/format'
 import { CopyIcon, EditIcon, PlusIcon } from '../shared/icons'
@@ -11,7 +11,8 @@ import { InviteCard, type ShownInvite } from './InviteCard'
 import { ReportCard } from './ReportCard'
 import { WorkoutRow } from './WorkoutRow'
 import { clientQuery, payment } from './clients'
-import { CLIENTS_KEY, RESULTS_KEY, WORKOUTS_KEY, isUnauthorized, useCoach } from './context'
+import { CLIENTS_KEY, WORKOUTS_KEY, isUnauthorized, useCoach } from './context'
+import { resultsQuery } from './results'
 
 /** One client: their workouts, and where new ones start. */
 export function ClientPage() {
@@ -27,6 +28,9 @@ export function ClientPage() {
     queryFn: async () =>
       unwrap(await api.GET('/coach/clients/{id}/workouts', { params: { path: { id } } })),
   })
+  // The newest report leads the page, the way Dasha checks in on a client.
+  const reported = workouts.data?.find((workout) => workout.report)
+  const report = useQuery({ ...resultsQuery(reported?.id ?? ''), enabled: reported !== undefined })
   useEffect(() => {
     if (isUnauthorized(client.error) || isUnauthorized(workouts.error)) onUnauthorized()
   }, [client.error, workouts.error, onUnauthorized])
@@ -81,8 +85,9 @@ export function ClientPage() {
   const person = client.data
   // "Copy to the next one" starts from the latest workout that has something in it.
   const latest = workouts.data?.find((workout) => workout.date && workout.exercise_count > 0)
-  // The newest report leads the page, the way Dasha checks in on a client.
-  const reported = workouts.data?.find((workout) => workout.report)
+  // The report goes above the buttons and the list, so they wait for it: a
+  // report that arrives later pushes them down, under a finger already on its way.
+  const loading = workouts.isPending || (reported !== undefined && report.isPending)
   const status = person.joined
     ? 'У застосунку'
     : person.invite_expires_at && new Date(person.invite_expires_at) > new Date()
@@ -134,15 +139,18 @@ export function ClientPage() {
       )}
       {invite && <InviteCard invite={invite} onClose={() => setInvite(null)} />}
 
-      {reported && (
+      {loading && <p className="muted">Завантаження…</p>}
+
+      {reported && report.data && (
         <LatestReport
-          workoutId={reported.id}
+          key={reported.id}
+          results={report.data}
           onCopy={active ? () => create.mutate(reported.id) : undefined}
           copying={create.isPending}
         />
       )}
 
-      {active && (
+      {active && !loading && (
         <div className="stack">
           <button
             type="button"
@@ -170,47 +178,43 @@ export function ClientPage() {
         </div>
       )}
 
-      <section className="stack" aria-labelledby="workouts-title">
-        <h2 id="workouts-title" className="section-title">
-          Тренування
-        </h2>
-        {workouts.isPending && <p className="muted">Завантаження…</p>}
-        {workouts.data?.length === 0 && (
-          <p className="muted">Ще немає. Склади перше — клієнт побачить його після публікації.</p>
-        )}
-        <ul className="workout-list">
-          {workouts.data?.map((workout) => (
-            <WorkoutRow key={workout.id} workout={workout} />
-          ))}
-        </ul>
-      </section>
+      {!loading && (
+        <section className="stack" aria-labelledby="workouts-title">
+          <h2 id="workouts-title" className="section-title">
+            Тренування
+          </h2>
+          {workouts.isError && !isUnauthorized(workouts.error) && (
+            <p className="error">Не вдалося завантажити тренування.</p>
+          )}
+          {workouts.data?.length === 0 && (
+            <p className="muted">Ще немає. Склади перше — клієнт побачить його після публікації.</p>
+          )}
+          <ul className="workout-list">
+            {workouts.data?.map((workout) => (
+              <WorkoutRow key={workout.id} workout={workout} />
+            ))}
+          </ul>
+        </section>
+      )}
     </section>
   )
 }
 
 /** The newest report, differences first, with the step Dasha usually takes next. */
 function LatestReport({
-  workoutId,
+  results,
   onCopy,
   copying,
 }: {
-  workoutId: string
+  results: Schemas['WorkoutResults']
   /** Left out for an archived client. */
   onCopy?: () => void
   copying: boolean
 }) {
   const { base } = useCoach()
-  const results = useQuery({
-    queryKey: [...RESULTS_KEY, workoutId],
-    queryFn: async () =>
-      unwrap(
-        await api.GET('/coach/workouts/{id}/results', { params: { path: { id: workoutId } } }),
-      ),
-  })
-  if (!results.data) return null
   return (
     <ReportCard
-      results={results.data}
+      results={results}
       compact
       actions={
         <div className="report-actions">
@@ -220,7 +224,7 @@ function LatestReport({
               Скопіювати в наступне тренування
             </button>
           )}
-          <Link className="link-button" to={`${base}/workouts/${workoutId}/report`}>
+          <Link className="link-button" to={`${base}/workouts/${results.id}/report`}>
             Відкрити звіт повністю
           </Link>
         </div>

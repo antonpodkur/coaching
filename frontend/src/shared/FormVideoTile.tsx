@@ -16,8 +16,10 @@ const STATE_TEXT: Record<FormVideo['status'], string> = {
 }
 
 /**
- * A client's technique video: its thumbnail until tapped, then the player. The
- * links are signed and expire, so they are always fresh from the server.
+ * A client's technique video: its thumbnail until tapped, then the player,
+ * already playing. Both fill the same frame, so opening a video moves nothing
+ * on the page. The links are signed and expire, so they are always fresh from
+ * the server.
  */
 export function FormVideoTile({
   video,
@@ -34,7 +36,12 @@ export function FormVideoTile({
   return (
     <div className="form-video">
       {ready && playing ? (
-        <VideoPlayer src={video.hls_url ?? ''} poster={video.thumbnail_url ?? undefined} label={label} />
+        <VideoPlayer
+          src={video.hls_url ?? ''}
+          poster={video.thumbnail_url ?? undefined}
+          label={label}
+          autoPlay
+        />
       ) : ready ? (
         <button type="button" className="form-video-thumb" onClick={() => setPlaying(true)}>
           {video.thumbnail_url && <img src={video.thumbnail_url} alt="" loading="lazy" />}

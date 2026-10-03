@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 
-import { type HomeScreenStatus, telegramSupporting } from '../app/telegram'
+import { telegramSupporting } from '../app/telegram'
+import { useHomeScreenStatus } from './homeScreen'
 
 const DISMISSED_KEY = 'home_screen_card_dismissed'
 
@@ -16,21 +17,16 @@ function readDismissed(): boolean {
  * Offers an icon on the phone's home screen, so the app opens in one tap
  * instead of through the chat. Shown only where Telegram supports it and the
  * icon is not there yet; "Не зараз" hides it on this phone.
+ *
+ * It sits above the page, so it is shown only if the answer was in when the
+ * page drew: a card that pops in later pushes the page down under a finger.
  */
 export function HomeScreenCard() {
-  const [status, setStatus] = useState<HomeScreenStatus | null>(null)
+  const current = useHomeScreenStatus()
+  const [missedAtStart] = useState(current === 'missed')
   const [dismissed, setDismissed] = useState(readDismissed)
 
-  useEffect(() => {
-    const webApp = telegramSupporting('8.0')
-    if (!webApp || dismissed) return
-    webApp.checkHomeScreenStatus(setStatus)
-    const added = () => setStatus('added')
-    webApp.onEvent('homeScreenAdded', added)
-    return () => webApp.offEvent('homeScreenAdded', added)
-  }, [dismissed])
-
-  if (dismissed || status !== 'missed') return null
+  if (dismissed || !missedAtStart || current !== 'missed') return null
 
   const dismiss = () => {
     try {

@@ -769,11 +769,22 @@ a.button {
   gap: 12px;
 }
 
-.video {
+/* Every video sits in one fixed frame, whatever its shape and whether it has
+   loaded. A player that changes size as it loads moves the buttons below it,
+   and the next tap lands on one of them. */
+.video,
+.form-video-thumb,
+.form-video-state {
+  display: block;
   width: 100%;
+  aspect-ratio: 3 / 4;
   max-height: 70dvh;
   border-radius: 16px;
+}
+
+.video {
   background: #000;
+  object-fit: contain;
 }
 
 .file-button {
@@ -1747,11 +1758,8 @@ button.save-status {
 
 .form-video-thumb {
   position: relative;
-  width: 100%;
-  aspect-ratio: 4 / 3;
   padding: 0;
   border: 0;
-  border-radius: 14px;
   overflow: hidden;
   background: #000;
   cursor: pointer;
@@ -1779,8 +1787,11 @@ button.save-status {
 }
 
 .form-video-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: 14px;
-  border-radius: 14px;
+  text-align: center;
   background: var(--surface);
   color: var(--muted);
   font-size: 13.5px;

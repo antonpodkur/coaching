@@ -157,7 +157,6 @@ export async function sendVideo(
 
     set(key, { phase: 'finishing', progress: 1 })
     unwrap(await api.POST('/form-videos/{id}/uploaded', { params: { path: { id: videoId } } }))
-    dismissSend(key)
   } catch (err) {
     console.error('video send failed', err)
     // Free the slot, so trying again does not count against the three.
@@ -167,7 +166,11 @@ export async function sendVideo(
         .catch(() => undefined)
     }
     set(key, { phase: 'failed', error: failureText(err) })
-  } finally {
     void refresh()
+    return
   }
+  // The card stays until the list has the video, so the buttons below do not
+  // jump up and back down in between.
+  await refresh()
+  dismissSend(key)
 }

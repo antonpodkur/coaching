@@ -7,7 +7,8 @@ import { BackLink } from '../shared/BackLink'
 import { CopyIcon } from '../shared/icons'
 import { ReportCard } from './ReportCard'
 import { useBackTarget } from './backTarget'
-import { RESULTS_KEY, WORKOUTS_KEY, isUnauthorized, useCoach } from './context'
+import { WORKOUTS_KEY, isUnauthorized, useCoach } from './context'
+import { resultsQuery } from './results'
 
 /** One workout's full report: every exercise and set next to the plan. */
 export function ReportPage() {
@@ -16,11 +17,7 @@ export function ReportPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
 
-  const results = useQuery({
-    queryKey: [...RESULTS_KEY, id],
-    queryFn: async () =>
-      unwrap(await api.GET('/coach/workouts/{id}/results', { params: { path: { id } } })),
-  })
+  const results = useQuery(resultsQuery(id))
   useEffect(() => {
     if (isUnauthorized(results.error)) onUnauthorized()
   }, [results.error, onUnauthorized])
