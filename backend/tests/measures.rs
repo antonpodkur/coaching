@@ -222,3 +222,49 @@ async fn timed_and_bodyweight_sets_go_from_builder_to_report(db: PgPool) {
     assert_eq!(done["actual_reps"], 660);
     assert_eq!(done["differs"], true);
 }
+
+#[sqlx::test]
+async fn timed_sets_go_up_to_three_hours(db: PgPool) {
+    let s = setup(db).await;
+    let walk = exercise(&s, "Ходьба в гору", Some("time")).await;
+
+    let (_, status, body) = workout(&s, vec![(&walk, vec![set(None, 10_801, 10_801)])]).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(body["error"], "invalid_set");
+
+    // Two to three hours.
+    let (id, status, saved) = workout(&s, vec![(&walk, vec![set(None, 7_200, 10_800)])]).await;
+    assert_eq!(status, StatusCode::OK, "{saved}");
+    call(
+        &s.app,
+        "POST",
+        &format!("/coach/workouts/{id}/publish"),
+        Some(&s.coach),
+        None,
+    )
+    .await;
+    let (_, opened) = call(
+        &s.app,
+        "GET",
+        &format!("/workouts/{id}"),
+        Some(&s.client),
+        None,
+    )
+    .await;
+    let walk_set = opened["exercises"][0]["sets"][0]["id"].as_str().unwrap();
+    let result = format!("/sets/{walk_set}/result");
+    let log = |secs: i32| {
+        call(
+            &s.app,
+            "PUT",
+            &result,
+            Some(&s.client),
+            Some(json!({
+                "actual_kg": null, "actual_reps": secs, "completed": true,
+                "client_updated_at": "2026-10-06T09:00:00Z",
+            })),
+        )
+    };
+    assert_eq!(log(10_800).await.0, StatusCode::NO_CONTENT);
+    assert_eq!(log(10_801).await.0, StatusCode::BAD_REQUEST);
+}

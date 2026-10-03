@@ -101,19 +101,69 @@ export function formatSet(set: { kg?: number | null; reps_min: number; reps_max:
 /** How an exercise is counted: kg × reps, reps (kg only as extra weight), or seconds. */
 export type Measure = 'weight' | 'bodyweight' | 'time'
 
-/** `45 с`, `1 хв`, `10 хв`, or `1:30`. */
+/** Timed sets go up to three hours, e.g. a long walk. */
+export const MAX_SECS = 3 * 60 * 60
+
+/** What a timed set is typed in. */
+export type TimeUnit = 'sec' | 'min' | 'hour'
+
+const UNIT_SECS: Record<TimeUnit, number> = { sec: 1, min: 60, hour: 60 * 60 }
+
+/** In the order the switch shows them; `short` for the switch, `name` for labels. */
+export const TIME_UNITS: { value: TimeUnit; short: string; name: string }[] = [
+  { value: 'sec', short: 'сек', name: 'Секунди' },
+  { value: 'min', short: 'хв', name: 'Хвилини' },
+  { value: 'hour', short: 'год', name: 'Години' },
+]
+
+/**
+ * The unit that shows every one of `secs` as a whole number: hours from two
+ * whole hours up (an hour reads better as `60 хв`), then minutes, then seconds.
+ */
+export function timeUnitFor(...secs: number[]): TimeUnit {
+  if (secs.length === 0) return 'min'
+  const whole = (size: number) => secs.every((value) => value > 0 && value % size === 0)
+  if (whole(UNIT_SECS.hour) && secs.every((value) => value >= 2 * UNIT_SECS.hour)) return 'hour'
+  if (whole(UNIT_SECS.min)) return 'min'
+  return 'sec'
+}
+
+/** Seconds as a number in `unit`, as typed: 90 in minutes is `1,5`. */
+export function formatInUnit(secs: number, unit: TimeUnit): string {
+  const value = Math.round((secs / UNIT_SECS[unit]) * 100) / 100
+  return String(value).replace('.', ',')
+}
+
+/**
+ * A time typed in `unit` → seconds: in minutes `60` is an hour and `1,5` is
+ * 90 seconds. `1:30` and `10 хв` are read as they say. Empty is `null`;
+ * unreadable or over three hours is `undefined`.
+ */
+export function parseInUnit(text: string, unit: TimeUnit): number | null | undefined {
+  const value = text.trim().replace(',', '.')
+  if (!/^\d+(\.\d+)?$/.test(value)) return parseSecs(text)
+  const secs = Math.round(Number(value) * UNIT_SECS[unit])
+  return secs <= MAX_SECS ? secs : undefined
+}
+
+/** `45 с`, `10 хв`, `60 хв`, `2 год`, or `1:30`. */
 export function formatSecs(secs: number): string {
   if (secs < 60) return `${secs} с`
-  if (secs % 60 === 0) return `${secs / 60} хв`
+  const unit = timeUnitFor(secs)
+  if (unit === 'hour') return `${secs / UNIT_SECS.hour} год`
+  if (unit === 'min') return `${secs / UNIT_SECS.min} хв`
   return `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`
 }
 
-/** A target's count: `12`, `8–10`, or for time `45 с`, `30–45 с`, `1–2 хв`. */
+/** A target's count: `12`, `8–10`, or for time `45 с`, `45–60 с`, `20–30 хв`, `2–3 год`. */
 export function formatCount(min: number, max: number, measure: Measure = 'weight'): string {
   if (measure !== 'time') return min === max ? `${min}` : `${min}–${max}`
   if (min === max) return formatSecs(min)
-  if (max < 60) return `${min}–${max} с`
-  if (min % 60 === 0 && max % 60 === 0) return `${min / 60}–${max / 60} хв`
+  const unit = timeUnitFor(min, max)
+  if (unit === 'hour') return `${min / UNIT_SECS.hour}–${max / UNIT_SECS.hour} год`
+  if (unit === 'min') return `${min / UNIT_SECS.min}–${max / UNIT_SECS.min} хв`
+  // Up to two minutes reads best in seconds; past that, `45 с – 10 хв`.
+  if (max <= 120) return `${min}–${max} с`
   return `${formatSecs(min)} – ${formatSecs(max)}`
 }
 
@@ -150,29 +200,27 @@ export function formatClock(secs: number): string {
   return `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`
 }
 
-/** Seconds as typed: `45`, or `1:30` from a minute up. */
-export function formatSecsInput(secs: number): string {
-  return secs < 60 ? `${secs}` : `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`
-}
-
 /**
- * Typed time → seconds: `45`, `45 с`, `1:30`, `10 хв`. Empty is `null`;
- * unreadable or over an hour is `undefined`.
+ * Typed time → seconds: `45`, `45 с`, `1:30`, `10 хв`, `2 год`. Empty is
+ * `null`; unreadable or over three hours is `undefined`.
  */
 export function parseSecs(text: string): number | null | undefined {
   const value = text.trim().toLowerCase()
   if (value === '') return null
-  const clock = value.match(/^(\d{1,2}):([0-5]\d)$/)
-  const secs = value.match(/^(\d{1,4})\s*(с|сек\.?|секунд[аи]?)?$/)
-  const mins = value.match(/^(\d{1,2})\s*(хв\.?|хвилин[аи]?)$/)
+  const clock = value.match(/^(\d{1,3}):([0-5]\d)$/)
+  const secs = value.match(/^(\d{1,5})\s*(с|сек\.?|секунд[аи]?)?$/)
+  const mins = value.match(/^(\d{1,3})\s*(хв\.?|хвилин[аи]?)$/)
+  const hours = value.match(/^(\d)\s*(год\.?|годин[аи]?)$/)
   const total = clock
     ? Number(clock[1]) * 60 + Number(clock[2])
     : secs
       ? Number(secs[1])
       : mins
         ? Number(mins[1]) * 60
-        : undefined
-  return total !== undefined && total <= 3600 ? total : undefined
+        : hours
+          ? Number(hours[1]) * 3600
+          : undefined
+  return total !== undefined && total <= MAX_SECS ? total : undefined
 }
 
 /** `Date` → `2026-10-06` in the phone's own timezone. */

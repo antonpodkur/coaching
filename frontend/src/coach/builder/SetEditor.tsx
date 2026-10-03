@@ -1,19 +1,22 @@
 import { useState } from 'react'
 
-import { formatKg } from '../../shared/format'
-import { MinusIcon, PlusIcon } from '../../shared/icons'
 import {
-  type DraftExercise,
-  type DraftSet,
-  formatCountInput,
-  parseKg,
-  parseReps,
-  parseTime,
-  timeStep,
-} from './draft'
+  MAX_SECS,
+  TIME_UNITS,
+  type TimeUnit,
+  formatInUnit,
+  formatKg,
+  parseInUnit,
+  timeUnitFor,
+} from '../../shared/format'
+import { MinusIcon, PlusIcon } from '../../shared/icons'
+import { type DraftExercise, type DraftSet, parseKg, parseReps } from './draft'
 
 const MAX_REPS = 500
-const MAX_SECS = 3600
+/** −/+ on a time moves by this much in the unit it is typed in. */
+const TIME_STEP: Record<TimeUnit, number> = { sec: 5, min: 60, hour: 30 * 60 }
+/** Turning a time into a range adds this much on top. */
+const TIME_SPAN: Record<TimeUnit, number> = { sec: 15, min: 5 * 60, hour: 30 * 60 }
 
 interface Props {
   exercise: DraftExercise
@@ -34,7 +37,8 @@ interface Props {
  *
  * Bodyweight and timed exercises show only the count (reps or time); "+ вага"
  * adds extra weight, e.g. a belt on pull-ups. "Діапазон" splits the count into
- * від and до, e.g. 10–12 reps.
+ * від and до, e.g. 10–12 reps. Time is typed in seconds, minutes or hours, as
+ * the сек / хв / год switch says: in minutes, `60` is an hour.
  */
 export function SetEditor({
   exercise,
@@ -50,15 +54,19 @@ export function SetEditor({
   const measure = exercise.measure
   const timed = measure === 'time'
   const limit = timed ? MAX_SECS : MAX_REPS
-  const countText = (count: number) => formatCountInput({ reps_min: count, reps_max: count }, measure)
-  /** One count as typed (`12`, `45`, `1:30`), or `undefined` if unreadable. */
+  // A time opens in the unit that shows it whole: 45 s in seconds, 20 min in minutes.
+  const [unit, setUnit] = useState<TimeUnit>(() => timeUnitFor(set.reps_min, set.reps_max))
+  const countText = (count: number, inUnit = unit) => (timed ? formatInUnit(count, inUnit) : `${count}`)
+  /** One count as typed, or `undefined` if unreadable. */
   const readCount = (text: string) => {
-    const count = (timed ? parseTime : parseReps)(text)
-    return count && count.reps_min === count.reps_max ? count.reps_min : undefined
+    if (timed) {
+      const secs = parseInUnit(text, unit)
+      return secs ? secs : undefined
+    }
+    const reps = parseReps(text)
+    return reps && reps.reps_min === reps.reps_max ? reps.reps_min : undefined
   }
-  /** −/+ on time moves by 5 s, then 15 s, then whole minutes. */
-  const step = (count: number, direction: 1 | -1) =>
-    timed ? direction * timeStep(direction > 0 ? count : count - 1) : direction
+  const step = timed ? TIME_STEP[unit] : 1
 
   const [kgText, setKgText] = useState(set.kg === null ? '' : formatKg(set.kg))
   const [range, setRange] = useState(set.reps_min !== set.reps_max)
@@ -99,23 +107,29 @@ export function SetEditor({
   }
   const stepMin = (direction: 1 | -1) => {
     const top = range ? set.reps_max : limit
-    const min = Math.min(top, Math.max(1, set.reps_min + step(set.reps_min, direction)))
+    // Down to one step (1 rep, 5 s, 1 min, half an hour), or less if typed so.
+    const bottom = Math.min(step, set.reps_min)
+    const min = Math.min(top, Math.max(bottom, set.reps_min + direction * step))
     onChange({ ...set, reps_min: min, reps_max: range ? set.reps_max : min })
     setMinText(countText(min))
   }
   const stepMax = (direction: 1 | -1) => {
-    const max = Math.min(limit, Math.max(set.reps_min, set.reps_max + step(set.reps_max, direction)))
+    const max = Math.min(limit, Math.max(set.reps_min, set.reps_max + direction * step))
     onChange({ ...set, reps_max: max })
     setMaxText(countText(max))
   }
   const toggleRange = () => {
-    // On: 10 becomes 10–12 (30 s becomes 30–45 s). Off: back to the lower end.
-    const max = range
-      ? set.reps_min
-      : Math.min(limit, set.reps_min + (timed ? 3 * timeStep(set.reps_min) : 2))
+    // On: 10 becomes 10–12 (20 min becomes 20–25 min). Off: back to the lower end.
+    const max = range ? set.reps_min : Math.min(limit, set.reps_min + (timed ? TIME_SPAN[unit] : 2))
     onChange({ ...set, reps_max: max })
     setMaxText(countText(max))
     setRange(!range)
+  }
+  // The same time, shown in another unit.
+  const changeUnit = (next: TimeUnit) => {
+    setUnit(next)
+    setMinText(countText(set.reps_min, next))
+    setMaxText(countText(set.reps_max, next))
   }
   const toggleExtraWeight = () => {
     if (extraWeight) {
@@ -125,7 +139,9 @@ export function SetEditor({
     setExtraWeight(!extraWeight)
   }
 
-  const unit = timed ? 'Час' : 'Повтори'
+  const countName = timed
+    ? (TIME_UNITS.find((option) => option.value === unit)?.name ?? 'Час')
+    : 'Повтори'
   const fields = (showKg ? 1 : 0) + (range ? 2 : 1)
 
   return (
@@ -152,12 +168,10 @@ export function SetEditor({
           />
         )}
         <Stepper
-          label={range ? `${unit} від` : unit}
-          inputLabel={
-            timed ? `${range ? 'Час від' : 'Час'}: секунди або 1:30` : range ? 'Повтори від' : 'Повтори'
-          }
-          // `1:30` needs the colon, which number pads lack.
-          inputMode={timed ? 'text' : 'numeric'}
+          label={range ? `${countName} від` : countName}
+          inputLabel={range ? `${countName} від` : countName}
+          // Decimal, so `1,5` minutes can be typed.
+          inputMode={timed ? 'decimal' : 'numeric'}
           text={minText}
           bad={minBad}
           lessLabel={timed ? 'Менше часу' : 'Менше повторів'}
@@ -168,8 +182,8 @@ export function SetEditor({
         {range && (
           <Stepper
             label="до"
-            inputLabel={timed ? 'Час до: секунди або 1:30' : 'Повтори до'}
-            inputMode={timed ? 'text' : 'numeric'}
+            inputLabel={`${countName} до`}
+            inputMode={timed ? 'decimal' : 'numeric'}
             text={maxText}
             bad={maxBad}
             lessLabel={timed ? 'Менше часу, до' : 'Менше повторів, до'}
@@ -180,6 +194,21 @@ export function SetEditor({
         )}
       </div>
       <div className="set-editor-options">
+        {timed && (
+          <div className="unit-switch" role="radiogroup" aria-label="Одиниці часу">
+            {TIME_UNITS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                role="radio"
+                aria-checked={unit === option.value}
+                onClick={() => changeUnit(option.value)}
+              >
+                {option.short}
+              </button>
+            ))}
+          </div>
+        )}
         <button type="button" className="chip" aria-pressed={range} onClick={toggleRange}>
           Діапазон
         </button>

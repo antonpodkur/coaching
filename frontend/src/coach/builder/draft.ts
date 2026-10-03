@@ -1,11 +1,5 @@
 import type { Schemas } from '../../api/client'
-import {
-  type Measure,
-  formatDone,
-  formatSecsInput,
-  formatTarget,
-  parseSecs,
-} from '../../shared/format'
+import { type Measure, formatDone, formatTarget } from '../../shared/format'
 
 export type Workout = Schemas['Workout']
 
@@ -43,7 +37,8 @@ export interface Draft {
 
 /** A fresh exercise starts with one set; she sets the numbers right away. */
 export const DEFAULT_REPS = 10
-export const DEFAULT_SECS = 30
+/** A minute, so a timed set starts out in minutes. */
+export const DEFAULT_SECS = 60
 
 export function toDraft(workout: Workout): Draft {
   return {
@@ -96,15 +91,6 @@ export function newSet(measure: Measure, from?: DraftSet): DraftSet {
   }
 }
 
-/** The count as typed: `8-10` or `12` reps, or `45`, `1:30`, `30-45` for time. */
-export function formatCountInput(
-  set: Pick<DraftSet, 'reps_min' | 'reps_max'>,
-  measure: Measure,
-): string {
-  const one = (value: number) => (measure === 'time' ? formatSecsInput(value) : `${value}`)
-  return set.reps_min === set.reps_max ? one(set.reps_min) : `${one(set.reps_min)}-${one(set.reps_max)}`
-}
-
 /** What a set chip says: `79 × 8–10`, `17 повт.`, `+10 × 8` or `45 с`. */
 export function setLabel(set: DraftSet, measure: Measure): string {
   return formatTarget(set.kg, set.reps_min, set.reps_max, measure)
@@ -125,21 +111,6 @@ export function parseReps(text: string): { reps_min: number; reps_max: number } 
   const min = Number(match[1])
   const max = match[2] ? Number(match[2]) : min
   return min >= 1 && max >= min && max <= 500 ? { reps_min: min, reps_max: max } : undefined
-}
-
-/** `45`, `1:30`, `10 хв` or a range `30-45` → seconds as min and max. */
-export function parseTime(text: string): { reps_min: number; reps_max: number } | undefined {
-  const parts = text.split(/[-–]/)
-  if (parts.length > 2) return undefined
-  const min = parseSecs(parts[0] ?? '')
-  const max = parts[1] === undefined ? min : parseSecs(parts[1])
-  if (!min || !max || max < min) return undefined
-  return { reps_min: min, reps_max: max }
-}
-
-/** A step on the −/+ buttons for time: 5 s, then 15 s, then whole minutes. */
-export function timeStep(secs: number): number {
-  return secs < 60 ? 5 : secs < 300 ? 15 : 60
 }
 
 /** Arms by default; legs for leg and glute exercises. */

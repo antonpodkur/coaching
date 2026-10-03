@@ -26,8 +26,8 @@ const MAX_NOTE_CHARS: usize = 500;
 const MAX_EXERCISES: usize = 40;
 const MAX_SETS_PER_EXERCISE: usize = 30;
 const MAX_KG: f64 = 999.0;
-/// Reps, or seconds for a timed exercise (up to an hour on a bike).
-const MAX_REPS: i32 = 3_600;
+/// Reps, or seconds for a timed exercise (up to three hours, e.g. a long walk).
+const MAX_REPS: i32 = 10_800;
 /// "Copy to the next one" lands on the same weekday of the next week.
 const COPY_DAYS_LATER: u64 = 7;
 /// The workouts tab asks for a week; a couple of months is the most it may ask for.

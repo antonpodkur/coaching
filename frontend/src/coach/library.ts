@@ -13,7 +13,7 @@ export const MEASURES: { value: Measure; label: string; hint: string }[] = [
     label: 'Власна вага',
     hint: 'Лише повтори. Додаткову вагу, наприклад пояс, можна додати в підході.',
   },
-  { value: 'time', label: 'На час', hint: 'Секунди або хвилини: планка, велотренажер.' },
+  { value: 'time', label: 'На час', hint: 'Секунди, хвилини або години: планка, велотренажер, ходьба.' },
 ]
 
 /** For lists: nothing for the usual weighted exercise, else `власна вага` or `на час`. */

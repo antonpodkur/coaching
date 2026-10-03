@@ -8,12 +8,14 @@ import { FormVideoTile } from '../shared/FormVideoTile'
 import { VideoPlayer } from '../shared/VideoPlayer'
 import {
   type Measure,
+  type TimeUnit,
   formatDone,
+  formatInUnit,
   formatKg,
-  formatSecsInput,
   formatTarget,
-  parseSecs,
+  parseInUnit,
   plural,
+  timeUnitFor,
 } from '../shared/format'
 import { CameraIcon, CheckIcon, ChevronIcon, CloseIcon } from '../shared/icons'
 import { Screen } from '../shared/Screen'
@@ -53,6 +55,8 @@ export function ExerciseScreen() {
   const showKg =
     measure === 'weight' ||
     exercise.sets.some((set) => set.target_kg != null || set.actual_kg != null)
+  // Times are typed in the unit the plan reads best in: `60` for 60 хв.
+  const unit = timeUnitFor(...exercise.sets.flatMap((set) => [set.target_reps_min, set.target_reps_max]))
   const done = exercise.sets.filter((set) => set.completed).length
   const different = exercise.sets.filter((set) => set.completed && differs(set)).length
 
@@ -98,7 +102,7 @@ export function ExerciseScreen() {
           <span>№</span>
           <span>План</span>
           {showKg && <span>{measure === 'weight' ? 'Кг' : '+кг'}</span>}
-          <span>{measure === 'time' ? 'Час' : 'Повт.'}</span>
+          <span>{measure === 'time' ? UNIT_HEAD[unit] : 'Повт.'}</span>
           <span />
         </div>
         {exercise.sets.map((set, setIndex) => (
@@ -108,6 +112,7 @@ export function ExerciseScreen() {
             set={set}
             number={setIndex + 1}
             measure={measure}
+            unit={unit}
             showKg={showKg}
           />
         ))}
@@ -265,25 +270,30 @@ function readReps(text: string): number | null | undefined {
   return Number.isInteger(reps) && reps >= 0 && reps <= 500 ? reps : undefined
 }
 
+const UNIT_HEAD: Record<TimeUnit, string> = { sec: 'Сек', min: 'Хв', hour: 'Год' }
+const UNIT_WORD: Record<TimeUnit, string> = { sec: 'секунди', min: 'хвилини', hour: 'години' }
+
 interface SetRowProps {
   workoutId: string
   set: ClientSet
   number: number
   measure: Measure
+  /** What a time is typed in. */
+  unit: TimeUnit
   /** Without it the set has no weight at all. */
   showKg: boolean
 }
 
-function SetRow({ workoutId, set, number, measure, showKg }: SetRowProps) {
+function SetRow({ workoutId, set, number, measure, unit, showKg }: SetRowProps) {
   const timed = measure === 'time'
   // Untouched sets start from the plan; the top of a range is the aim.
   const startKg = set.completed || set.client_updated_at ? set.actual_kg : set.target_kg
   const startReps = set.completed || set.client_updated_at ? set.actual_reps : set.target_reps_max
   const [kgText, setKgText] = useState(startKg == null ? '' : formatKg(startKg))
   const [repsText, setRepsText] = useState(
-    startReps == null ? '' : timed ? formatSecsInput(startReps) : String(startReps),
+    startReps == null ? '' : timed ? formatInUnit(startReps, unit) : String(startReps),
   )
-  const readCount = timed ? parseSecs : readReps
+  const readCount = timed ? (text: string) => parseInUnit(text, unit) : readReps
   const kg = readKg(kgText)
   const reps = readCount(repsText)
   const valid = kg !== undefined && reps !== undefined
@@ -335,9 +345,9 @@ function SetRow({ workoutId, set, number, measure, showKg }: SetRowProps) {
       )}
       <input
         className={reps === undefined ? 'bad' : repsDiffer ? 'differs' : undefined}
-        // `1:30` needs the colon, which number pads lack.
-        inputMode={timed && set.target_reps_max >= 60 ? 'text' : 'numeric'}
-        aria-label={timed ? `Підхід ${number}: час, секунди або 1:30` : `Підхід ${number}: повтори`}
+        // Decimal, so `1,5` minutes can be typed.
+        inputMode={timed ? 'decimal' : 'numeric'}
+        aria-label={timed ? `Підхід ${number}: час, ${UNIT_WORD[unit]}` : `Підхід ${number}: повтори`}
         value={repsText}
         onChange={(event) => editReps(event.target.value)}
       />

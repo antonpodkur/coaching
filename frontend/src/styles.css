@@ -1424,6 +1424,33 @@ button.save-status {
   color: var(--pink);
 }
 
+/* сек / хв / год for a timed set: one choice, so a segmented control. */
+.unit-switch {
+  display: inline-flex;
+  height: 40px;
+  padding: 3px;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+}
+
+.unit-switch button {
+  min-width: 44px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.unit-switch button[aria-checked='true'] {
+  background: var(--text);
+  color: var(--bg);
+}
+
 .set-editor-actions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

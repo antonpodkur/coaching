@@ -24,8 +24,8 @@ use crate::{
 };
 
 const MAX_KG: f64 = 999.0;
-/// Reps, or seconds for a timed exercise.
-const MAX_REPS: i32 = 3_600;
+/// Reps, or seconds for a timed exercise (up to three hours, e.g. a long walk).
+const MAX_REPS: i32 = 10_800;
 const MAX_COMMENT_CHARS: usize = 2_000;
 
 #[derive(Serialize, ToSchema)]
