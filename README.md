@@ -110,6 +110,6 @@ In order, following [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md):
    - The backend and Postgres in Frankfurt from the Render Blueprint (`render.yaml`).
    - The frontend on Cloudflare Workers (`frontend/wrangler.jsonc`).
    - Videos on Bunny Stream.
-   - About $16.50/month in total; see "Hosting and costs" in the architecture doc.
+   - About $18/month in total; see "Hosting and costs" in the architecture doc.
 2. Test on real phones in Telegram, using the checklist in the deploy guide. It covers a large video upload on Dasha's iPhone, the back button, the share sheet, the menu button and logging without signal.
 3. Builder extras: templates, and the Telegram import inside the builder (today it is a separate tab).

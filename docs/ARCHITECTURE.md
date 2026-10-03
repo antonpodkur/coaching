@@ -50,14 +50,14 @@ Chosen for low cost with no servers to maintain. Prices were checked on the prov
 | Part | Service | Per month |
 | --- | --- | --- |
 | Backend | Render web service, 0.5 CPU / 512 MB (`0.5c-512mb`, formerly Starter), Frankfurt, built from `backend/Dockerfile` | $7 |
-| Postgres | Render Postgres, 0.1 CPU / 256 MB (`0.1c-256mb`, formerly Basic 256 MB), Frankfurt, with 3-day point-in-time restore and 7 days of logical backups | $6 (+$0.30/GB over 1 GB) |
+| Postgres | Render Postgres, 0.1 CPU / 256 MB (`0.1c-256mb`, formerly Basic 256 MB), Frankfurt, with 3-day point-in-time restore and 7 days of logical backups. Storage is billed separately at $0.30/GB; the Blueprint sets 5 GB (the tier's default is 15 GB, and disks never shrink). | $7.50 |
 | Frontend | Cloudflare Workers static assets, built from GitHub. The free plan allows commercial use. | $0 |
 | Video | Bunny Stream: about 200 GB delivered at $0.01/GB, plus storage. $1 monthly minimum. | ~$2.50 |
 | Domain | `.com` at Cloudflare Registrar, at cost. DNS has to be on Cloudflare for Workers anyway. | ~$1 ($11/year) |
 | Errors, uptime, CI, Telegram | Sentry Developer, UptimeRobot, GitHub Actions (2,000 min), Bot API | $0 |
-| **Total** | | **≈ $16.50** |
+| **Total** | | **≈ $18** |
 
-- **Growth:** at ten times the clients, video grows to about $20 and the total to about $35. The other lines barely change.
+- **Growth:** at ten times the clients, video grows to about $20 and the total to about $37. The other lines barely change.
 - **Bandwidth:** Render includes 5 GB/month, which only API responses use. Videos go through Bunny and the frontend through Cloudflare.
 - **Telegram webhooks** need IPv4 and port 443, 80, 88 or 8443. Render's HTTPS endpoint meets both.
 - **Considered and dropped:**

@@ -43,7 +43,7 @@ https://coaching.<your-subdomain>.workers.dev
 ## 4. Backend and database on Render
 
 1. Render > New > Blueprint, then connect the GitHub repo `antonpodkur/coaching`. Render reads `render.yaml` and shows a web service, `coaching-api`, and a database, `coaching-db`. Both run in Frankfurt.
-2. Check the plans and prices it shows. They should be 0.5 CPU / 512 MB for the service (about $7) and 0.1 CPU / 256 MB for Postgres (about $6).
+2. Check the plans and prices it shows. They should be 0.5 CPU / 512 MB for the service ($7), and 0.1 CPU / 256 MB with a 5 GB disk for Postgres ($6 + $1.50). A bigger database price means `diskSizeGB` was not picked up. Don't apply it then: the disk can grow later but never shrink.
 3. Fill in the values it asks for:
 
    | Key | Value |

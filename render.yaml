@@ -63,6 +63,10 @@ databases:
     region: frankfurt
     # 0.1 CPU, 256 MB (formerly "Basic-256mb"), with point-in-time restore.
     plan: 0.1c-256mb
+    # Billed at $0.30/GB a month. This tier defaults to 15 GB, and a disk can
+    # grow later but never shrink. Workouts and reports are small text (videos
+    # live in Bunny); 5 GB leaves room for years of data and Postgres's WAL.
+    diskSizeGB: 5
     postgresMajorVersion: "16"
     databaseName: coaching
     user: coaching
