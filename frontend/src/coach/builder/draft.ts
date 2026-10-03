@@ -24,6 +24,8 @@ export interface DraftExercise {
   exercise_id: string
   name: string
   measure: Measure
+  /** `false` for an exercise added to this workout only, not to the library. */
+  in_library: boolean
   thumbnail_url: string | null
   per_side_label: string | null
   note: string | null
@@ -52,6 +54,7 @@ export function toDraft(workout: Workout): Draft {
       exercise_id: exercise.exercise_id,
       name: exercise.name,
       measure: exercise.measure,
+      in_library: exercise.in_library,
       thumbnail_url: exercise.thumbnail_url ?? null,
       per_side_label: exercise.per_side_label ?? null,
       note: exercise.note ?? null,

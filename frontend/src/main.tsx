@@ -5,6 +5,7 @@ import { Navigate, RouterProvider, createBrowserRouter } from 'react-router'
 
 import { MiniApp } from './app/MiniApp'
 import { CoachArea } from './coach/CoachArea'
+import { placeCaretOnFocus } from './shared/fieldFocus'
 import './styles.css'
 
 const queryClient = new QueryClient({
@@ -18,6 +19,8 @@ const router = createBrowserRouter([
   // Dasha's workspace in a normal browser, signed in through the bot.
   { path: '/coach/*', element: <CoachArea /> },
 ])
+
+placeCaretOnFocus()
 
 const root = document.getElementById('root')
 if (!root) throw new Error('index.html has no #root element')

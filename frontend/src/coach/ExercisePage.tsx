@@ -115,15 +115,14 @@ function ExerciseForm({ exercise }: { exercise: Exercise }) {
         <span>Як рахувати</span>
         <MeasurePicker value={measure} onChange={setMeasure} />
       </div>
-      {changed && (
-        <button
-          type="submit"
-          className="button primary block"
-          disabled={!name.trim() || save.isPending}
-        >
-          {save.isPending ? 'Зберігаю…' : 'Зберегти'}
-        </button>
-      )}
+      {/* Always in place, so it is there to find; it wakes up once something changes. */}
+      <button
+        type="submit"
+        className="button primary block"
+        disabled={!changed || !name.trim() || save.isPending}
+      >
+        {save.isPending ? 'Зберігаю…' : save.isSuccess && !changed ? 'Збережено' : 'Зберегти'}
+      </button>
       {taken && <p className="error">Вправа з такою назвою вже є.</p>}
       {measureInUse && (
         <p className="error">

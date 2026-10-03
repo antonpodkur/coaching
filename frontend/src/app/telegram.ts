@@ -22,6 +22,7 @@ export interface TelegramWebApp {
   disableClosingConfirmation(): void
   /** A native OK/Cancel dialog. */
   showConfirm(message: string, callback: (confirmed: boolean) => void): void
+  showAlert(message: string, callback?: () => void): void
   /** Telegram's own "allow the bot to message you?" popup (Bot API 6.9). */
   requestWriteAccess(callback: (granted: boolean) => void): void
   /** Shares a message card the bot prepared (Bot API 8.0). */

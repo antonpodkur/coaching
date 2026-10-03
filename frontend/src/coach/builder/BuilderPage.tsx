@@ -8,7 +8,7 @@ import { plural } from '../../shared/format'
 import { CheckIcon, PlusIcon } from '../../shared/icons'
 import { useBackTarget } from '../backTarget'
 import { EXERCISES_KEY, WORKOUTS_KEY, isUnauthorized, useCoach } from '../context'
-import { type Exercise, confirmAction } from '../library'
+import { type Exercise, alertMessage, confirmAction } from '../library'
 import { ExerciseCard } from './ExerciseCard'
 import { LibrarySheet } from './LibrarySheet'
 import { SetEditor } from './SetEditor'
@@ -86,6 +86,7 @@ function Builder({ workout, onReload }: { workout: Workout; onReload: () => void
       exercise_id: picked.id,
       name: picked.name,
       measure: picked.measure,
+      in_library: picked.in_library,
       thumbnail_url: picked.video?.thumbnail_url ?? null,
       per_side_label: null,
       note: null,
@@ -115,6 +116,32 @@ function Builder({ workout, onReload }: { workout: Workout; onReload: () => void
       exercises: current.exercises.filter((row) => row.id !== exercise.id),
     }))
   }
+
+  // An exercise added to this workout only, moved into the library afterwards.
+  const toLibrary = useMutation({
+    mutationFn: async (exerciseId: string) =>
+      unwrap(
+        await api.PATCH('/coach/exercises/{id}', {
+          params: { path: { id: exerciseId } },
+          body: { in_library: true },
+        }),
+      ),
+    onSuccess: (saved) => {
+      void queryClient.invalidateQueries({ queryKey: EXERCISES_KEY })
+      update((current) => ({
+        ...current,
+        exercises: current.exercises.map((row) =>
+          row.exercise_id === saved.id ? { ...row, in_library: true } : row,
+        ),
+      }))
+    },
+    onError: (err) => {
+      if (isUnauthorized(err)) onUnauthorized()
+      else if (err instanceof ApiError && err.code === 'name_taken') {
+        alertMessage('У бібліотеці вже є вправа з такою назвою.')
+      } else alertMessage('Не вдалося додати вправу в бібліотеку. Спробуй ще раз.')
+    },
+  })
 
   const publish = useMutation({
     mutationFn: async () => {
@@ -236,6 +263,9 @@ function Builder({ workout, onReload }: { workout: Workout; onReload: () => void
             }}
             onMove={(delta) => moveExercise(index, delta)}
             onNote={(note) => changeExercise(exercise.id, (row) => ({ ...row, note }))}
+            onAddToLibrary={
+              exercise.in_library ? undefined : () => toLibrary.mutate(exercise.exercise_id)
+            }
             onRemove={() => void removeExercise(exercise)}
           />
         ))}

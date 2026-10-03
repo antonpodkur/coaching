@@ -1,0 +1,46 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE exercises SET\n             name = COALESCE($3, name),\n             muscle_group = CASE WHEN $4 THEN $5 ELSE muscle_group END,\n             measure = COALESCE($7, measure),\n             in_library = COALESCE($8, in_library),\n             archived_at = CASE\n                 WHEN $6::boolean IS NULL THEN archived_at\n                 WHEN $6 THEN COALESCE(archived_at, now())\n                 ELSE NULL\n             END\n         WHERE id = $1 AND coach_id = $2\n         RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "exercises",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Text",
+        "Bool",
+        "Text",
+        "Bool",
+        {
+          "Custom": {
+            "name": "exercise_measure",
+            "kind": {
+              "Enum": [
+                "weight",
+                "bodyweight",
+                "time"
+              ]
+            }
+          }
+        },
+        "Bool"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "272e3d2b7d04549e17365a4cd3e989136aef46a5e930308b64a32bcb081d68b4"
+}

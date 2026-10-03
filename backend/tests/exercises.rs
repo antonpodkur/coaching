@@ -185,6 +185,75 @@ async fn the_library_lists_adds_renames_and_archives(db: PgPool) {
 }
 
 #[sqlx::test]
+async fn an_exercise_can_be_added_to_one_workout_only(db: PgPool) {
+    let (app, _, token) = setup(db).await;
+    create(&app, &token, "Жим лежачи").await;
+    let one_off = |name: &'static str| {
+        call(
+            &app,
+            "POST",
+            "/coach/exercises",
+            Some(&token),
+            Some(json!({ "name": name, "in_library": false })),
+        )
+    };
+
+    // Outside the library a name may repeat one in it.
+    let (status, same_name) = one_off("Жим лежачи").await;
+    assert_eq!(status, StatusCode::CREATED, "{same_name}");
+    assert_eq!(same_name["in_library"], false);
+    let (status, t_bar) = one_off("Тяга Т-грифа").await;
+    assert_eq!(status, StatusCode::CREATED, "{t_bar}");
+
+    let (_, list) = call(&app, "GET", "/coach/exercises", Some(&token), None).await;
+    let names: Vec<_> = list
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|e| e["name"].clone())
+        .collect();
+    assert_eq!(names, [json!("Жим лежачи")]);
+    assert_eq!(list[0]["in_library"], true);
+
+    // Plan imports match the library only.
+    let (_, preview) = call(
+        &app,
+        "POST",
+        "/coach/import/parse",
+        Some(&token),
+        Some(json!({ "text": "Тяга Т-грифа\n40 кг х 10" })),
+    )
+    .await;
+    assert_eq!(preview["exercises"][0]["name"], "Тяга Т-грифа", "{preview}");
+    assert!(preview["exercises"][0]["exercise_id"].is_null());
+
+    // Moved into the library later, unless the library has that name.
+    let path = |exercise: &Value| format!("/coach/exercises/{}", exercise["id"].as_str().unwrap());
+    let (status, moved) = call(
+        &app,
+        "PATCH",
+        &path(&t_bar),
+        Some(&token),
+        Some(json!({ "in_library": true })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(moved["in_library"], true);
+    let (_, list) = call(&app, "GET", "/coach/exercises", Some(&token), None).await;
+    assert_eq!(list.as_array().unwrap().len(), 2);
+    let (status, body) = call(
+        &app,
+        "PATCH",
+        &path(&same_name),
+        Some(&token),
+        Some(json!({ "in_library": true })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CONFLICT);
+    assert_eq!(body["error"], "name_taken");
+}
+
+#[sqlx::test]
 async fn a_video_goes_from_upload_to_ready_and_replaces_the_old_one(db: PgPool) {
     let (app, state, token) = setup(db).await;
     let stream = state.video.clone().unwrap();

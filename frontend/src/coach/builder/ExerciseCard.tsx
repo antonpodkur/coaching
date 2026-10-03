@@ -13,12 +13,15 @@ interface Props {
   onAddSet: () => void
   onMove: (delta: -1 | 1) => void
   onNote: (note: string | null) => void
+  /** Only for an exercise added to this workout alone. */
+  onAddToLibrary?: () => void
   onRemove: () => void
 }
 
 /**
  * One exercise in the builder: its sets as chips, Dasha's comment for the
- * client right under them, and a ⋯ menu for moving and removing.
+ * client right under them, and a ⋯ menu for moving and removing (and, for an
+ * exercise added to this workout only, for adding it to the library).
  */
 export function ExerciseCard({
   exercise,
@@ -29,6 +32,7 @@ export function ExerciseCard({
   onAddSet,
   onMove,
   onNote,
+  onAddToLibrary,
   onRemove,
 }: Props) {
   const [menuOpen, setMenuOpen] = useState(false)
@@ -52,6 +56,9 @@ export function ExerciseCard({
         )}
         <span className="builder-card-name">
           {exercise.name}
+          {!exercise.in_library && (
+            <span className="builder-last-time">Лише в цьому тренуванні</span>
+          )}
           {exercise.last_time && (
             <span className="builder-last-time">Минулого разу: {exercise.last_time}</span>
           )}
@@ -128,6 +135,11 @@ export function ExerciseCard({
           >
             Нижче
           </button>
+          {onAddToLibrary && (
+            <button type="button" onClick={closeMenuAnd(onAddToLibrary)}>
+              Додати в бібліотеку
+            </button>
+          )}
           <button type="button" className="danger" onClick={closeMenuAnd(onRemove)}>
             Прибрати
           </button>

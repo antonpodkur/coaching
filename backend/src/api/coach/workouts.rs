@@ -68,6 +68,8 @@ pub struct WorkoutExercise {
     pub name: String,
     /// From the library: kg × reps, reps, or seconds.
     pub measure: Measure,
+    /// `false` for an exercise added to this workout only, not to the library.
+    pub in_library: bool,
     pub thumbnail_url: Option<String>,
     /// E.g. `на кожну руку`: the targets are per arm or leg.
     pub per_side_label: Option<String>,
@@ -976,7 +978,7 @@ async fn fetch(state: &AppState, coach_id: Uuid, id: Uuid) -> AppResult<Workout>
 
     let rows = sqlx::query!(
         r#"SELECT we.id, we.exercise_id, e.name, e.measure AS "measure: Measure", e.video_uid,
-                  we.per_side_label, we.note
+                  e.in_library, we.per_side_label, we.note
            FROM workout_exercises we
            JOIN exercises e ON e.id = we.exercise_id
            WHERE we.workout_id = $1
@@ -1005,6 +1007,7 @@ async fn fetch(state: &AppState, coach_id: Uuid, id: Uuid) -> AppResult<Workout>
             exercise_id: row.exercise_id,
             name: row.name,
             measure: row.measure,
+            in_library: row.in_library,
             per_side_label: row.per_side_label,
             note: row.note,
         })

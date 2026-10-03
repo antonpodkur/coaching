@@ -145,10 +145,16 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** The coach's library, alphabetical. Archived exercises are left out. */
+        /**
+         * The coach's library, alphabetical. Archived exercises and ones added to a
+         *     single workout are left out.
+         */
         get: operations["list_exercises"];
         put?: never;
-        /** Adds an exercise to the library. A video can follow later. */
+        /**
+         * Adds an exercise to the library, or only to the workout being written. A
+         *     video can follow later.
+         */
         post: operations["create_exercise"];
         delete?: never;
         options?: never;
@@ -173,7 +179,7 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /** Renames, regroups or archives an exercise. */
+        /** Renames, regroups or archives an exercise, or moves one into the library. */
         patch: operations["update_exercise"];
         trace?: never;
     };
@@ -747,6 +753,8 @@ export interface components {
             aliases: string[];
             /** Format: uuid */
             id: string;
+            /** @description `false` for an exercise added to one workout only; the library leaves it out. */
+            in_library: boolean;
             measure: components["schemas"]["Measure"];
             /** @description Free text; the app offers a fixed set (Спина, Ноги, …). */
             muscle_group?: string | null;
@@ -758,6 +766,8 @@ export interface components {
         ExerciseChanges: {
             /** @description Hides it from the library. Old workouts keep showing it. */
             archived?: boolean | null;
+            /** @description `true` moves an exercise added to one workout into the library. */
+            in_library?: boolean | null;
             measure?: components["schemas"]["Measure"] | null;
             /** @description An empty string clears the group. */
             muscle_group?: string | null;
@@ -878,6 +888,11 @@ export interface components {
             name: string;
         };
         NewExercise: {
+            /**
+             * @description `false` keeps it out of the library: it is for the workout being
+             *     written only. `true` when left out.
+             */
+            in_library?: boolean | null;
             /** @description `weight` when left out. */
             measure?: components["schemas"]["Measure"];
             muscle_group?: string | null;
@@ -1054,6 +1069,8 @@ export interface components {
             exercise_id: string;
             /** Format: uuid */
             id: string;
+            /** @description `false` for an exercise added to this workout only, not to the library. */
+            in_library: boolean;
             /** @description What the client did the last time this exercise came up ("Минулого разу"). */
             last_time: components["schemas"]["PastSet"][];
             /** @description From the library: kg × reps, reps, or seconds. */

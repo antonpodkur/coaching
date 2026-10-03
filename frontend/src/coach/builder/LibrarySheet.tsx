@@ -16,8 +16,9 @@ interface Props {
 
 /**
  * The library as a bottom sheet: search, filter by group, tap to add. A name
- * that is not in the library yet can be added on the spot; its video can come
- * later.
+ * that is not in the library yet can be added on the spot, to the library
+ * (its video can come later) or to this workout only. That choice sits above
+ * the list, where the keyboard cannot cover it.
  */
 export function LibrarySheet({ used, onPick, onClose }: Props) {
   const { onUnauthorized } = useCoach()
@@ -35,8 +36,8 @@ export function LibrarySheet({ used, onPick, onClose }: Props) {
   }, [library.error, onUnauthorized])
 
   const create = useMutation({
-    mutationFn: async (name: string) =>
-      unwrap(await api.POST('/coach/exercises', { body: { name } })),
+    mutationFn: async ({ name, inLibrary }: { name: string; inLibrary: boolean }) =>
+      unwrap(await api.POST('/coach/exercises', { body: { name, in_library: inLibrary } })),
     onSuccess: (exercise) => {
       void queryClient.invalidateQueries({ queryKey: EXERCISES_KEY })
       onPick(exercise)
@@ -105,6 +106,34 @@ export function LibrarySheet({ used, onPick, onClose }: Props) {
           </div>
         )}
 
+        {needle && !exact && (
+          <div className="new-exercise">
+            <span className="muted small">Нова вправа «{query.trim()}»</span>
+            <div className="new-exercise-actions">
+              <button
+                type="button"
+                className="button small primary"
+                disabled={create.isPending}
+                onClick={() => create.mutate({ name: query, inLibrary: true })}
+              >
+                Додати в бібліотеку
+              </button>
+              <button
+                type="button"
+                className="button small"
+                disabled={create.isPending}
+                onClick={() => create.mutate({ name: query, inLibrary: false })}
+              >
+                Лише в це тренування
+              </button>
+            </div>
+            {taken && <p className="error">Така вправа вже є.</p>}
+            {create.isError && !taken && !isUnauthorized(create.error) && (
+              <p className="error">Не вдалося додати вправу.</p>
+            )}
+          </div>
+        )}
+
         <ul className="sheet-list">
           {library.isPending && <li className="muted">Завантаження…</li>}
           {shown.map((exercise) => (
@@ -138,21 +167,6 @@ export function LibrarySheet({ used, onPick, onClose }: Props) {
           ))}
         </ul>
 
-        {needle && !exact && (
-          <button
-            type="button"
-            className="button block dashed"
-            disabled={create.isPending}
-            onClick={() => create.mutate(query)}
-          >
-            <PlusIcon />
-            {create.isPending ? 'Додаю…' : `Нова вправа «${query.trim()}» · відео пізніше`}
-          </button>
-        )}
-        {taken && <p className="error">Така вправа вже є.</p>}
-        {create.isError && !taken && !isUnauthorized(create.error) && (
-          <p className="error">Не вдалося додати вправу.</p>
-        )}
       </div>
     </div>
   )

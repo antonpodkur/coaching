@@ -123,7 +123,8 @@ a.button {
   background: var(--surface-sunken);
   color: var(--text);
   font: inherit;
-  font-size: 15px;
+  /* iPhone zooms into any field with text under 16px. */
+  font-size: 16px;
 }
 
 /* Mini App */
@@ -341,7 +342,7 @@ a.button {
   background: transparent;
   color: var(--text);
   font: inherit;
-  font-size: 15px;
+  font-size: 16px;
   outline: none;
 }
 
@@ -435,7 +436,7 @@ a.button {
   background: var(--bg);
   color: #d8d5d1;
   font: inherit;
-  font-size: 13px;
+  font-size: 16px;
 }
 
 .import {
@@ -486,7 +487,7 @@ a.button {
   background: var(--surface-sunken);
   color: var(--text);
   font: inherit;
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1.45;
 }
 
@@ -916,7 +917,7 @@ a.button {
   color: var(--text);
   color-scheme: dark;
   font: inherit;
-  font-size: 15px;
+  font-size: 16px;
 }
 
 .day-group {
@@ -1029,7 +1030,7 @@ a.button {
   background: transparent;
   color: var(--text);
   font: inherit;
-  font-size: 13.5px;
+  font-size: 16px;
   font-weight: 800;
   color-scheme: dark;
 }
@@ -1204,7 +1205,7 @@ button.save-status {
   background: transparent;
   color: var(--pink-soft);
   font: inherit;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
   line-height: 1.4;
   letter-spacing: normal;
@@ -1317,6 +1318,11 @@ button.save-status {
 
 .steppers.single {
   grid-template-columns: minmax(0, 1fr);
+}
+
+/* Weight and a range: weight on its own row, від and до side by side. */
+.steppers.kg-row > :first-child {
+  grid-column: 1 / -1;
 }
 
 .stepper-field {
@@ -1468,6 +1474,24 @@ button.save-status {
 
 .sheet .chips {
   flex: none;
+}
+
+/* A name the library lacks: add it there, or to this workout only. */
+.new-exercise {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.new-exercise-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.new-exercise-actions .button {
+  padding: 0 8px;
 }
 
 .sheet-list {

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT we.id, we.exercise_id, e.name, e.measure AS \"measure: Measure\", e.video_uid,\n                  we.per_side_label, we.note\n           FROM workout_exercises we\n           JOIN exercises e ON e.id = we.exercise_id\n           WHERE we.workout_id = $1\n           ORDER BY we.position",
+  "query": "SELECT we.id, we.exercise_id, e.name, e.measure AS \"measure: Measure\", e.video_uid,\n                  e.in_library, we.per_side_label, we.note\n           FROM workout_exercises we\n           JOIN exercises e ON e.id = we.exercise_id\n           WHERE we.workout_id = $1\n           ORDER BY we.position",
   "describe": {
     "columns": [
       {
@@ -71,6 +71,17 @@
       },
       {
         "ordinal": 5,
+        "name": "in_library",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "exercises",
+            "name": "in_library"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
         "name": "per_side_label",
         "type_info": "Text",
         "origin": {
@@ -81,7 +92,7 @@
         }
       },
       {
-        "ordinal": 6,
+        "ordinal": 7,
         "name": "note",
         "type_info": "Text",
         "origin": {
@@ -103,9 +114,10 @@
       false,
       false,
       true,
+      false,
       true,
       true
     ]
   },
-  "hash": "4f5d60b905dcacc33128a23a7a5e686218fe89005a43d299a6465086963b52de"
+  "hash": "99614c202a1cee00069f0e8de70e7ee58cf600e03b97bbae9df09e420f2b9c49"
 }

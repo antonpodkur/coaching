@@ -73,7 +73,7 @@ pub async fn parse(
 
     let library = sqlx::query!(
         "SELECT id, name, aliases FROM exercises
-         WHERE coach_id = $1 AND archived_at IS NULL",
+         WHERE coach_id = $1 AND archived_at IS NULL AND in_library",
         coach_id,
     )
     .fetch_all(&state.db)

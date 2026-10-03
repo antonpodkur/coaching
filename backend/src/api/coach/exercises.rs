@@ -48,6 +48,8 @@ pub struct Exercise {
     pub video: Option<ExerciseVideo>,
     /// The newest upload while it is in flight or being encoded, or after it failed.
     pub upload: Option<VideoUpload>,
+    /// `false` for an exercise added to one workout only; the library leaves it out.
+    pub in_library: bool,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -75,6 +77,7 @@ pub(crate) struct ExerciseRow {
     pub video_length_secs: Option<i32>,
     pub upload_status: Option<UploadStatus>,
     pub upload_started_at: Option<DateTime<Utc>>,
+    pub in_library: bool,
 }
 
 impl ExerciseRow {
@@ -100,6 +103,7 @@ impl ExerciseRow {
             aliases: self.aliases,
             video,
             upload,
+            in_library: self.in_library,
         }
     }
 }
@@ -111,6 +115,9 @@ pub struct NewExercise {
     /// `weight` when left out.
     #[serde(default)]
     pub measure: Measure,
+    /// `false` keeps it out of the library: it is for the workout being
+    /// written only. `true` when left out.
+    pub in_library: Option<bool>,
 }
 
 /// Changes to an exercise; fields left out stay as they are.
@@ -124,9 +131,12 @@ pub struct ExerciseChanges {
     pub measure: Option<Measure>,
     /// Hides it from the library. Old workouts keep showing it.
     pub archived: Option<bool>,
+    /// `true` moves an exercise added to one workout into the library.
+    pub in_library: Option<bool>,
 }
 
-/// The coach's library, alphabetical. Archived exercises are left out.
+/// The coach's library, alphabetical. Archived exercises and ones added to a
+/// single workout are left out.
 #[utoipa::path(
     get,
     operation_id = "list_exercises",
@@ -147,9 +157,9 @@ pub async fn list(
         ExerciseRow,
         r#"SELECT id, name, measure AS "measure: Measure", muscle_group, aliases, video_uid,
                   video_length_secs, upload_status AS "upload_status: UploadStatus",
-                  upload_started_at
+                  upload_started_at, in_library
            FROM exercises
-           WHERE coach_id = $1 AND archived_at IS NULL
+           WHERE coach_id = $1 AND archived_at IS NULL AND in_library
            ORDER BY lower(name)"#,
         coach_id,
     )
@@ -162,7 +172,8 @@ pub async fn list(
     ))
 }
 
-/// Adds an exercise to the library. A video can follow later.
+/// Adds an exercise to the library, or only to the workout being written. A
+/// video can follow later.
 #[utoipa::path(
     post,
     operation_id = "create_exercise",
@@ -185,12 +196,13 @@ pub async fn create(
     let name = clean_name(&body.name)?;
     let group = clean_group(body.muscle_group.as_deref())?;
     let id = sqlx::query_scalar!(
-        "INSERT INTO exercises (coach_id, name, muscle_group, measure)
-         VALUES ($1, $2, $3, $4) RETURNING id",
+        "INSERT INTO exercises (coach_id, name, muscle_group, measure, in_library)
+         VALUES ($1, $2, $3, $4, $5) RETURNING id",
         coach_id,
         name,
         group,
         body.measure as Measure,
+        body.in_library.unwrap_or(true),
     )
     .fetch_one(&state.db)
     .await
@@ -231,7 +243,7 @@ pub async fn get(
     Ok(Json(exercise))
 }
 
-/// Renames, regroups or archives an exercise.
+/// Renames, regroups or archives an exercise, or moves one into the library.
 #[utoipa::path(
     patch,
     operation_id = "update_exercise",
@@ -265,6 +277,7 @@ pub async fn update(
              name = COALESCE($3, name),
              muscle_group = CASE WHEN $4 THEN $5 ELSE muscle_group END,
              measure = COALESCE($7, measure),
+             in_library = COALESCE($8, in_library),
              archived_at = CASE
                  WHEN $6::boolean IS NULL THEN archived_at
                  WHEN $6 THEN COALESCE(archived_at, now())
@@ -279,6 +292,7 @@ pub async fn update(
         group,
         changes.archived,
         changes.measure as Option<Measure>,
+        changes.in_library,
     )
     .fetch_optional(&state.db)
     .await
@@ -322,7 +336,7 @@ pub(crate) async fn fetch(state: &AppState, coach_id: Uuid, id: Uuid) -> AppResu
         ExerciseRow,
         r#"SELECT id, name, measure AS "measure: Measure", muscle_group, aliases, video_uid,
                   video_length_secs, upload_status AS "upload_status: UploadStatus",
-                  upload_started_at
+                  upload_started_at, in_library
            FROM exercises
            WHERE id = $1 AND coach_id = $2"#,
         id,
@@ -351,7 +365,7 @@ fn clean_group(group: Option<&str>) -> AppResult<Option<String>> {
     Ok(group.map(str::to_owned))
 }
 
-/// The library's unique index on the lowercased name (among unarchived exercises).
+/// The library's unique index on the lowercased name (among unarchived library exercises).
 fn name_taken(err: sqlx::Error) -> AppError {
     match &err {
         sqlx::Error::Database(db) if db.constraint() == Some("exercises_coach_name_key") => {
