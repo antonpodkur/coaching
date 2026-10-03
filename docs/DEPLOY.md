@@ -30,6 +30,7 @@ You also need Dasha's numeric Telegram ID for `COACH_TELEGRAM_ID`. If you don't 
 
 1. In Bunny: Stream > Add Video Library. Name it, for example, `coaching`, and choose Frankfurt for storage. Keep it separate from any development library.
 2. On the library's API page, note four values: the library ID, the API key, the read-only API key and the CDN hostname.
+3. Under the library's Security, turn **"Block direct URL file access" off**. The app plays the CDN's direct HLS links, and with this on every one of them answers 403. "Enable direct play" (Bunny's own player page) isn't used and can be off.
 
 The webhook comes in step 6, once the backend has an address.
 
@@ -91,7 +92,12 @@ Clients can send Dasha videos of how they did an exercise. These go to a second 
 1. In Bunny, add a Stream library such as `client-videos`, with Frankfurt storage and Stockholm replication.
 2. Turn on token authentication for its CDN: library → API → CDN zone management → Manage → Security → Token Authentication.
    - Copy the **URL Token Authentication Key**.
-   - Leave "Block direct URL file access" and allowed referrers off: the app plays direct URLs, signed.
+   - Under the library's Security:
+     - **"Block direct URL file access" off.** The app plays direct URLs, signed; with this on every link answers 403.
+     - **"Enable direct play" off.** Signed links contain the video's ID, and Bunny's player page would play it with just that ID, after the link has expired.
+     - **Embed view token authentication on.** It locks Bunny's embedded player, which the app does not use.
+     - Allowed referrers empty.
+   - `backend/scripts/check_video_token.py` shows whether signed links work. It asks for the token key without echoing it.
 3. In Render, set these five values. Without them the "Надіслати відео" button stays hidden.
    - `BUNNY_CLIENT_LIBRARY_ID`, `BUNNY_CLIENT_API_KEY`, `BUNNY_CLIENT_READ_ONLY_API_KEY`: from the library's API page.
    - `BUNNY_CLIENT_CDN_HOSTNAME`: the `vz-….b-cdn.net` hostname.
