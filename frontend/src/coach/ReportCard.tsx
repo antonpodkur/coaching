@@ -2,7 +2,15 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { type ReactNode, useEffect, useState } from 'react'
 
 import { type Schemas, api, unwrap } from '../api/client'
-import { formatDone, formatShortDate, formatTarget, formatWhen, plural } from '../shared/format'
+import {
+  type Measure,
+  formatCount,
+  formatDone,
+  formatShortDate,
+  formatTarget,
+  formatWhen,
+  plural,
+} from '../shared/format'
 import { CLIENTS_KEY, RESULTS_KEY, WORKOUTS_KEY } from './context'
 
 type Results = Schemas['WorkoutResults']
@@ -15,17 +23,15 @@ const EFFORT: Record<Schemas['Effort'], { text: string; className: string }> = {
   hard: { text: 'Важко', className: 'tag tag-warn' },
 }
 
-/** `36 × 10 · план 12`, `34 × 12 · план 36 × 12`, or `пропущено`. */
-function resultLabel(set: ResultSet): string {
+/** `36 × 10 · план 12`, `34 × 12 · план 36 × 12`, `40 с · план 45 с`, or `пропущено`. */
+function resultLabel(set: ResultSet, measure: Measure): string {
   if (!set.completed) return 'пропущено'
-  const done = formatDone(set.actual_kg, set.actual_reps)
+  const done = formatDone(set.actual_kg, set.actual_reps, measure)
   if (!set.differs) return done
   const kgDiffers = (set.actual_kg ?? null) !== (set.target_kg ?? null)
-  const reps =
-    set.target_reps_min === set.target_reps_max
-      ? `${set.target_reps_min}`
-      : `${set.target_reps_min}–${set.target_reps_max}`
-  const plan = kgDiffers ? formatTarget(set.target_kg, set.target_reps_min, set.target_reps_max) : reps
+  const plan = kgDiffers
+    ? formatTarget(set.target_kg, set.target_reps_min, set.target_reps_max, measure)
+    : formatCount(set.target_reps_min, set.target_reps_max, measure)
   return `${done} · план ${plan}`
 }
 
@@ -135,7 +141,7 @@ export function ReportCard({ results, compact = false, actions }: Props) {
                     !set.completed ? 'result-chip skipped' : set.differs ? 'result-chip differs' : 'result-chip'
                   }
                 >
-                  {resultLabel(set)}
+                  {resultLabel(set, exercise.measure)}
                 </span>
               ))}
             </span>

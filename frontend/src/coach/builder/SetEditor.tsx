@@ -2,7 +2,15 @@ import { useState } from 'react'
 
 import { formatKg } from '../../shared/format'
 import { MinusIcon, PlusIcon } from '../../shared/icons'
-import { type DraftExercise, type DraftSet, formatReps, parseKg, parseReps } from './draft'
+import {
+  type DraftExercise,
+  type DraftSet,
+  formatCountInput,
+  parseKg,
+  parseReps,
+  parseTime,
+  timeStep,
+} from './draft'
 
 interface Props {
   exercise: DraftExercise
@@ -20,6 +28,9 @@ interface Props {
  * Edits one set, docked at the bottom of the screen: big −/+ buttons for the
  * gym, and the numbers can be typed too. Mount it with a `key` per set so the
  * text fields start from that set.
+ *
+ * Bodyweight and timed exercises show only the count (reps or time); "+ вага"
+ * adds extra weight, e.g. a belt on pull-ups.
  */
 export function SetEditor({
   exercise,
@@ -32,10 +43,15 @@ export function SetEditor({
   onRemove,
   onDone,
 }: Props) {
+  const measure = exercise.measure
+  const timed = measure === 'time'
+  const parseCount = timed ? parseTime : parseReps
   const [kgText, setKgText] = useState(set.kg === null ? '' : formatKg(set.kg))
-  const [repsText, setRepsText] = useState(formatReps(set))
+  const [repsText, setRepsText] = useState(formatCountInput(set, measure))
+  const [extraWeight, setExtraWeight] = useState(set.kg !== null)
+  const showKg = measure === 'weight' || extraWeight
   const kgBad = parseKg(kgText) === undefined
-  const repsBad = parseReps(repsText) === undefined
+  const repsBad = parseCount(repsText) === undefined
 
   const typeKg = (text: string) => {
     setKgText(text)
@@ -44,7 +60,7 @@ export function SetEditor({
   }
   const typeReps = (text: string) => {
     setRepsText(text)
-    const reps = parseReps(text)
+    const reps = parseCount(text)
     if (reps) onChange({ ...set, ...reps })
   }
   const stepKg = (delta: number) => {
@@ -53,11 +69,19 @@ export function SetEditor({
     onChange({ ...set, kg: next })
     setKgText(next === null ? '' : formatKg(next))
   }
-  const stepReps = (delta: number) => {
+  const stepReps = (direction: 1 | -1) => {
+    const delta = timed ? direction * timeStep(direction > 0 ? set.reps_max : set.reps_min - 1) : direction
     const min = Math.max(1, set.reps_min + delta)
-    const max = Math.max(min, set.reps_max + delta)
+    const max = Math.min(timed ? 3600 : 500, Math.max(min, set.reps_max + delta))
     onChange({ ...set, reps_min: min, reps_max: max })
-    setRepsText(formatReps({ reps_min: min, reps_max: max }))
+    setRepsText(formatCountInput({ reps_min: min, reps_max: max }, measure))
+  }
+  const toggleExtraWeight = () => {
+    if (extraWeight) {
+      onChange({ ...set, kg: null })
+      setKgText('')
+    }
+    setExtraWeight(!extraWeight)
   }
 
   return (
@@ -68,44 +92,68 @@ export function SetEditor({
           підхід {setIndex + 1} з {exercise.sets.length}
         </span>
       </div>
-      <div className="steppers">
-        <div className="stepper-field">
-          <span>Вага, кг</span>
-          <div className={kgBad ? 'stepper bad' : 'stepper'}>
-            <button type="button" aria-label="Менше ваги" onClick={() => stepKg(-1)}>
-              <MinusIcon />
-            </button>
-            <input
-              inputMode="decimal"
-              aria-label="Вага, кг (порожньо — власна вага)"
-              placeholder="—"
-              value={kgText}
-              onChange={(event) => typeKg(event.target.value)}
-            />
-            <button type="button" aria-label="Більше ваги" onClick={() => stepKg(1)}>
-              <PlusIcon />
-            </button>
+      <div className={showKg ? 'steppers' : 'steppers single'}>
+        {showKg && (
+          <div className="stepper-field">
+            <span>{measure === 'weight' ? 'Вага, кг' : 'Додаткова вага, кг'}</span>
+            <div className={kgBad ? 'stepper bad' : 'stepper'}>
+              <button type="button" aria-label="Менше ваги" onClick={() => stepKg(-1)}>
+                <MinusIcon />
+              </button>
+              <input
+                inputMode="decimal"
+                aria-label="Вага, кг (порожньо — власна вага)"
+                placeholder="—"
+                value={kgText}
+                onChange={(event) => typeKg(event.target.value)}
+              />
+              <button type="button" aria-label="Більше ваги" onClick={() => stepKg(1)}>
+                <PlusIcon />
+              </button>
+            </div>
           </div>
-        </div>
+        )}
         <div className="stepper-field">
-          <span>Повтори</span>
+          <span>{timed ? 'Час' : 'Повтори'}</span>
           <div className={repsBad ? 'stepper bad' : 'stepper'}>
-            <button type="button" aria-label="Менше повторів" onClick={() => stepReps(-1)}>
+            <button
+              type="button"
+              aria-label={timed ? 'Менше часу' : 'Менше повторів'}
+              onClick={() => stepReps(-1)}
+            >
               <MinusIcon />
             </button>
             <input
-              inputMode="numeric"
-              aria-label="Повтори, можна діапазон 8-10"
+              inputMode={timed ? 'text' : 'numeric'}
+              aria-label={
+                timed
+                  ? 'Час: секунди, 1:30 або діапазон 30-45'
+                  : 'Повтори, можна діапазон 8-10'
+              }
               value={repsText}
               onChange={(event) => typeReps(event.target.value)}
             />
-            <button type="button" aria-label="Більше повторів" onClick={() => stepReps(1)}>
+            <button
+              type="button"
+              aria-label={timed ? 'Більше часу' : 'Більше повторів'}
+              onClick={() => stepReps(1)}
+            >
               <PlusIcon />
             </button>
           </div>
         </div>
       </div>
       <div className="set-editor-options">
+        {measure !== 'weight' && (
+          <button
+            type="button"
+            className="chip"
+            aria-pressed={extraWeight}
+            onClick={toggleExtraWeight}
+          >
+            + вага
+          </button>
+        )}
         <button
           type="button"
           className="chip"

@@ -82,7 +82,14 @@ export function WorkoutPage() {
                   <span className="exercise-name">{exercise.name}</span>
                   <span className="exercise-meta">
                     {exercise.sets
-                      .map((set) => formatTarget(set.target_kg, set.target_reps_min, set.target_reps_max))
+                      .map((set) =>
+                        formatTarget(
+                          set.target_kg,
+                          set.target_reps_min,
+                          set.target_reps_max,
+                          exercise.measure,
+                        ),
+                      )
                       .join(' · ')}
                     {exercise.per_side_label && ` · ${exercise.per_side_label}`}
                   </span>

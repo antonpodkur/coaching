@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT we.id, e.name, we.per_side_label\n         FROM workout_exercises we\n         JOIN exercises e ON e.id = we.exercise_id\n         WHERE we.workout_id = $1\n         ORDER BY we.position",
+  "query": "SELECT we.id, e.name, e.measure AS \"measure: Measure\", we.per_side_label\n         FROM workout_exercises we\n         JOIN exercises e ON e.id = we.exercise_id\n         WHERE we.workout_id = $1\n         ORDER BY we.position",
   "describe": {
     "columns": [
       {
@@ -27,6 +27,28 @@
       },
       {
         "ordinal": 2,
+        "name": "measure: Measure",
+        "type_info": {
+          "Custom": {
+            "name": "exercise_measure",
+            "kind": {
+              "Enum": [
+                "weight",
+                "bodyweight",
+                "time"
+              ]
+            }
+          }
+        },
+        "origin": {
+          "Table": {
+            "table": "exercises",
+            "name": "measure"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
         "name": "per_side_label",
         "type_info": "Text",
         "origin": {
@@ -45,8 +67,9 @@
     "nullable": [
       false,
       false,
+      false,
       true
     ]
   },
-  "hash": "1f6612d18002cf151b948c6814f6e3534628f30cb3f63853bee141b348490829"
+  "hash": "6aff2f69963fa8ebad5040d7ea2d438fcf142e2086401833521a305de1aa867c"
 }

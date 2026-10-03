@@ -5,7 +5,9 @@ import { useNavigate } from 'react-router'
 import { ApiError, api, unwrap } from '../api/client'
 import { BackLink } from '../shared/BackLink'
 import { GroupPicker } from './GroupPicker'
+import { MeasurePicker } from './MeasurePicker'
 import { EXERCISES_KEY, isUnauthorized, useCoach } from './context'
+import type { Measure } from './library'
 
 /** Adds an exercise to the library; the video comes on the next screen. */
 export function NewExercisePage() {
@@ -14,11 +16,14 @@ export function NewExercisePage() {
   const queryClient = useQueryClient()
   const [name, setName] = useState('')
   const [group, setGroup] = useState<string | null>(null)
+  const [measure, setMeasure] = useState<Measure>('weight')
 
   const create = useMutation({
     mutationFn: async () =>
       unwrap(
-        await api.POST('/coach/exercises', { body: { name, muscle_group: group ?? undefined } }),
+        await api.POST('/coach/exercises', {
+          body: { name, muscle_group: group ?? undefined, measure },
+        }),
       ),
     onSuccess: (exercise) => {
       void queryClient.invalidateQueries({ queryKey: EXERCISES_KEY })
@@ -55,6 +60,10 @@ export function NewExercisePage() {
         <div className="field">
           <span>Група м’язів</span>
           <GroupPicker value={group} onChange={setGroup} />
+        </div>
+        <div className="field">
+          <span>Як рахувати</span>
+          <MeasurePicker value={measure} onChange={setMeasure} />
         </div>
         <button
           type="submit"

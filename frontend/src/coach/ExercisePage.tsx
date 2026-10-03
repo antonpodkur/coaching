@@ -7,6 +7,7 @@ import { BackLink } from '../shared/BackLink'
 import { VideoPlayer } from '../shared/VideoPlayer'
 import { UploadIcon } from '../shared/icons'
 import { GroupPicker } from './GroupPicker'
+import { MeasurePicker } from './MeasurePicker'
 import { UploadCard } from './UploadCard'
 import { EXERCISES_KEY, isUnauthorized, useCoach } from './context'
 import { type Exercise, confirmAction, formatLength } from './library'
@@ -65,14 +66,18 @@ function ExerciseForm({ exercise }: { exercise: Exercise }) {
   const queryClient = useQueryClient()
   const [name, setName] = useState(exercise.name)
   const [group, setGroup] = useState(exercise.muscle_group ?? null)
-  const changed = name.trim() !== exercise.name || group !== (exercise.muscle_group ?? null)
+  const [measure, setMeasure] = useState(exercise.measure)
+  const changed =
+    name.trim() !== exercise.name ||
+    group !== (exercise.muscle_group ?? null) ||
+    measure !== exercise.measure
 
   const save = useMutation({
     mutationFn: async () =>
       unwrap(
         await api.PATCH('/coach/exercises/{id}', {
           params: { path: { id: exercise.id } },
-          body: { name, muscle_group: group ?? '' },
+          body: { name, muscle_group: group ?? '', measure },
         }),
       ),
     onSuccess: (saved) => {
@@ -84,6 +89,7 @@ function ExerciseForm({ exercise }: { exercise: Exercise }) {
     },
   })
   const taken = save.error instanceof ApiError && save.error.code === 'name_taken'
+  const measureInUse = save.error instanceof ApiError && save.error.code === 'measure_in_use'
 
   const submit = (event: FormEvent) => {
     event.preventDefault()
@@ -105,6 +111,10 @@ function ExerciseForm({ exercise }: { exercise: Exercise }) {
         <span>Група м’язів</span>
         <GroupPicker value={group} onChange={setGroup} />
       </div>
+      <div className="field">
+        <span>Як рахувати</span>
+        <MeasurePicker value={measure} onChange={setMeasure} />
+      </div>
       {changed && (
         <button
           type="submit"
@@ -115,7 +125,13 @@ function ExerciseForm({ exercise }: { exercise: Exercise }) {
         </button>
       )}
       {taken && <p className="error">Вправа з такою назвою вже є.</p>}
-      {save.isError && !taken && !isUnauthorized(save.error) && (
+      {measureInUse && (
+        <p className="error">
+          Ця вправа вже є в тренуваннях, тож повтори не можна перетворити на час чи навпаки.
+          Додай окрему вправу, наприклад «Планка на час».
+        </p>
+      )}
+      {save.isError && !taken && !measureInUse && !isUnauthorized(save.error) && (
         <p className="error">Не вдалося зберегти. Спробуй ще раз.</p>
       )}
     </form>

@@ -151,7 +151,7 @@ coaches           id, telegram_id UNIQUE, name, timezone (default Europe/Kyiv)
 clients           id, coach_id, name, telegram_id UNIQUE NULL, invite_code_hash UNIQUE NULL,
                   invite_expires_at, paid_until DATE NULL, timezone TEXT NULL,
                   created_at, archived_at
-exercises         id, coach_id, name, muscle_group, aliases TEXT[],
+exercises         id, coach_id, name, measure (weight | bodyweight | time), muscle_group, aliases TEXT[],
                   video_uid NULL, video_length_secs NULL,
                   upload_video_uid UNIQUE NULL, upload_status (uploading|processing|failed) NULL,
                   upload_started_at NULL, archived_at
@@ -173,7 +173,13 @@ coach_logins      id, code_hash UNIQUE, poll_secret_hash UNIQUE, display_code, c
 ```
 
 - **Targets and results share a row.** Dasha writes the `target_*` columns and the client writes the `actual_*` columns. Tapping ✓ copies the target into the actual and sets `completed_at`. "Different from the plan" is a column comparison, so no report data is stored twice. It is defined once, as the SQL function `set_differs(workout_sets)`: a ticked set with another weight, or reps missing or outside the target range. The report view, the clients list and the bot's message all use it.
-- **Rep ranges** are stored as min and max, so `8-10` becomes 8 and 10 and a plain `12` becomes 12 and 12. `target_kg` is NULL for bodyweight, and the numeric type keeps weights like `120.5`.
+- **Rep ranges** are stored as min and max, so `8-10` becomes 8 and 10 and a plain `12` becomes 12 and 12. The numeric type keeps weights like `120.5`.
+- **How an exercise is counted** is set once in the library (`exercises.measure`):
+  - `weight`: kg × reps. A set without kg is allowed, for weights described in the note, like "+10 кг з кожної сторони".
+  - `bodyweight`: pull-ups and the like. The builder and the client screen show reps only, and kg is optional extra weight, shown as `+10 × 8`.
+  - `time`: a plank or a bike. The reps columns hold seconds, shown as `45 с`, `1:30` or `10 хв`, so saving, copying, "Минулого разу" and `set_differs()` work unchanged.
+  - Switching between weight and bodyweight is always allowed. Switching to or from time is refused once the exercise has sets (`measure_in_use`), because old reps would turn into seconds. Dasha adds a separate timed exercise instead.
+  - An assisted pull-up (gravitron) is an ordinary weighted exercise where kg is the machine setting.
 - **Copies are deep.** Copying to the next workout or from a template duplicates every exercise and set row. Clients never share rows, and templates are just workouts without a client.
 - **"Минулого разу"** is the latest completed `workout_sets` for the same client and exercise. It is served by indexes on `workouts (client_id, date DESC)` and `workout_exercises (exercise_id, workout_id)`.
 - **"Missed"** is not stored. It is a published workout whose date has passed without being marked done.

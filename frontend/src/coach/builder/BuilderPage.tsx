@@ -83,10 +83,11 @@ function Builder({ workout, onReload }: { workout: Workout; onReload: () => void
       id: crypto.randomUUID(),
       exercise_id: picked.id,
       name: picked.name,
+      measure: picked.measure,
       thumbnail_url: picked.video?.thumbnail_url ?? null,
       per_side_label: null,
       note: null,
-      sets: [newSet()],
+      sets: [newSet(picked.measure)],
       last_time: '',
     }
     update((current) => ({ ...current, exercises: [...current.exercises, row] }))
@@ -227,7 +228,7 @@ function Builder({ workout, onReload }: { workout: Workout; onReload: () => void
             onAddSet={() => {
               changeExercise(exercise.id, (row) => ({
                 ...row,
-                sets: [...row.sets, newSet(row.sets.at(-1))],
+                sets: [...row.sets, newSet(row.measure, row.sets.at(-1))],
               }))
               setSelection({ exercise: exercise.id, set: exercise.sets.length })
             }}

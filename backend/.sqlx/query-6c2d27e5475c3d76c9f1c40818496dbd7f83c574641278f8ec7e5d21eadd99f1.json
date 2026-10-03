@@ -1,0 +1,147 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, name, measure AS \"measure: Measure\", muscle_group, aliases, video_uid,\n                  video_length_secs, upload_status AS \"upload_status: UploadStatus\",\n                  upload_started_at\n           FROM exercises\n           WHERE id = $1 AND coach_id = $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "exercises",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "exercises",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "measure: Measure",
+        "type_info": {
+          "Custom": {
+            "name": "exercise_measure",
+            "kind": {
+              "Enum": [
+                "weight",
+                "bodyweight",
+                "time"
+              ]
+            }
+          }
+        },
+        "origin": {
+          "Table": {
+            "table": "exercises",
+            "name": "measure"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "muscle_group",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "exercises",
+            "name": "muscle_group"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "aliases",
+        "type_info": "TextArray",
+        "origin": {
+          "Table": {
+            "table": "exercises",
+            "name": "aliases"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "video_uid",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "exercises",
+            "name": "video_uid"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "video_length_secs",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "exercises",
+            "name": "video_length_secs"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "upload_status: UploadStatus",
+        "type_info": {
+          "Custom": {
+            "name": "upload_status",
+            "kind": {
+              "Enum": [
+                "uploading",
+                "processing",
+                "failed"
+              ]
+            }
+          }
+        },
+        "origin": {
+          "Table": {
+            "table": "exercises",
+            "name": "upload_status"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "upload_started_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "exercises",
+            "name": "upload_started_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "6c2d27e5475c3d76c9f1c40818496dbd7f83c574641278f8ec7e5d21eadd99f1"
+}

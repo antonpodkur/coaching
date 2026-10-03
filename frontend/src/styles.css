@@ -1221,6 +1221,10 @@ button.save-status {
   gap: 10px;
 }
 
+.steppers.single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .stepper-field {
   display: flex;
   flex-direction: column;
@@ -1689,6 +1693,11 @@ button.save-status {
   grid-template-columns: 22px minmax(0, 1fr) 64px 56px 44px;
   align-items: center;
   gap: 8px;
+}
+
+.set-table.no-kg .set-table-head,
+.set-table.no-kg .set-row {
+  grid-template-columns: 22px minmax(0, 1fr) 76px 44px;
 }
 
 .set-table-head {

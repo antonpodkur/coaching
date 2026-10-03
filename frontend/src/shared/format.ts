@@ -77,16 +77,76 @@ export function formatSet(set: { kg?: number | null; reps_min: number; reps_max:
   return set.kg == null ? `× ${reps}` : `${formatKg(set.kg)} × ${reps}`
 }
 
-/** A set target in the apps: `36 × 8–10`, or `17 повт.` for bodyweight. */
-export function formatTarget(kg: number | null | undefined, repsMin: number, repsMax: number): string {
-  const reps = repsMin === repsMax ? `${repsMin}` : `${repsMin}–${repsMax}`
-  return kg == null ? `${reps} повт.` : `${formatKg(kg)} × ${reps}`
+/** How an exercise is counted: kg × reps, reps (kg only as extra weight), or seconds. */
+export type Measure = 'weight' | 'bodyweight' | 'time'
+
+/** `45 с`, `1 хв`, `10 хв`, or `1:30`. */
+export function formatSecs(secs: number): string {
+  if (secs < 60) return `${secs} с`
+  if (secs % 60 === 0) return `${secs / 60} хв`
+  return `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`
 }
 
-/** A logged set: `34 × 12`, or `12` for bodyweight. */
-export function formatDone(kg: number | null | undefined, reps: number | null | undefined): string {
-  const count = reps ?? '—'
-  return kg == null ? `${count}` : `${formatKg(kg)} × ${count}`
+/** A target's count: `12`, `8–10`, or for time `45 с`, `30–45 с`, `1–2 хв`. */
+export function formatCount(min: number, max: number, measure: Measure = 'weight'): string {
+  if (measure !== 'time') return min === max ? `${min}` : `${min}–${max}`
+  if (min === max) return formatSecs(min)
+  if (max < 60) return `${min}–${max} с`
+  if (min % 60 === 0 && max % 60 === 0) return `${min / 60}–${max / 60} хв`
+  return `${formatSecs(min)} – ${formatSecs(max)}`
+}
+
+/**
+ * A set target in the apps: `36 × 8–10`, `17 повт.` without weight, `+10 × 8`
+ * with extra weight on a bodyweight exercise, and `45 с` or `+10 кг · 45 с` for time.
+ */
+export function formatTarget(
+  kg: number | null | undefined,
+  repsMin: number,
+  repsMax: number,
+  measure: Measure = 'weight',
+): string {
+  const count = formatCount(repsMin, repsMax, measure)
+  if (measure === 'time') return kg == null ? count : `+${formatKg(kg)} кг · ${count}`
+  if (kg == null) return `${count} повт.`
+  return `${measure === 'bodyweight' ? '+' : ''}${formatKg(kg)} × ${count}`
+}
+
+/** A logged set: `34 × 12`, `12` without weight, `+10 × 8`, or `45 с`. */
+export function formatDone(
+  kg: number | null | undefined,
+  reps: number | null | undefined,
+  measure: Measure = 'weight',
+): string {
+  const count = reps == null ? '—' : measure === 'time' ? formatSecs(reps) : `${reps}`
+  if (measure === 'time') return kg == null ? count : `+${formatKg(kg)} кг · ${count}`
+  if (kg == null) return count
+  return `${measure === 'bodyweight' ? '+' : ''}${formatKg(kg)} × ${count}`
+}
+
+/** Seconds as typed: `45`, or `1:30` from a minute up. */
+export function formatSecsInput(secs: number): string {
+  return secs < 60 ? `${secs}` : `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`
+}
+
+/**
+ * Typed time → seconds: `45`, `45 с`, `1:30`, `10 хв`. Empty is `null`;
+ * unreadable or over an hour is `undefined`.
+ */
+export function parseSecs(text: string): number | null | undefined {
+  const value = text.trim().toLowerCase()
+  if (value === '') return null
+  const clock = value.match(/^(\d{1,2}):([0-5]\d)$/)
+  const secs = value.match(/^(\d{1,4})\s*(с|сек\.?|секунд[аи]?)?$/)
+  const mins = value.match(/^(\d{1,2})\s*(хв\.?|хвилин[аи]?)$/)
+  const total = clock
+    ? Number(clock[1]) * 60 + Number(clock[2])
+    : secs
+      ? Number(secs[1])
+      : mins
+        ? Number(mins[1]) * 60
+        : undefined
+  return total !== undefined && total <= 3600 ? total : undefined
 }
 
 /** `Date` → `2026-10-06` in the phone's own timezone. */

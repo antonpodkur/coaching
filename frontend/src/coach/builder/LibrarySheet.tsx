@@ -5,7 +5,7 @@ import { ApiError, api, unwrap } from '../../api/client'
 import { CameraIcon, CloseIcon, PlusIcon, SearchIcon } from '../../shared/icons'
 import { GroupChip } from '../GroupPicker'
 import { EXERCISES_KEY, isUnauthorized, useCoach } from '../context'
-import type { Exercise } from '../library'
+import { type Exercise, measureNote } from '../library'
 
 interface Props {
   /** Exercises already in the workout, marked in the list. */
@@ -120,7 +120,12 @@ export function LibrarySheet({ used, onPick, onClose }: Props) {
                 <span className="exercise-text">
                   <span className="exercise-name">{exercise.name}</span>
                   <span className="exercise-meta">
-                    {[exercise.video ? 'з відео' : 'без відео', exercise.muscle_group?.toLocaleLowerCase('uk'), used.has(exercise.id) && 'уже в тренуванні']
+                    {[
+                      exercise.video ? 'з відео' : 'без відео',
+                      exercise.muscle_group?.toLocaleLowerCase('uk'),
+                      measureNote(exercise.measure),
+                      used.has(exercise.id) && 'уже в тренуванні',
+                    ]
                       .filter(Boolean)
                       .join(' · ')}
                   </span>

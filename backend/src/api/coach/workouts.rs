@@ -11,7 +11,7 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::{
-    api::workouts::Effort,
+    api::{coach::exercises::Measure, workouts::Effort},
     auth::CurrentCoach,
     error::{AppError, AppResult, ErrorBody},
     history::{self, PastSet},
@@ -25,7 +25,8 @@ const MAX_NOTE_CHARS: usize = 500;
 const MAX_EXERCISES: usize = 40;
 const MAX_SETS_PER_EXERCISE: usize = 30;
 const MAX_KG: f64 = 999.0;
-const MAX_REPS: i32 = 500;
+/// Reps, or seconds for a timed exercise (up to an hour on a bike).
+const MAX_REPS: i32 = 3_600;
 /// "Copy to the next one" lands on the same weekday of the next week.
 const COPY_DAYS_LATER: u64 = 7;
 
@@ -62,6 +63,8 @@ pub struct WorkoutExercise {
     pub exercise_id: Uuid,
     /// From the library, for display.
     pub name: String,
+    /// From the library: kg × reps, reps, or seconds.
+    pub measure: Measure,
     pub thumbnail_url: Option<String>,
     /// E.g. `на кожну руку`: the targets are per arm or leg.
     pub per_side_label: Option<String>,
@@ -75,9 +78,9 @@ pub struct WorkoutExercise {
 #[derive(Serialize, Deserialize, ToSchema, Clone, Copy)]
 pub struct WorkoutSet {
     pub id: Uuid,
-    /// `null` for bodyweight.
+    /// `null` for no weight. For bodyweight and timed exercises, extra weight.
     pub kg: Option<f64>,
-    /// `8-10` is 8 and 10; a plain `12` is 12 and 12.
+    /// `8-10` is 8 and 10; a plain `12` is 12 and 12. Seconds for a timed exercise.
     pub reps_min: i32,
     pub reps_max: i32,
 }
@@ -165,6 +168,7 @@ pub struct CoachReport {
 pub struct ResultExercise {
     pub id: Uuid,
     pub name: String,
+    pub measure: Measure,
     pub per_side_label: Option<String>,
     pub sets: Vec<ResultSet>,
 }
@@ -712,11 +716,11 @@ pub async fn results(
             });
     }
     let exercises = sqlx::query!(
-        "SELECT we.id, e.name, we.per_side_label
+        r#"SELECT we.id, e.name, e.measure AS "measure: Measure", we.per_side_label
          FROM workout_exercises we
          JOIN exercises e ON e.id = we.exercise_id
          WHERE we.workout_id = $1
-         ORDER BY we.position",
+         ORDER BY we.position"#,
         id,
     )
     .fetch_all(&state.db)
@@ -726,6 +730,7 @@ pub async fn results(
         sets: sets_by_row.remove(&row.id).unwrap_or_default(),
         id: row.id,
         name: row.name,
+        measure: row.measure,
         per_side_label: row.per_side_label,
     })
     .collect();
@@ -823,11 +828,12 @@ async fn fetch(state: &AppState, coach_id: Uuid, id: Uuid) -> AppResult<Workout>
     }
 
     let rows = sqlx::query!(
-        "SELECT we.id, we.exercise_id, e.name, e.video_uid, we.per_side_label, we.note
-         FROM workout_exercises we
-         JOIN exercises e ON e.id = we.exercise_id
-         WHERE we.workout_id = $1
-         ORDER BY we.position",
+        r#"SELECT we.id, we.exercise_id, e.name, e.measure AS "measure: Measure", e.video_uid,
+                  we.per_side_label, we.note
+           FROM workout_exercises we
+           JOIN exercises e ON e.id = we.exercise_id
+           WHERE we.workout_id = $1
+           ORDER BY we.position"#,
         id,
     )
     .fetch_all(&state.db)
@@ -851,6 +857,7 @@ async fn fetch(state: &AppState, coach_id: Uuid, id: Uuid) -> AppResult<Workout>
             id: row.id,
             exercise_id: row.exercise_id,
             name: row.name,
+            measure: row.measure,
             per_side_label: row.per_side_label,
             note: row.note,
         })

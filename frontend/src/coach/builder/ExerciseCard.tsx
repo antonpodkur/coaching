@@ -70,11 +70,11 @@ export function ExerciseCard({
             type="button"
             className="set-chip"
             aria-pressed={selectedSet === setIndex}
-            aria-label={`${exercise.name}, підхід ${setIndex + 1}: ${setLabel(set)}`}
+            aria-label={`${exercise.name}, підхід ${setIndex + 1}: ${setLabel(set, exercise.measure)}`}
             onClick={() => onSelectSet(setIndex)}
           >
             <span className="set-chip-number">{setIndex + 1}</span>
-            {setLabel(set)}
+            {setLabel(set, exercise.measure)}
           </button>
         ))}
         <button

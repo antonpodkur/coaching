@@ -14,7 +14,7 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::{
-    api::coach::workouts::WorkoutStatus,
+    api::coach::{exercises::Measure, workouts::WorkoutStatus},
     auth::CurrentClient,
     error::{AppError, AppResult, ErrorBody},
     history::{self, PastSet},
@@ -23,7 +23,8 @@ use crate::{
 };
 
 const MAX_KG: f64 = 999.0;
-const MAX_REPS: i32 = 500;
+/// Reps, or seconds for a timed exercise.
+const MAX_REPS: i32 = 3_600;
 const MAX_COMMENT_CHARS: usize = 2_000;
 
 #[derive(Serialize, ToSchema)]
@@ -54,6 +55,8 @@ pub struct ClientWorkout {
 pub struct ClientExercise {
     pub id: Uuid,
     pub name: String,
+    /// Kg × reps, reps (kg only as extra weight), or seconds in the reps fields.
+    pub measure: Measure,
     pub per_side_label: Option<String>,
     pub note: Option<String>,
     pub video: Option<ClientVideo>,
@@ -247,12 +250,12 @@ pub async fn get(
     }
 
     let rows = sqlx::query!(
-        "SELECT we.id, we.exercise_id, e.name, e.video_uid, e.video_length_secs,
-                we.per_side_label, we.note
-         FROM workout_exercises we
-         JOIN exercises e ON e.id = we.exercise_id
-         WHERE we.workout_id = $1
-         ORDER BY we.position",
+        r#"SELECT we.id, we.exercise_id, e.name, e.measure AS "measure: Measure", e.video_uid,
+                  e.video_length_secs, we.per_side_label, we.note
+           FROM workout_exercises we
+           JOIN exercises e ON e.id = we.exercise_id
+           WHERE we.workout_id = $1
+           ORDER BY we.position"#,
         id,
     )
     .fetch_all(&state.db)
@@ -276,6 +279,7 @@ pub async fn get(
             last_time: last_time.remove(&row.exercise_id).unwrap_or_default(),
             id: row.id,
             name: row.name,
+            measure: row.measure,
             per_side_label: row.per_side_label,
             note: row.note,
         })

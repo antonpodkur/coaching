@@ -517,6 +517,8 @@ export interface components {
             id: string;
             /** @description Completed sets from the last earlier workout with this exercise. */
             last_time: components["schemas"]["PastSet"][];
+            /** @description Kg × reps, reps (kg only as extra weight), or seconds in the reps fields. */
+            measure: components["schemas"]["Measure"];
             name: string;
             note?: string | null;
             per_side_label?: string | null;
@@ -642,6 +644,7 @@ export interface components {
             aliases: string[];
             /** Format: uuid */
             id: string;
+            measure: components["schemas"]["Measure"];
             /** @description Free text; the app offers a fixed set (Спина, Ноги, …). */
             muscle_group?: string | null;
             name: string;
@@ -652,6 +655,7 @@ export interface components {
         ExerciseChanges: {
             /** @description Hides it from the library. Old workouts keep showing it. */
             archived?: boolean | null;
+            measure?: components["schemas"]["Measure"] | null;
             /** @description An empty string clears the group. */
             muscle_group?: string | null;
             name?: string | null;
@@ -714,6 +718,12 @@ export interface components {
             /** @description `https://t.me/<bot>?start=inv_<code>`. Works once. */
             url: string;
         };
+        /**
+         * @description How an exercise's sets are counted. Seconds share the reps fields, so for
+         *     `time` a set's `reps_*` and `actual_reps` are seconds.
+         * @enum {string}
+         */
+        Measure: "weight" | "bodyweight" | "time";
         /** @description Who opened the Mini App decides which screens they get. */
         MiniAppSession: {
             coach: components["schemas"]["CoachProfile"];
@@ -730,6 +740,8 @@ export interface components {
             name: string;
         };
         NewExercise: {
+            /** @description `weight` when left out. */
+            measure?: components["schemas"]["Measure"];
             muscle_group?: string | null;
             name: string;
         };
@@ -781,6 +793,7 @@ export interface components {
         ResultExercise: {
             /** Format: uuid */
             id: string;
+            measure: components["schemas"]["Measure"];
             name: string;
             per_side_label?: string | null;
             sets: components["schemas"]["ResultSet"][];
@@ -893,6 +906,8 @@ export interface components {
             id: string;
             /** @description What the client did the last time this exercise came up ("Минулого разу"). */
             last_time: components["schemas"]["PastSet"][];
+            /** @description From the library: kg × reps, reps, or seconds. */
+            measure: components["schemas"]["Measure"];
             /** @description From the library, for display. */
             name: string;
             note?: string | null;
@@ -933,14 +948,14 @@ export interface components {
             id: string;
             /**
              * Format: double
-             * @description `null` for bodyweight.
+             * @description `null` for no weight. For bodyweight and timed exercises, extra weight.
              */
             kg?: number | null;
             /** Format: int32 */
             reps_max: number;
             /**
              * Format: int32
-             * @description `8-10` is 8 and 10; a plain `12` is 12 and 12.
+             * @description `8-10` is 8 and 10; a plain `12` is 12 and 12. Seconds for a timed exercise.
              */
             reps_min: number;
         };
@@ -1463,7 +1478,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
-            /** @description `name_taken` */
+            /** @description `name_taken`, or `measure_in_use`: it has sets in reps and cannot switch to seconds, or back */
             409: {
                 headers: {
                     [name: string]: unknown;

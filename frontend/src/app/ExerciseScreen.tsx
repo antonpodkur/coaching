@@ -3,7 +3,15 @@ import { Link, useParams } from 'react-router'
 
 import { BackLink } from '../shared/BackLink'
 import { VideoPlayer } from '../shared/VideoPlayer'
-import { formatDone, formatKg, formatTarget, plural } from '../shared/format'
+import {
+  type Measure,
+  formatDone,
+  formatKg,
+  formatSecsInput,
+  formatTarget,
+  parseSecs,
+  plural,
+} from '../shared/format'
 import { CheckIcon, ChevronIcon } from '../shared/icons'
 import { Screen } from '../shared/Screen'
 import { logSet } from './outbox'
@@ -33,6 +41,12 @@ export function ExerciseScreen() {
   }
 
   const next = exercises[index + 1]
+  // Workouts cached on the phone before this field existed count as weight.
+  const measure: Measure = exercise.measure ?? 'weight'
+  // Bodyweight and timed exercises have a kg column only for extra weight.
+  const showKg =
+    measure === 'weight' ||
+    exercise.sets.some((set) => set.target_kg != null || set.actual_kg != null)
   const done = exercise.sets.filter((set) => set.completed).length
   const different = exercise.sets.filter((set) => set.completed && differs(set)).length
 
@@ -62,20 +76,29 @@ export function ExerciseScreen() {
       {exercise.last_time.length > 0 && (
         <p className="last-time">
           Минулого разу:{' '}
-          <strong>{exercise.last_time.map((set) => formatDone(set.kg, set.reps)).join(' · ')}</strong>
+          <strong>
+            {exercise.last_time.map((set) => formatDone(set.kg, set.reps, measure)).join(' · ')}
+          </strong>
         </p>
       )}
 
-      <section className="set-table" aria-label="Підходи">
+      <section className={showKg ? 'set-table' : 'set-table no-kg'} aria-label="Підходи">
         <div className="set-table-head" aria-hidden="true">
           <span>№</span>
           <span>План</span>
-          <span>Кг</span>
-          <span>Повт.</span>
+          {showKg && <span>{measure === 'weight' ? 'Кг' : '+кг'}</span>}
+          <span>{measure === 'time' ? 'Час' : 'Повт.'}</span>
           <span />
         </div>
         {exercise.sets.map((set, setIndex) => (
-          <SetRow key={set.id} workoutId={id} set={set} number={setIndex + 1} />
+          <SetRow
+            key={set.id}
+            workoutId={id}
+            set={set}
+            number={setIndex + 1}
+            measure={measure}
+            showKg={showKg}
+          />
         ))}
       </section>
 
@@ -104,7 +127,7 @@ export function ExerciseScreen() {
   )
 }
 
-/** Plain numbers, so `27,5` and `27.5` both work; empty kg means bodyweight. */
+/** Plain numbers, so `27,5` and `27.5` both work; empty kg means no weight. */
 function readKg(text: string): number | null | undefined {
   const value = text.trim().replace(',', '.')
   if (value === '') return null
@@ -119,14 +142,27 @@ function readReps(text: string): number | null | undefined {
   return Number.isInteger(reps) && reps >= 0 && reps <= 500 ? reps : undefined
 }
 
-function SetRow({ workoutId, set, number }: { workoutId: string; set: ClientSet; number: number }) {
+interface SetRowProps {
+  workoutId: string
+  set: ClientSet
+  number: number
+  measure: Measure
+  /** Without it the set has no weight at all. */
+  showKg: boolean
+}
+
+function SetRow({ workoutId, set, number, measure, showKg }: SetRowProps) {
+  const timed = measure === 'time'
   // Untouched sets start from the plan; the top of a range is the aim.
   const startKg = set.completed || set.client_updated_at ? set.actual_kg : set.target_kg
   const startReps = set.completed || set.client_updated_at ? set.actual_reps : set.target_reps_max
   const [kgText, setKgText] = useState(startKg == null ? '' : formatKg(startKg))
-  const [repsText, setRepsText] = useState(startReps == null ? '' : String(startReps))
+  const [repsText, setRepsText] = useState(
+    startReps == null ? '' : timed ? formatSecsInput(startReps) : String(startReps),
+  )
+  const readCount = timed ? parseSecs : readReps
   const kg = readKg(kgText)
-  const reps = readReps(repsText)
+  const reps = readCount(repsText)
   const valid = kg !== undefined && reps !== undefined
 
   const send = (completed: boolean, nextKg = kg, nextReps = reps) => {
@@ -152,30 +188,33 @@ function SetRow({ workoutId, set, number }: { workoutId: string; set: ClientSet;
   }
   const editReps = (text: string) => {
     setRepsText(text)
-    if (set.completed) send(true, kg, readReps(text))
+    if (set.completed) send(true, kg, readCount(text))
   }
 
   const kgDiffers = kg !== undefined && (kg ?? null) !== (set.target_kg ?? null)
   const repsDiffer =
     reps !== undefined && reps !== null && (reps < set.target_reps_min || reps > set.target_reps_max)
-  const target = formatTarget(set.target_kg, set.target_reps_min, set.target_reps_max)
+  const target = formatTarget(set.target_kg, set.target_reps_min, set.target_reps_max, measure)
 
   return (
     <div className={set.completed ? 'set-row completed' : 'set-row'}>
       <span className="set-number">{number}</span>
       <span className="set-target">{target}</span>
-      <input
-        className={kg === undefined ? 'bad' : kgDiffers ? 'differs' : undefined}
-        inputMode="decimal"
-        aria-label={`Підхід ${number}: вага, кг`}
-        placeholder="—"
-        value={kgText}
-        onChange={(event) => editKg(event.target.value)}
-      />
+      {showKg && (
+        <input
+          className={kg === undefined ? 'bad' : kgDiffers ? 'differs' : undefined}
+          inputMode="decimal"
+          aria-label={`Підхід ${number}: ${measure === 'weight' ? 'вага' : 'додаткова вага'}, кг`}
+          placeholder="—"
+          value={kgText}
+          onChange={(event) => editKg(event.target.value)}
+        />
+      )}
       <input
         className={reps === undefined ? 'bad' : repsDiffer ? 'differs' : undefined}
-        inputMode="numeric"
-        aria-label={`Підхід ${number}: повтори`}
+        // `1:30` needs the colon, which number pads lack.
+        inputMode={timed && set.target_reps_max >= 60 ? 'text' : 'numeric'}
+        aria-label={timed ? `Підхід ${number}: час, секунди або 1:30` : `Підхід ${number}: повтори`}
         value={repsText}
         onChange={(event) => editReps(event.target.value)}
       />

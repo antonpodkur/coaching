@@ -18,10 +18,28 @@ use crate::{
 const MAX_NAME_CHARS: usize = 120;
 const MAX_GROUP_CHARS: usize = 40;
 
+/// How an exercise's sets are counted. Seconds share the reps fields, so for
+/// `time` a set's `reps_*` and `actual_reps` are seconds.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, ToSchema, sqlx::Type,
+)]
+#[sqlx(type_name = "exercise_measure", rename_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum Measure {
+    /// Kilograms × reps.
+    #[default]
+    Weight,
+    /// Reps; kilograms only as optional extra weight, e.g. a belt on pull-ups.
+    Bodyweight,
+    /// Seconds, e.g. a plank; kilograms only as optional extra weight.
+    Time,
+}
+
 #[derive(Serialize, ToSchema)]
 pub struct Exercise {
     pub id: Uuid,
     pub name: String,
+    pub measure: Measure,
     /// Free text; the app offers a fixed set (Спина, Ноги, …).
     pub muscle_group: Option<String>,
     /// Other spellings, used to match imported Telegram plans.
@@ -50,6 +68,7 @@ pub struct VideoUpload {
 pub(crate) struct ExerciseRow {
     pub id: Uuid,
     pub name: String,
+    pub measure: Measure,
     pub muscle_group: Option<String>,
     pub aliases: Vec<String>,
     pub video_uid: Option<String>,
@@ -76,6 +95,7 @@ impl ExerciseRow {
         Exercise {
             id: self.id,
             name: self.name,
+            measure: self.measure,
             muscle_group: self.muscle_group,
             aliases: self.aliases,
             video,
@@ -88,6 +108,9 @@ impl ExerciseRow {
 pub struct NewExercise {
     pub name: String,
     pub muscle_group: Option<String>,
+    /// `weight` when left out.
+    #[serde(default)]
+    pub measure: Measure,
 }
 
 /// Changes to an exercise; fields left out stay as they are.
@@ -96,6 +119,9 @@ pub struct ExerciseChanges {
     pub name: Option<String>,
     /// An empty string clears the group.
     pub muscle_group: Option<String>,
+    /// Switching to or from `time` is refused once the exercise has sets,
+    /// since their numbers would change meaning (reps vs seconds).
+    pub measure: Option<Measure>,
     /// Hides it from the library. Old workouts keep showing it.
     pub archived: Option<bool>,
 }
@@ -119,8 +145,9 @@ pub async fn list(
     video::refresh_processing(&state, coach_id).await?;
     let rows = sqlx::query_as!(
         ExerciseRow,
-        r#"SELECT id, name, muscle_group, aliases, video_uid, video_length_secs,
-                  upload_status AS "upload_status: UploadStatus", upload_started_at
+        r#"SELECT id, name, measure AS "measure: Measure", muscle_group, aliases, video_uid,
+                  video_length_secs, upload_status AS "upload_status: UploadStatus",
+                  upload_started_at
            FROM exercises
            WHERE coach_id = $1 AND archived_at IS NULL
            ORDER BY lower(name)"#,
@@ -158,10 +185,12 @@ pub async fn create(
     let name = clean_name(&body.name)?;
     let group = clean_group(body.muscle_group.as_deref())?;
     let id = sqlx::query_scalar!(
-        "INSERT INTO exercises (coach_id, name, muscle_group) VALUES ($1, $2, $3) RETURNING id",
+        "INSERT INTO exercises (coach_id, name, muscle_group, measure)
+         VALUES ($1, $2, $3, $4) RETURNING id",
         coach_id,
         name,
         group,
+        body.measure as Measure,
     )
     .fetch_one(&state.db)
     .await
@@ -216,7 +245,7 @@ pub async fn get(
         (status = 400, body = ErrorBody, description = "`invalid_name` or `invalid_group`"),
         (status = 401, body = ErrorBody),
         (status = 404, body = ErrorBody),
-        (status = 409, body = ErrorBody, description = "`name_taken`"),
+        (status = 409, body = ErrorBody, description = "`name_taken`, or `measure_in_use`: it has sets in reps and cannot switch to seconds, or back"),
     )
 )]
 pub async fn update(
@@ -228,23 +257,28 @@ pub async fn update(
     let name = changes.name.as_deref().map(clean_name).transpose()?;
     let set_group = changes.muscle_group.is_some();
     let group = clean_group(changes.muscle_group.as_deref())?;
+    if let Some(measure) = changes.measure {
+        check_measure_change(&state, coach_id, id, measure).await?;
+    }
     let updated = sqlx::query_scalar!(
-        "UPDATE exercises SET
+        r#"UPDATE exercises SET
              name = COALESCE($3, name),
              muscle_group = CASE WHEN $4 THEN $5 ELSE muscle_group END,
+             measure = COALESCE($7, measure),
              archived_at = CASE
                  WHEN $6::boolean IS NULL THEN archived_at
                  WHEN $6 THEN COALESCE(archived_at, now())
                  ELSE NULL
              END
          WHERE id = $1 AND coach_id = $2
-         RETURNING id",
+         RETURNING id"#,
         id,
         coach_id,
         name,
         set_group,
         group,
         changes.archived,
+        changes.measure as Option<Measure>,
     )
     .fetch_optional(&state.db)
     .await
@@ -255,11 +289,40 @@ pub async fn update(
     Ok(Json(fetch(&state, coach_id, id).await?))
 }
 
+/// Between weight and bodyweight the numbers mean the same (kg, reps), so that
+/// switch is always fine. To or from time, reps would turn into seconds.
+async fn check_measure_change(
+    state: &AppState,
+    coach_id: Uuid,
+    id: Uuid,
+    measure: Measure,
+) -> AppResult<()> {
+    let current = sqlx::query!(
+        r#"SELECT e.measure AS "measure: Measure",
+                  EXISTS (SELECT 1 FROM workout_exercises we
+                          JOIN workout_sets s ON s.workout_exercise_id = we.id
+                          WHERE we.exercise_id = e.id) AS "used!"
+           FROM exercises e WHERE e.id = $1 AND e.coach_id = $2"#,
+        id,
+        coach_id,
+    )
+    .fetch_optional(&state.db)
+    .await?
+    .ok_or(AppError::NotFound)?;
+    let changes_unit = current.measure != measure
+        && (current.measure == Measure::Time || measure == Measure::Time);
+    if changes_unit && current.used {
+        return Err(AppError::Conflict("measure_in_use"));
+    }
+    Ok(())
+}
+
 pub(crate) async fn fetch(state: &AppState, coach_id: Uuid, id: Uuid) -> AppResult<Exercise> {
     let row = sqlx::query_as!(
         ExerciseRow,
-        r#"SELECT id, name, muscle_group, aliases, video_uid, video_length_secs,
-                  upload_status AS "upload_status: UploadStatus", upload_started_at
+        r#"SELECT id, name, measure AS "measure: Measure", muscle_group, aliases, video_uid,
+                  video_length_secs, upload_status AS "upload_status: UploadStatus",
+                  upload_started_at
            FROM exercises
            WHERE id = $1 AND coach_id = $2"#,
         id,

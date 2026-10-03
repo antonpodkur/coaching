@@ -3,6 +3,23 @@ import { telegramWebApp } from '../app/telegram'
 import type { UploadProgress } from './uploads'
 
 export type Exercise = Schemas['Exercise']
+export type Measure = Schemas['Measure']
+
+/** How Dasha counts an exercise, as the library offers it. */
+export const MEASURES: { value: Measure; label: string; hint: string }[] = [
+  { value: 'weight', label: 'З вагою', hint: 'Кілограми × повтори.' },
+  {
+    value: 'bodyweight',
+    label: 'Власна вага',
+    hint: 'Лише повтори. Додаткову вагу, наприклад пояс, можна додати в підході.',
+  },
+  { value: 'time', label: 'На час', hint: 'Секунди або хвилини: планка, велотренажер.' },
+]
+
+/** For lists: nothing for the usual weighted exercise, else `власна вага` or `на час`. */
+export function measureNote(measure: Measure): string | null {
+  return { weight: null, bodyweight: 'власна вага', time: 'на час' }[measure]
+}
 
 /** The groups the app offers. The backend stores any short text. */
 export const MUSCLE_GROUPS = [
@@ -52,12 +69,13 @@ export function videoSummary(
       return { text: 'Відео не вдалося обробити', busy: true }
   }
   const group = exercise.muscle_group?.toLocaleLowerCase('uk')
+  const measure = measureNote(exercise.measure)
   if (exercise.video) {
     const length =
       exercise.video.length_secs != null ? ` ${formatLength(exercise.video.length_secs)}` : ''
-    return { text: [`відео${length}`, group].filter(Boolean).join(' · '), busy: false }
+    return { text: [`відео${length}`, group, measure].filter(Boolean).join(' · '), busy: false }
   }
-  return { text: ['без відео', group].filter(Boolean).join(' · '), busy: false }
+  return { text: ['без відео', group, measure].filter(Boolean).join(' · '), busy: false }
 }
 
 /** Telegram's own confirm dialog inside the Mini App, the browser's elsewhere. */
