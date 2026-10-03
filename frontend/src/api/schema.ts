@@ -802,6 +802,8 @@ export interface components {
              */
             id: string;
             ticket: components["schemas"]["UploadTicket"];
+            /** @description Send as the tus `title` metadata, so Bunny keeps this name. */
+            title: string;
         };
         Health: {
             database: boolean;

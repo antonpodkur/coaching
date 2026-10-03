@@ -70,7 +70,7 @@ pub async fn start(
     state: &AppState,
     client_id: Uuid,
     workout_exercise_id: Uuid,
-) -> AppResult<(Uuid, UploadGrant)> {
+) -> AppResult<(Uuid, String, UploadGrant)> {
     let stream = stream(state)?;
     let target = sqlx::query!(
         r#"SELECT c.name AS client_name, e.name AS exercise_name, w.date,
@@ -92,6 +92,7 @@ pub async fn start(
     }
 
     let date = target.date.map(|date| date.to_string()).unwrap_or_default();
+    // Shown in Bunny's dashboard; the upload repeats it, or Bunny would rename it.
     let title = format!("{} · {} · {date}", target.client_name, target.exercise_name);
     let video_id = stream.create_video(&title).await?;
     let id = sqlx::query_scalar!(
@@ -108,6 +109,7 @@ pub async fn start(
     let signature = stream.upload_signature(&video_id, expires_at);
     Ok((
         id,
+        title,
         UploadGrant {
             video_id,
             expires_at,

@@ -147,7 +147,7 @@ export async function sendVideo(
           VideoId: ticket.video_id,
           LibraryId: ticket.library_id,
         },
-        metadata: { filetype: file.type || 'video/mp4', title: 'form video' },
+        metadata: { filetype: file.type || 'video/mp4', title: started.title },
         onProgress: (sent, total) => set(key, { progress: total ? sent / total : 0 }),
         onError: reject,
         onSuccess: () => resolve(),

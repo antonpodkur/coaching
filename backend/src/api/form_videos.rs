@@ -22,6 +22,8 @@ use crate::{
 pub struct FormVideoUpload {
     /// The new video; tell `/form-videos/{id}/uploaded` when the file is sent.
     pub id: Uuid,
+    /// Send as the tus `title` metadata, so Bunny keeps this name.
+    pub title: String,
     pub ticket: UploadTicket,
 }
 
@@ -48,10 +50,11 @@ pub async fn start(
     CurrentClient(client_id): CurrentClient,
     Path(workout_exercise_id): Path<Uuid>,
 ) -> AppResult<Json<FormVideoUpload>> {
-    let (id, grant) = form_videos::start(&state, client_id, workout_exercise_id).await?;
+    let (id, title, grant) = form_videos::start(&state, client_id, workout_exercise_id).await?;
     let library_id = form_videos::stream(&state)?.settings().library_id.clone();
     Ok(Json(FormVideoUpload {
         id,
+        title,
         ticket: UploadTicket {
             endpoint: TUS_ENDPOINT.to_owned(),
             library_id,
