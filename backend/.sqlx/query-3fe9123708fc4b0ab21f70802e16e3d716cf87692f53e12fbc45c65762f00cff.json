@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE clients SET bot_allowed_at = now()\n           WHERE id = $1 AND bot_allowed_at IS NULL AND telegram_id IS NOT NULL\n           RETURNING telegram_id AS \"telegram_id!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "telegram_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "clients",
+            "name": "telegram_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "3fe9123708fc4b0ab21f70802e16e3d716cf87692f53e12fbc45c65762f00cff"
+}

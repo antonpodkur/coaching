@@ -75,7 +75,7 @@ Chosen for low cost with no servers to maintain. Prices were checked on the prov
 - **Telegram:** `telegram-web-app.js`, loaded in `index.html` before the app so it can read the launch parameters from the URL. It provides `initData`, `start_param`, theme colours, the back button, haptics and `openTelegramLink`. Outside Telegram it does nothing.
 - **One Mini App, two roles:** the sign-in response says whether Dasha or a client opened `/app`, and the app mounts her workspace or the client's screens. Nothing in the URL decides the role.
 - **Coach screens are phone-first:** pages above a bottom tab bar; sub-pages go back with Telegram's own back button. The browser at `/coach` shows the same components with an in-page back link, and on a wide screen the tabs move to the top. The builder's phone design (set chips with a −/+ editor, the library as a bottom sheet) is in the prototype.
-- **Invites go through Telegram's share sheet:** "Надіслати в Telegram" opens `https://t.me/share/url?url=<invite>` with `openTelegramLink`, so Dasha picks the chat instead of copying a link. Copying stays as a fallback.
+- **Invites go out as a card:** in the Mini App, "Надіслати запрошення" shares a prepared message with an "Відкрити" button (`shareMessage`). Without it, "Надіслати в Telegram" opens `https://t.me/share/url?url=<invite>` with `openTelegramLink`, so Dasha picks the chat instead of copying a link. Copying stays as a fallback.
 - **Types:** `frontend/src/api/schema.ts` is generated from the backend's OpenAPI spec and never edited by hand. CI fails if it is out of date.
 - **Tokens:** sent as `Authorization: Bearer …`, not cookies. Telegram Web runs Mini Apps in an iframe, where cookies are unreliable. Mini App tokens, the client's and Dasha's alike, live in memory and are re-issued from fresh `initData` on every launch. The browser's coach token lives in `localStorage`.
 
@@ -115,17 +115,38 @@ backend/
 
 ## Authentication and onboarding
 
-**Client invite.** A bot can only message people who have started it, so onboarding goes through the bot:
+**Client invite.** One tap from Dasha's message into the app, with no bot chat and no Start on the way:
 
 1. Dasha adds a client in her workspace. The backend creates a random, single-use invite code that expires after 7 days.
-2. She sends the link `https://t.me/<bot>?start=<code>` to her existing Telegram chat with the client, through Telegram's share sheet.
-3. The client taps Start. The bot's `/start <code>` handler links their Telegram user ID to the client record and replies with a button that opens the Mini App.
+2. The invite is an app link, `https://t.me/<bot>?startapp=inv_<code>`. It opens the bot's main Mini App straight away, so the bot needs one, set in BotFather.
+   - The backend also prepares it as a message card (`savePreparedInlineMessage`): Dasha's invitation with an "Відкрити" button.
+   - Her Mini App shares the card with `shareMessage`. Outside Telegram, or if the card could not be prepared, she shares the plain link through Telegram's share sheet.
+3. The client taps "Відкрити". The app opens, and its sign-in carries the code as `start_param`, inside the signed `initData`. The backend accepts the invite there, links the Telegram account, and tells Dasha.
+4. **Messages:** the bot may only write to people who allowed it, and pressing Start used to do that implicitly. `clients.bot_allowed_at` records it.
+   - **Allowed at launch:** if Telegram's launch data says they allowed it (`allows_write_to_pm`), the bot sends its welcome right away.
+   - **Otherwise:** the app shows "Дозволити", which opens Telegram's own popup (`requestWriteAccess`).
+   - **Writing to the bot** also allows it.
+   - Until then, nothing is sent to them: no new-workout messages, no reminders.
+5. **The welcome is pinned** at the top of the chat. It says what the chat is for (new workouts and reminders), has the button into the app, and offers "Написати Даші": questions go to her personal Telegram, since nobody reads the bot. Her username comes from her own Mini App sign-in.
+
+Older `?start=inv_<code>` links still work through the bot's `/start` handler, which also sends the pinned welcome.
+
+**The chat is the inbox, the app is where training happens.**
+- Every bot message carries one button into the right screen.
+- Anything a client types gets a one-line pointer to the app and to Dasha.
+- The app offers an icon on the phone's home screen (`addToHomeScreen`).
+- During a workout, a swipe down does not close the app (`disableVerticalSwipes`).
+- Telegram asks before closing while logged sets are still waiting to send.
 
 **Mini App sign-in, for clients and Dasha.** On every launch the Mini App posts Telegram's `initData` to `POST /auth/telegram-webapp`. The backend:
 
 1. Builds the data-check-string and verifies `hash` exactly as Telegram's Mini App docs describe. The secret key is derived from the bot token with the constant `WebAppData`.
 2. Rejects `initData` older than 24 hours.
-3. Looks up the Telegram user ID in `coaches`, then in `clients`. Dasha gets a coach session and her workspace; a client gets theirs. An account that is both (Dasha testing as her own client) gets the coach session. If it is neither, the backend answers 403 `not_invited`, and the app asks the person to get an invite from Dasha.
+3. Looks up the Telegram user ID in `coaches`, then in `clients`. Dasha gets a coach session and her workspace; a client gets theirs. An account that is both (Dasha testing as her own client) gets the coach session, and an invite link she opens herself is left unused.
+   - **An invite in `start_param`** is accepted first.
+   - **A used or expired one** answers 403 `invite_invalid`, unless the person already joined.
+   - **An account that already belongs to another client** answers 403 `linked_elsewhere`.
+   - **Neither the coach nor a client:** the backend answers 403 `not_invited`, and the app asks the person to get an invite from Dasha.
 4. Issues a JWT for that role, valid for 12 hours.
 
 This is as strong as the bot-confirmed sign-in below: both rest on Telegram vouching for her user ID, and `initData` cannot be forged without the bot token. It needs no confirm step, because nobody else can start this sign-in for her on another device.
@@ -148,7 +169,7 @@ This replaces the Telegram Login Widget, which Telegram now labels legacy. Teleg
 
 ```sql
 coaches           id, telegram_id UNIQUE, name, timezone (default Europe/Kyiv)
-clients           id, coach_id, name, telegram_id UNIQUE NULL, invite_code_hash UNIQUE NULL,
+clients           id, coach_id, name, telegram_id UNIQUE NULL, bot_allowed_at NULL, invite_code_hash UNIQUE NULL,
                   invite_expires_at, paid_until DATE NULL, timezone TEXT NULL,
                   created_at, archived_at
 exercises         id, coach_id, name, measure (weight | bodyweight | time), muscle_group, aliases TEXT[],
@@ -253,7 +274,7 @@ All messages come from the bot and are written in Ukrainian. Each one is first a
 
 | Trigger | To | Message |
 | --- | --- | --- |
-| Workout published | Client | "Нове тренування від Даші: «Спина», вт, 6 жовтня.", with a button opening the Mini App (the workout itself once client screens exist, `startapp=w_<id>`). Not sent until the client has joined; publishing again after they join sends it. |
+| Workout published | Client | "Нове тренування від Даші: «Спина», вт, 6 жовтня.", with a button opening the Mini App (the workout itself once client screens exist, `startapp=w_<id>`). Not sent until the client has joined and let the bot message them; publishing again after that sends it. |
 | 09:00–21:00 client time on the workout date, if published, not done, and not published in the last 12 hours | Client | "Нагадування: сьогодні тренування «Спина».", with a button opening the workout. Clients without a timezone count as Kyiv. |
 | Workout finished | Dasha | "Максим К.: звіт про «Спина», вт, 6 жовтня. 18 з 20 підходів · 2 інакше, ніж у плані · важко" and the comment, with a button opening that client in her workspace |
 | 20:00–22:00 in Dasha's timezone, daily | Dasha | One summary: today's published workouts nobody opened (opening a workout sets `opened_at`), and clients whose `paid_until` is within 3 days. No message on a quiet day. |

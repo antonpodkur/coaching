@@ -39,6 +39,7 @@ pub async fn issue(db: &PgPool, coach_id: Uuid, client_id: Uuid) -> sqlx::Result
 pub enum Accepted {
     /// The Telegram account is now linked to the client.
     Joined {
+        client_id: Uuid,
         client_name: String,
         coach_telegram_id: i64,
     },
@@ -88,8 +89,10 @@ pub async fn accept(db: &PgPool, code: &str, telegram_id: i64) -> sqlx::Result<A
     .execute(&mut *tx)
     .await?;
 
+    // A new account has not let the bot write to it yet; the caller knows if it did.
     sqlx::query!(
-        "UPDATE clients SET telegram_id = $2, invite_code_hash = NULL, invite_expires_at = NULL
+        "UPDATE clients SET telegram_id = $2, invite_code_hash = NULL, invite_expires_at = NULL,
+                            bot_allowed_at = NULL
          WHERE id = $1",
         invite.id,
         telegram_id,
@@ -99,6 +102,7 @@ pub async fn accept(db: &PgPool, code: &str, telegram_id: i64) -> sqlx::Result<A
     tx.commit().await?;
 
     Ok(Accepted::Joined {
+        client_id: invite.id,
         client_name: invite.name,
         coach_telegram_id: invite.coach_telegram_id,
     })

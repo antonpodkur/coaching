@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, name, timezone FROM clients WHERE id = $1 AND archived_at IS NULL",
+  "query": "SELECT id, name, timezone, bot_allowed_at IS NOT NULL AS \"bot_allowed!\"\n           FROM clients WHERE id = $1 AND archived_at IS NULL",
   "describe": {
     "columns": [
       {
@@ -35,6 +35,12 @@
             "name": "timezone"
           }
         }
+      },
+      {
+        "ordinal": 3,
+        "name": "bot_allowed!",
+        "type_info": "Bool",
+        "origin": "Expression"
       }
     ],
     "parameters": {
@@ -45,8 +51,9 @@
     "nullable": [
       false,
       false,
-      true
+      true,
+      null
     ]
   },
-  "hash": "56af69f9456353df84506b6be5c6b01f0bd633cc0ddfec08297e7d7069a207cd"
+  "hash": "34cb650220ad7db02b885558686ea86e447ab12322adf641e8023193f6d64479"
 }

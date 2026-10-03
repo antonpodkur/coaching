@@ -165,18 +165,19 @@ pub async fn deliver(state: &AppState, id: Uuid, now: DateTime<Utc>) -> anyhow::
 }
 
 /// Queues the "new workout" message and sends it. Returns `false` if the client
-/// has not joined yet, so there is no one to tell. A failed send is retried by
-/// the jobs, so it still counts as told.
+/// has not joined yet, or has not let the bot write to them, so there is no one
+/// to tell. A failed send is retried by the jobs, so it still counts as told.
 pub async fn workout_published(state: &AppState, workout_id: Uuid) -> anyhow::Result<bool> {
     let workout = sqlx::query!(
-        r#"SELECT w.date AS "date!", c.telegram_id
+        r#"SELECT w.date AS "date!", c.telegram_id IS NOT NULL AND c.bot_allowed_at IS NOT NULL
+                  AS "reachable!"
            FROM workouts w JOIN clients c ON c.id = w.client_id
            WHERE w.id = $1 AND w.date IS NOT NULL"#,
         workout_id,
     )
     .fetch_one(&state.db)
     .await?;
-    if workout.telegram_id.is_none() {
+    if !workout.reachable {
         return Ok(false);
     }
     if let Some(id) = queue(state, Kind::WorkoutPublished, workout_id, workout.date).await? {
@@ -212,7 +213,7 @@ async fn published(state: &AppState, workout_id: Uuid) -> anyhow::Result<Option<
         r#"SELECT w.title, w.date AS "date!", c.telegram_id AS "telegram_id!"
            FROM workouts w JOIN clients c ON c.id = w.client_id
            WHERE w.id = $1 AND w.date IS NOT NULL AND c.telegram_id IS NOT NULL
-             AND w.status IN ('published', 'done')"#,
+             AND c.bot_allowed_at IS NOT NULL AND w.status IN ('published', 'done')"#,
         workout_id,
     )
     .fetch_optional(&state.db)
@@ -240,7 +241,7 @@ async fn reminder(state: &AppState, workout_id: Uuid) -> anyhow::Result<Option<O
         r#"SELECT w.title, c.telegram_id AS "telegram_id!"
            FROM workouts w JOIN clients c ON c.id = w.client_id
            WHERE w.id = $1 AND w.status = 'published' AND c.telegram_id IS NOT NULL
-             AND c.archived_at IS NULL"#,
+             AND c.bot_allowed_at IS NOT NULL AND c.archived_at IS NULL"#,
         workout_id,
     )
     .fetch_optional(&state.db)

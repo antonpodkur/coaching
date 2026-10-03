@@ -47,7 +47,11 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Mini App sign-in: trades Telegram-signed `initData` for a session token. */
+        /**
+         * Mini App sign-in: trades Telegram-signed `initData` for a session token.
+         * @description When the app was opened by an invite link (`?startapp=inv_<code>`, which
+         *     arrives as `start_param`), the client joins here, without the bot.
+         */
         post: operations["telegram_webapp"];
         delete?: never;
         options?: never;
@@ -375,6 +379,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/bot-allowed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * The client allowed the bot to message them, in Telegram's popup in the app.
+         *     The first time, the bot sends its pinned welcome.
+         */
+        post: operations["allow_bot_messages"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/me/timezone": {
         parameters: {
             query?: never;
@@ -526,6 +550,11 @@ export interface components {
             video?: components["schemas"]["ClientVideo"] | null;
         };
         ClientProfile: {
+            /**
+             * @description The bot may message them. Joining through an app link skips the bot's
+             *     Start, so until they allow it the app asks (`requestWriteAccess`).
+             */
+            bot_allowed: boolean;
             /** Format: uuid */
             id: string;
             name: string;
@@ -715,7 +744,16 @@ export interface components {
         InviteLink: {
             /** Format: date-time */
             expires_at: string;
-            /** @description `https://t.me/<bot>?start=inv_<code>`. Works once. */
+            /**
+             * @description The invitation as a message card with an "Відкрити" button, for
+             *     `Telegram.WebApp.shareMessage` in Dasha's Mini App. `null` if Telegram
+             *     could not prepare it; then share `url`.
+             */
+            prepared_message_id?: string | null;
+            /**
+             * @description `https://t.me/<bot>?startapp=inv_<code>`: opens the app straight away and
+             *     joins. Works once.
+             */
             url: string;
         };
         /**
@@ -770,7 +808,10 @@ export interface components {
             reps?: number | null;
         };
         PublishedWorkout: {
-            /** @description The bot has told the client; `false` while they have not joined the app. */
+            /**
+             * @description The bot has told the client; `false` while they have not joined the app or
+             *     not allowed the bot to message them. They see the workout in the app either way.
+             */
             client_notified: boolean;
             workout: components["schemas"]["Workout"];
         };
@@ -1069,7 +1110,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
-            /** @description `not_invited`: neither the coach nor an invited client */
+            /** @description `not_invited`: neither the coach nor an invited client; `invite_invalid`: the invite link is used or expired; `linked_elsewhere`: this account already belongs to another client */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -1997,6 +2038,40 @@ export interface operations {
                 };
             };
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    allow_bot_messages: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description `bot_cannot_write`: Telegram refused, so messages are not allowed after all */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

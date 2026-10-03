@@ -11,7 +11,9 @@ use crate::{
         jwt::{BROWSER_TOKEN_TTL, MINI_APP_TOKEN_TTL},
         telegram::verify_web_app_init_data,
     },
+    bot,
     error::{AppError, AppResult, ErrorBody},
+    invites::{self, Accepted},
     state::AppState,
 };
 
@@ -27,6 +29,9 @@ pub struct ClientProfile {
     pub name: String,
     /// IANA timezone reported by the client's phone, e.g. `Europe/Kyiv`.
     pub timezone: Option<String>,
+    /// The bot may message them. Joining through an app link skips the bot's
+    /// Start, so until they allow it the app asks (`requestWriteAccess`).
+    pub bot_allowed: bool,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -50,6 +55,9 @@ pub enum MiniAppSession {
 }
 
 /// Mini App sign-in: trades Telegram-signed `initData` for a session token.
+///
+/// When the app was opened by an invite link (`?startapp=inv_<code>`, which
+/// arrives as `start_param`), the client joins here, without the bot.
 #[utoipa::path(
     post,
     path = "/auth/telegram-webapp",
@@ -58,7 +66,7 @@ pub enum MiniAppSession {
     responses(
         (status = 200, body = MiniAppSession),
         (status = 401, body = ErrorBody, description = "`initData` is invalid or older than a day"),
-        (status = 403, body = ErrorBody, description = "`not_invited`: neither the coach nor an invited client"),
+        (status = 403, body = ErrorBody, description = "`not_invited`: neither the coach nor an invited client; `invite_invalid`: the invite link is used or expired; `linked_elsewhere`: this account already belongs to another client"),
     )
 )]
 pub async fn telegram_webapp(
@@ -83,24 +91,64 @@ pub async fn telegram_webapp(
     )
     .fetch_optional(&state.db)
     .await?;
+    // Dasha opening an invite link herself, to check it, must not use it up.
     if let Some(coach) = coach {
+        // Kept for the clients' "Написати Даші" button.
+        sqlx::query!(
+            "UPDATE coaches SET username = $2 WHERE id = $1 AND username IS DISTINCT FROM $2",
+            coach.id,
+            init_data.user.username,
+        )
+        .execute(&state.db)
+        .await?;
         let token = state.jwt.issue(Role::Coach, coach.id, MINI_APP_TOKEN_TTL)?;
         return Ok(Json(MiniAppSession::Coach { token, coach }));
     }
 
-    let client = sqlx::query_as!(
+    let invite = init_data
+        .start_param
+        .as_deref()
+        .and_then(|param| param.strip_prefix(invites::START_PREFIX));
+    let mut invite_unusable = false;
+    if let Some(code) = invite {
+        match invites::accept(&state.db, code, telegram_id).await? {
+            Accepted::Joined {
+                client_id,
+                client_name,
+                coach_telegram_id,
+            } => bot::announce_join(&state, client_id, &client_name, coach_telegram_id).await,
+            Accepted::LinkedElsewhere => return Err(AppError::Forbidden("linked_elsewhere")),
+            // Fine for someone who already joined and tapped the link again.
+            Accepted::Invalid => invite_unusable = true,
+        }
+    }
+
+    let mut client = sqlx::query_as!(
         ClientProfile,
-        "SELECT id, name, timezone FROM clients
-         WHERE telegram_id = $1 AND archived_at IS NULL",
+        r#"SELECT id, name, timezone, bot_allowed_at IS NOT NULL AS "bot_allowed!"
+           FROM clients
+           WHERE telegram_id = $1 AND archived_at IS NULL"#,
         telegram_id,
     )
     .fetch_optional(&state.db)
     .await?
     .ok_or_else(|| {
+        if invite_unusable {
+            return AppError::Forbidden("invite_invalid");
+        }
         // The ID is what the coach needs to add this person (see README, "Local Telegram").
         tracing::info!(telegram_id, "Mini App sign-in by someone without an invite");
         AppError::Forbidden("not_invited")
     })?;
+
+    // Allowed in Telegram's own dialog, e.g. when the app link opened: welcome now.
+    if !client.bot_allowed && init_data.user.allows_write_to_pm {
+        match bot::welcome_client(&state, client.id, Some(&init_data.user.first_name)).await {
+            Ok(_) => client.bot_allowed = true,
+            Err(err) => tracing::warn!(error = ?err, "could not welcome a client in the bot"),
+        }
+    }
+
     let token = state
         .jwt
         .issue(Role::Client, client.id, MINI_APP_TOKEN_TTL)?;

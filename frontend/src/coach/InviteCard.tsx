@@ -1,24 +1,31 @@
 import { useState } from 'react'
 
 import type { Schemas } from '../api/client'
-import { telegramWebApp } from '../app/telegram'
+import { telegramSupporting, telegramWebApp } from '../app/telegram'
 import { formatDay } from '../shared/format'
 import { SendIcon } from '../shared/icons'
 
 export type ShownInvite = Schemas['InviteLink'] & { name: string }
 
-const SHARE_TEXT = 'Запрошення в застосунок тренувань Даші: відкрий посилання й натисни Start.'
+const SHARE_TEXT =
+  'Запрошення до онлайн-тренувань з Дарією Хижняк. Відкрий посилання — застосунок відкриється в Telegram.'
 
 /** Telegram's "share to a chat" screen with the invite filled in. */
 function shareUrl(inviteUrl: string) {
   return `https://t.me/share/url?url=${encodeURIComponent(inviteUrl)}&text=${encodeURIComponent(SHARE_TEXT)}`
 }
 
-/** A fresh invite link, ready to send to the person in Telegram. */
+/**
+ * A fresh invite, ready to send in Telegram. Inside Telegram it goes as a card
+ * with an "Відкрити" button that opens the app; elsewhere as a plain link.
+ */
 export function InviteCard({ invite, onClose }: { invite: ShownInvite; onClose?: () => void }) {
   const [copied, setCopied] = useState(false)
+  const [sent, setSent] = useState(false)
   const webApp = telegramWebApp()
   const share = shareUrl(invite.url)
+  const cardSharer = invite.prepared_message_id ? telegramSupporting('8.0') : null
+  const preparedId = invite.prepared_message_id
 
   const copy = async () => {
     try {
@@ -42,7 +49,16 @@ export function InviteCard({ invite, onClose }: { invite: ShownInvite; onClose?:
         aria-label="Посилання-запрошення"
         onFocus={(event) => event.target.select()}
       />
-      {webApp ? (
+      {cardSharer && preparedId ? (
+        <button
+          type="button"
+          className="button primary block"
+          onClick={() => cardSharer.shareMessage(preparedId, (done) => setSent(done))}
+        >
+          <SendIcon />
+          {sent ? 'Надіслано. Надіслати ще раз' : 'Надіслати запрошення'}
+        </button>
+      ) : webApp ? (
         <button
           type="button"
           className="button primary block"
@@ -61,8 +77,8 @@ export function InviteCard({ invite, onClose }: { invite: ShownInvite; onClose?:
         {copied ? 'Скопійовано' : 'Скопіювати посилання'}
       </button>
       <p className="muted small">
-        Telegram відкриє список чатів: обери людину й надішли. Посилання одноразове. Коли людина
-        натисне Start, бот напише тобі.
+        Обери людину в списку чатів. Вона натисне «Відкрити» й одразу потрапить у застосунок, а бот
+        напише тобі. Посилання одноразове.
       </p>
       {onClose && (
         <button type="button" className="link-button" onClick={onClose}>

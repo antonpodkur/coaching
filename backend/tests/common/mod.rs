@@ -56,9 +56,34 @@ pub fn coach_token(state: &AppState, coach_id: Uuid) -> String {
 
 /// Builds Mini App `initData` signed the way Telegram signs it.
 pub fn signed_init_data(telegram_id: i64, bot_token: &str) -> String {
-    let user = json!({ "id": telegram_id, "first_name": "Максим" }).to_string();
-    let auth_date = Utc::now().timestamp().to_string();
-    let check = format!("auth_date={auth_date}\nuser={user}");
+    launch(telegram_id, bot_token, None, false)
+}
+
+/// `initData` for an app opened by a link with `start_param`, and with or
+/// without the user's permission for the bot to message them.
+pub fn launch(
+    telegram_id: i64,
+    bot_token: &str,
+    start_param: Option<&str>,
+    allows_write_to_pm: bool,
+) -> String {
+    let user = json!({
+        "id": telegram_id, "first_name": "Максим", "allows_write_to_pm": allows_write_to_pm,
+    })
+    .to_string();
+    let mut fields = vec![
+        ("auth_date".to_owned(), Utc::now().timestamp().to_string()),
+        ("user".to_owned(), user),
+    ];
+    if let Some(param) = start_param {
+        fields.push(("start_param".to_owned(), param.to_owned()));
+    }
+    fields.sort();
+    let check = fields
+        .iter()
+        .map(|(key, value)| format!("{key}={value}"))
+        .collect::<Vec<_>>()
+        .join("\n");
 
     let mut secret = Hmac::<Sha256>::new_from_slice(b"WebAppData").unwrap();
     secret.update(bot_token.as_bytes());
@@ -67,11 +92,11 @@ pub fn signed_init_data(telegram_id: i64, bot_token: &str) -> String {
     mac.update(check.as_bytes());
     let hash = hex::encode(mac.finalize().into_bytes());
 
-    form_urlencoded::Serializer::new(String::new())
-        .append_pair("auth_date", &auth_date)
-        .append_pair("user", &user)
-        .append_pair("hash", &hash)
-        .finish()
+    let mut query = form_urlencoded::Serializer::new(String::new());
+    for (key, value) in &fields {
+        query.append_pair(key, value);
+    }
+    query.append_pair("hash", &hash).finish()
 }
 
 pub async fn call(
@@ -165,7 +190,8 @@ pub async fn seed_coach(db: &PgPool, telegram_id: i64) -> Uuid {
 
 pub async fn seed_client(db: &PgPool, coach_id: Uuid, telegram_id: i64) -> Uuid {
     sqlx::query_scalar!(
-        "INSERT INTO clients (coach_id, name, telegram_id) VALUES ($1, 'Максим К.', $2) RETURNING id",
+        "INSERT INTO clients (coach_id, name, telegram_id, bot_allowed_at)
+         VALUES ($1, 'Максим К.', $2, now()) RETURNING id",
         coach_id,
         telegram_id,
     )

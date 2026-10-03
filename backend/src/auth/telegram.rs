@@ -35,6 +35,9 @@ pub struct WebAppUser {
     pub last_name: Option<String>,
     #[serde(default)]
     pub username: Option<String>,
+    /// The user let the bot message them, e.g. in the dialog of an app link.
+    #[serde(default)]
+    pub allows_write_to_pm: bool,
 }
 
 #[derive(Debug)]

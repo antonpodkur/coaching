@@ -1,5 +1,8 @@
 //! What the bot does with incoming updates: invite links, coach sign-in, and a
 //! short answer to anything else. It only talks in private chats.
+//!
+//! The chat is the client's inbox: new workouts and reminders, each with a
+//! button into the app. Training itself happens in the app.
 
 use uuid::Uuid;
 
@@ -83,54 +86,180 @@ async fn handle_message(state: &AppState, message: Message) -> anyhow::Result<()
 
     let reply = match parse_start(text) {
         Some(Start::Invite(code)) => accept_invite(state, &from, chat_id, code).await?,
-        Some(Start::Login(code)) => claim_login(state, &from, chat_id, code).await?,
+        Some(Start::Login(code)) => Reply::plain(claim_login(state, &from, chat_id, code).await?),
         Some(Start::Plain) | None => greet(state, &from, chat_id).await?,
     };
-    state.telegram.send_message(reply).await
+    let message_id = state.telegram.send_message(reply.message).await?;
+    if reply.pin {
+        pin(state, chat_id, message_id).await;
+    }
+    Ok(())
 }
 
+/// The bot's answer, and whether to pin it (the welcome).
+struct Reply {
+    message: OutgoingMessage,
+    pin: bool,
+}
+
+impl Reply {
+    fn plain(message: OutgoingMessage) -> Self {
+        Self {
+            message,
+            pin: false,
+        }
+    }
+}
+
+/// An invite opened through the bot (`?start=`). Links from before app links
+/// existed still arrive this way.
 async fn accept_invite(
     state: &AppState,
     from: &User,
     chat_id: i64,
     code: &str,
-) -> anyhow::Result<OutgoingMessage> {
-    match invites::accept(&state.db, code, from.id).await? {
+) -> anyhow::Result<Reply> {
+    Ok(match invites::accept(&state.db, code, from.id).await? {
         Accepted::Joined {
+            client_id,
             client_name,
             coach_telegram_id,
         } => {
-            // Let Dasha know; losing this message must not fail the invite.
-            let note = OutgoingMessage::text(
-                coach_telegram_id,
-                format!("{client_name} тепер у застосунку."),
-            );
-            if let Err(err) = state.telegram.send_message(note).await {
-                tracing::warn!(error = ?err, "could not tell the coach about a new client");
+            // Pressing Start lets the bot write to them.
+            sqlx::query!(
+                "UPDATE clients SET bot_allowed_at = now() WHERE id = $1",
+                client_id
+            )
+            .execute(&state.db)
+            .await?;
+            announce_join(state, client_id, &client_name, coach_telegram_id).await;
+            Reply {
+                message: welcome(state, client_id, chat_id, Some(&from.first_name)).await?,
+                pin: true,
             }
-            Ok(open_app(
-                state,
-                chat_id,
-                format!(
-                    "Вітаю, {}! Тут будуть твої тренування від Даші: план, відео техніки й звіт після тренування.",
-                    from.first_name
-                ),
-            ))
         }
-        Accepted::LinkedElsewhere => Ok(OutgoingMessage::text(
-            chat_id,
-            "Цей Telegram-акаунт уже прив’язаний до іншого профілю. Напиши Даші — вона допоможе.",
-        )),
+        Accepted::LinkedElsewhere => Reply::plain(OutgoingMessage::text(chat_id, LINKED_ELSEWHERE)),
         // A repeated update, or an old link tapped again by someone who already joined.
-        Accepted::Invalid if is_client(state, from.id).await? => Ok(open_app(
+        Accepted::Invalid if is_client(state, from.id).await? => Reply::plain(open_app(
             state,
             chat_id,
             "Ти вже в застосунку. Відкривай тренування кнопкою нижче.".to_owned(),
         )),
-        Accepted::Invalid => Ok(OutgoingMessage::text(
+        Accepted::Invalid => Reply::plain(OutgoingMessage::text(
             chat_id,
             "Посилання недійсне або застаріло. Попроси в Даші нове.",
         )),
+    })
+}
+
+pub const LINKED_ELSEWHERE: &str =
+    "Цей Telegram-акаунт уже прив’язаний до іншого профілю. Напиши Даші — вона допоможе.";
+
+/// Tells Dasha that a client joined, with a button to their page. Losing this
+/// message must not fail the join.
+pub async fn announce_join(
+    state: &AppState,
+    client_id: Uuid,
+    client_name: &str,
+    coach_telegram_id: i64,
+) {
+    let note = OutgoingMessage::text(
+        coach_telegram_id,
+        format!("{client_name} тепер у застосунку."),
+    )
+    .with_row(vec![Button::WebApp {
+        text: "Відкрити клієнта".to_owned(),
+        url: format!("{}/clients/{client_id}", state.config.mini_app_url()),
+    }]);
+    if let Err(err) = state.telegram.send_message(note).await {
+        tracing::warn!(error = ?err, "could not tell the coach about a new client");
+    }
+}
+
+/// Records that the client let the bot write to them and, the first time,
+/// sends the pinned welcome. For clients who joined through an app link and
+/// allowed messages there. Returns whether the welcome went out now.
+pub async fn welcome_client(
+    state: &AppState,
+    client_id: Uuid,
+    first_name: Option<&str>,
+) -> anyhow::Result<bool> {
+    let Some(chat_id) = sqlx::query_scalar!(
+        r#"UPDATE clients SET bot_allowed_at = now()
+           WHERE id = $1 AND bot_allowed_at IS NULL AND telegram_id IS NOT NULL
+           RETURNING telegram_id AS "telegram_id!""#,
+        client_id,
+    )
+    .fetch_optional(&state.db)
+    .await?
+    else {
+        return Ok(false);
+    };
+    let message = welcome(state, client_id, chat_id, first_name).await?;
+    match state.telegram.send_message(message).await {
+        Ok(message_id) => {
+            pin(state, chat_id, message_id).await;
+            Ok(true)
+        }
+        Err(err) => {
+            // Most likely they had not allowed it after all; the app can ask again.
+            sqlx::query!(
+                "UPDATE clients SET bot_allowed_at = NULL WHERE id = $1",
+                client_id
+            )
+            .execute(&state.db)
+            .await?;
+            Err(err)
+        }
+    }
+}
+
+/// What the chat is for, the button into the app, and where to ask Dasha.
+async fn welcome(
+    state: &AppState,
+    client_id: Uuid,
+    chat_id: i64,
+    first_name: Option<&str>,
+) -> anyhow::Result<OutgoingMessage> {
+    let hello = match first_name {
+        Some(name) => format!("Вітаю, {name}!"),
+        None => "Вітаю!".to_owned(),
+    };
+    let text = format!(
+        "{hello} Тут з’являтимуться нові тренування від Даші й нагадування в день тренування.\n\n\
+         Застосунок відкривається кнопкою нижче або «{MENU_BUTTON_TEXT}» біля поля повідомлення. \
+         Питання щодо тренувань пиши Даші особисто — цей чат вона не читає."
+    );
+    let message = open_app(state, chat_id, text);
+    Ok(with_coach_contact(state, client_id, message).await?)
+}
+
+/// Adds "Написати Даші" when her Telegram username is known.
+async fn with_coach_contact(
+    state: &AppState,
+    client_id: Uuid,
+    message: OutgoingMessage,
+) -> sqlx::Result<OutgoingMessage> {
+    let username = sqlx::query_scalar!(
+        "SELECT co.username FROM clients c JOIN coaches co ON co.id = c.coach_id WHERE c.id = $1",
+        client_id,
+    )
+    .fetch_optional(&state.db)
+    .await?
+    .flatten();
+    Ok(match username {
+        Some(username) => message.with_row(vec![Button::Url {
+            text: "Написати Даші".to_owned(),
+            url: format!("https://t.me/{username}"),
+        }]),
+        None => message,
+    })
+}
+
+/// Pins the welcome so the app button stays at the top of the chat.
+async fn pin(state: &AppState, chat_id: i64, message_id: i64) {
+    if let Err(err) = state.telegram.pin_chat_message(chat_id, message_id).await {
+        tracing::warn!(error = ?err, "could not pin the welcome");
     }
 }
 
@@ -171,13 +300,33 @@ async fn claim_login(
     })
 }
 
-async fn greet(state: &AppState, from: &User, chat_id: i64) -> anyhow::Result<OutgoingMessage> {
-    if is_client(state, from.id).await? {
-        return Ok(open_app(
+async fn greet(state: &AppState, from: &User, chat_id: i64) -> anyhow::Result<Reply> {
+    if let Some(client_id) = client_id(state, from.id).await? {
+        // Writing to the bot lets it write back. Someone who joined through an
+        // app link without allowing messages gets the welcome now.
+        let newly_allowed = sqlx::query_scalar!(
+            "UPDATE clients SET bot_allowed_at = now()
+             WHERE id = $1 AND bot_allowed_at IS NULL RETURNING id",
+            client_id,
+        )
+        .fetch_optional(&state.db)
+        .await?
+        .is_some();
+        if newly_allowed {
+            return Ok(Reply {
+                message: welcome(state, client_id, chat_id, Some(&from.first_name)).await?,
+                pin: true,
+            });
+        }
+        let message = open_app(
             state,
             chat_id,
-            "Я надсилаю тренування й нагадування. Питання щодо тренувань — пиши Даші напряму."
+            "Тренування — у застосунку, кнопка нижче. Питання щодо тренувань пиши Даші особисто — \
+             цей чат вона не читає."
                 .to_owned(),
+        );
+        return Ok(Reply::plain(
+            with_coach_contact(state, client_id, message).await?,
         ));
     }
     let is_coach = sqlx::query_scalar!("SELECT id FROM coaches WHERE telegram_id = $1", from.id)
@@ -190,22 +339,22 @@ async fn greet(state: &AppState, from: &User, chat_id: i64) -> anyhow::Result<Ou
              На комп’ютері: {}/coach",
             state.config.frontend_url
         );
-        return Ok(
-            OutgoingMessage::text(chat_id, text).with_row(vec![Button::WebApp {
+        return Ok(Reply::plain(OutgoingMessage::text(chat_id, text).with_row(
+            vec![Button::WebApp {
                 text: "Відкрити кабінет".to_owned(),
                 url: state.config.mini_app_url(),
-            }]),
-        );
+            }],
+        )));
     }
     // The ID is what's needed to add this person as the coach (see README).
     tracing::info!(
         telegram_id = from.id,
         "message from an unknown Telegram user"
     );
-    Ok(OutgoingMessage::text(
+    Ok(Reply::plain(OutgoingMessage::text(
         chat_id,
         "Щоб почати, попроси в Даші посилання-запрошення.",
-    ))
+    )))
 }
 
 async fn handle_callback(state: &AppState, query: CallbackQuery) -> anyhow::Result<()> {
@@ -257,14 +406,17 @@ fn open_app(state: &AppState, chat_id: i64, text: String) -> OutgoingMessage {
     }])
 }
 
-async fn is_client(state: &AppState, telegram_id: i64) -> sqlx::Result<bool> {
-    Ok(sqlx::query_scalar!(
+async fn client_id(state: &AppState, telegram_id: i64) -> sqlx::Result<Option<Uuid>> {
+    sqlx::query_scalar!(
         "SELECT id FROM clients WHERE telegram_id = $1 AND archived_at IS NULL",
         telegram_id
     )
     .fetch_optional(&state.db)
-    .await?
-    .is_some())
+    .await
+}
+
+async fn is_client(state: &AppState, telegram_id: i64) -> sqlx::Result<bool> {
+    Ok(client_id(state, telegram_id).await?.is_some())
 }
 
 #[cfg(test)]

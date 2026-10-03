@@ -16,7 +16,11 @@ Dasha's online coaching app. She builds workouts from her exercise library and p
 
 - **Database:** the full v1 schema (`backend/migrations/`), applied on startup.
 - **Sign-in:** the Mini App trades `initData` for a session, and the backend decides the role: Dasha gets her workspace, invited clients get theirs. In a browser, Dasha confirms in the bot: the page shows a code, she taps Confirm in Telegram, and the page collects a JWT.
-- **Bot and invites:** the webhook checks Telegram's secret header. On startup the bot's menu button is pointed at the Mini App. Dasha adds a client and sends the single-use invite link (valid 7 days) through Telegram's share sheet. The client taps Start, their Telegram account is linked, and the bot replies with a button for the Mini App and tells Dasha.
+- **Bot and invites:**
+  - The webhook checks Telegram's secret header. On startup the bot's menu button is pointed at the Mini App.
+  - Dasha adds a client and sends the single-use invite (valid 7 days) as a card with an "Відкрити" button. The client taps it and is in the app straight away, joined, with no Start in the bot.
+  - The bot tells Dasha, and messages the client only once they allow it. Then it sends a pinned welcome: what the chat is for, the app button, and "Написати Даші".
+  - The app offers an icon on the phone's home screen. During a workout it can't be swiped closed, and Telegram asks before closing while logged sets are unsent.
 - **Client:** `GET /me`, and `PUT /me/timezone` so reminders can use local time.
 - **Coach:** `GET/POST /coach/clients`, `POST /coach/clients/{id}/invite`, and `POST /coach/import/parse`, which reads an old Telegram plan and matches it against the library.
 - **Editing clients:** Dasha renames a client, sets the date they have paid until (with a "+1 місяць" shortcut), and archives or restores them. The list and the client page flag a payment that has ended or ends within 3 days. An archived client is signed out at once, gets no bot messages, and can join a fresh profile later. Her phone sets her own timezone, so the evening summary follows her.
@@ -58,19 +62,20 @@ Telegram only opens Mini Apps and bot buttons over HTTPS, and it has to reach th
    ```bash
    cloudflared tunnel --url http://localhost:5173
    ```
-3. In `backend/.env`, set:
+3. In @BotFather, give the dev bot a main Mini App at `https://<tunnel>/app`: /mybots → the bot → Bot Settings → Configure Mini App. Invite links open the app through it, so update it whenever the tunnel URL changes.
+4. In `backend/.env`, set:
    - `FRONTEND_ORIGIN=https://<tunnel>`
    - `TELEGRAM_WEBHOOK_URL=https://<tunnel>/api/telegram/webhook`
 
    Then restart the backend. It registers the webhook, points the bot's menu button at the tunnel, and logs "Telegram webhook registered" and "menu button opens the Mini App".
-4. Make yourself the coach, once: send `/start` to the bot, and the backend logs your ID ("message from an unknown Telegram user"). Set `COACH_TELEGRAM_ID` to it in `backend/.env` and restart the backend.
-5. In the chat with the bot, tap the menu button ("Відкрити"). The Mini App opens your workspace.
-6. Invite a client: "Запросити", enter a name, "Надіслати в Telegram", and pick a chat. Any second Telegram account works. Tapping Start there links it, and the bot's button opens the client's screens.
-7. Optional, the browser version: open `https://<tunnel>/coach`, choose "Увійти через Telegram", tap Start in the bot, check that the code matches, and confirm.
+5. Make yourself the coach, once: send `/start` to the bot, and the backend logs your ID ("message from an unknown Telegram user"). Set `COACH_TELEGRAM_ID` to it in `backend/.env` and restart the backend.
+6. In the chat with the bot, tap the menu button ("Відкрити"). The Mini App opens your workspace.
+7. Invite a client: "Запросити", enter a name, "Надіслати запрошення", and pick a chat. Any second Telegram account works. Tapping "Відкрити" there opens the client's screens, already joined.
+8. Optional, the browser version: open `https://<tunnel>/coach`, choose "Увійти через Telegram", tap Start in the bot, check that the code matches, and confirm.
 
 Your own account is the coach, so the Mini App always opens the workspace for it, even if you also accepted an invite with it.
 
-Quick tunnel URLs change on every start, so repeat step 3 each time, or set up a named Cloudflare tunnel once. BotFather's `/setdomain` is no longer needed.
+Quick tunnel URLs change on every start, so repeat steps 3 and 4 each time, or set up a named Cloudflare tunnel once. BotFather's `/setdomain` is no longer needed.
 
 ### Local video uploads (Bunny Stream)
 

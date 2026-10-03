@@ -788,6 +788,30 @@ a.button {
   cursor: pointer;
 }
 
+.prompt-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.prompt-card p {
+  margin: 0;
+}
+
+.prompt-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.prompt-actions .link-button {
+  align-self: center;
+}
+
 .notice {
   padding: 12px 14px;
   border-radius: 12px;

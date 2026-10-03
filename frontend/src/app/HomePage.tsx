@@ -1,9 +1,12 @@
+import { useState } from 'react'
 import { Link } from 'react-router'
 
 import type { Schemas } from '../api/client'
 import { formatShortDate, formatToday, localDate, parseDate, plural } from '../shared/format'
 import { CalendarIcon, CheckIcon, ChevronIcon } from '../shared/icons'
+import { HomeScreenCard } from '../shared/HomeScreenCard'
 import { Screen } from '../shared/Screen'
+import { BotMessagesCard } from './BotMessagesCard'
 import { type ClientWorkoutSummary, useMyWorkouts } from './workouts'
 
 const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд']
@@ -22,6 +25,7 @@ export function HomePage({ client }: { client: Schemas['ClientProfile'] }) {
   const recent = all.filter((workout) => workout !== main && workout.date < today).slice(-2)
   const upcoming = all.filter((workout) => workout !== main && workout.date > today).slice(0, 2)
   const firstName = client.name.split(' ')[0]
+  const [botAllowed, setBotAllowed] = useState(client.bot_allowed)
 
   return (
     <Screen>
@@ -30,6 +34,13 @@ export function HomePage({ client }: { client: Schemas['ClientProfile'] }) {
         <h1>Привіт, {firstName}</h1>
       </header>
 
+      {/* One ask at a time: messages first, they bring the reminders. */}
+      {botAllowed ? (
+        <HomeScreenCard />
+      ) : (
+        <BotMessagesCard onAllowed={() => setBotAllowed(true)} />
+      )}
+
       <WeekStrip workouts={all} today={today} />
 
       {workouts.isPending && <p className="muted">Завантаження…</p>}
@@ -37,7 +48,11 @@ export function HomePage({ client }: { client: Schemas['ClientProfile'] }) {
         <p className="muted">Немає зв’язку. Тренування з’являться, щойно телефон підключиться.</p>
       )}
       {workouts.data && all.length === 0 && (
-        <p className="notice">Даша ще не надіслала тренувань. Коли надішле, бот напише тобі.</p>
+        <p className="notice">
+          {botAllowed
+            ? 'Даша ще не надіслала тренувань. Коли надішле, бот напише тобі.'
+            : 'Даша ще не надіслала тренувань. Коли надішле, вони з’являться тут.'}
+        </p>
       )}
 
       {main && <MainCard workout={main} today={today} />}

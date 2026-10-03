@@ -10,6 +10,19 @@ import { telegramWebApp } from './telegram'
 
 const webApp = telegramWebApp()
 
+/** What a refused sign-in means, by the backend's error code. */
+const SIGN_IN_ERRORS: Record<string, [string, string]> = {
+  not_invited: ['Потрібне запрошення', 'Попроси в Даші посилання-запрошення в Telegram.'],
+  invite_invalid: [
+    'Запрошення вже не діє',
+    'Воно одноразове й діє 7 днів. Попроси в Даші нове.',
+  ],
+  linked_elsewhere: [
+    'Акаунт уже прив’язаний',
+    'Цей Telegram-акаунт уже прив’язаний до іншого профілю. Напиши Даші — вона допоможе.',
+  ],
+}
+
 /**
  * Trades Telegram's `initData` for a session. The backend decides the role:
  * Dasha gets her workspace, everyone else with an invite gets their workouts.
@@ -82,15 +95,15 @@ export function MiniApp() {
   }
 
   if (session.isError) {
-    const notInvited = session.error instanceof ApiError && session.error.code === 'not_invited'
+    const code = session.error instanceof ApiError ? session.error.code : null
+    const [title, text] = (code && SIGN_IN_ERRORS[code]) ?? [
+      'Не вдалося увійти',
+      'Закрий застосунок і відкрий його ще раз.',
+    ]
     return (
       <Screen>
-        <h1>{notInvited ? 'Потрібне запрошення' : 'Не вдалося увійти'}</h1>
-        <p className="muted">
-          {notInvited
-            ? 'Попроси в Даші посилання-запрошення в Telegram.'
-            : 'Закрий застосунок і відкрий його ще раз.'}
-        </p>
+        <h1>{title}</h1>
+        <p className="muted">{text}</p>
       </Screen>
     )
   }

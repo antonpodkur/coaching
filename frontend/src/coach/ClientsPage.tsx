@@ -4,6 +4,7 @@ import { Link } from 'react-router'
 
 import { api, unwrap } from '../api/client'
 import { formatDay, formatToday, initials } from '../shared/format'
+import { HomeScreenCard } from '../shared/HomeScreenCard'
 import { PlusIcon, SearchIcon } from '../shared/icons'
 import { InviteCard, type ShownInvite } from './InviteCard'
 import { ARCHIVED_KEY, type Client, payment } from './clients'
@@ -69,6 +70,7 @@ export function ClientsPage() {
       </header>
 
       {invite && <InviteCard invite={invite} onClose={() => setInvite(null)} />}
+      {!invite && <HomeScreenCard />}
       {reinvite.isError && !isUnauthorized(reinvite.error) && (
         <p className="error">Не вдалося створити посилання. Спробуй ще раз.</p>
       )}
@@ -92,7 +94,8 @@ export function ClientsPage() {
       )}
       {clients.data?.length === 0 && (
         <p className="muted">
-          Поки нікого. Запроси першу людину: вона відкриє посилання в Telegram і натисне Start.
+          Поки нікого. Запроси першу людину: вона відкриє посилання в Telegram і одразу
+          потрапить у застосунок.
         </p>
       )}
       {needle && shown.length === 0 && <p className="muted">Нікого не знайдено.</p>}

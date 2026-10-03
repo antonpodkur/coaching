@@ -98,6 +98,12 @@ impl Config {
     pub fn bot_start_url(&self, payload: &str) -> String {
         format!("https://t.me/{}?start={payload}", self.bot_username)
     }
+
+    /// A `t.me` link that opens the bot's main Mini App straight away, with
+    /// `payload` as its `start_param`. Needs the Mini App set up in BotFather.
+    pub fn app_start_url(&self, payload: &str) -> String {
+        format!("https://t.me/{}?startapp={payload}", self.bot_username)
+    }
 }
 
 fn var(name: &str) -> Result<String> {

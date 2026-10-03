@@ -6,6 +6,7 @@ import { BackLink } from '../shared/BackLink'
 import { plural } from '../shared/format'
 import { CheckIcon } from '../shared/icons'
 import { Screen } from '../shared/Screen'
+import { useNoSwipeToClose } from './gestures'
 import { finishWorkout, useOutboxStatus } from './outbox'
 import { telegramWebApp } from './telegram'
 import { EFFORT_TEXT, progress, useMyWorkout } from './workouts'
@@ -14,6 +15,7 @@ const EFFORTS: Schemas['Effort'][] = ['easy', 'ok', 'hard']
 
 /** The end of a workout: how it felt and a note for Dasha. */
 export function FinishPage() {
+  useNoSwipeToClose()
   const { id = '' } = useParams()
   const workout = useMyWorkout(id)
   const { waiting, failing } = useOutboxStatus()

@@ -4,10 +4,12 @@ import { BackLink } from '../shared/BackLink'
 import { formatShortDate, formatTarget, plural } from '../shared/format'
 import { CameraIcon, CheckIcon } from '../shared/icons'
 import { Screen } from '../shared/Screen'
+import { useNoSwipeToClose } from './gestures'
 import { EFFORT_TEXT, progress, useMyWorkout } from './workouts'
 
 /** One workout: Dasha's exercises in order, with progress, and the way to finish. */
 export function WorkoutPage() {
+  useNoSwipeToClose()
   const { id = '' } = useParams()
   const workout = useMyWorkout(id)
   const back = <BackLink to="/app" label="Головна" />

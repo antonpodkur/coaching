@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE coaches SET username = $2 WHERE id = $1 AND username IS DISTINCT FROM $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "516faeb4223622aaad9090460e2519463668b000a3075d2c3fd4af47718d5d57"
+}

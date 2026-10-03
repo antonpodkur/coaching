@@ -188,7 +188,7 @@ async fn a_returning_client_can_join_a_new_profile(db: PgPool) {
     )
     .await;
     let url = created["invite"]["url"].as_str().unwrap();
-    let start = format!("/start {}", url.split_once("?start=").unwrap().1);
+    let start = format!("/start {}", url.split_once("?startapp=").unwrap().1);
 
     webhook(&app, text_update(CLIENT_TG, &start)).await;
     assert!(last_message_to(&state, CLIENT_TG).text.starts_with("Вітаю"));

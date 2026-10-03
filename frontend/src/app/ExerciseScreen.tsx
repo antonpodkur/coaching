@@ -14,6 +14,7 @@ import {
 } from '../shared/format'
 import { CheckIcon, ChevronIcon } from '../shared/icons'
 import { Screen } from '../shared/Screen'
+import { useNoSwipeToClose } from './gestures'
 import { logSet } from './outbox'
 import { telegramWebApp } from './telegram'
 import { type ClientSet, differs, useMyWorkout } from './workouts'
@@ -24,6 +25,7 @@ import { type ClientSet, differs, useMyWorkout } from './workouts'
  * numbers first. Every change is kept on the phone and sent when possible.
  */
 export function ExerciseScreen() {
+  useNoSwipeToClose()
   const { id = '', exerciseId = '' } = useParams()
   const workout = useMyWorkout(id)
   const back = <BackLink to={`/app/workouts/${id}`} label="Тренування" />

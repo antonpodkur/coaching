@@ -37,6 +37,7 @@ use crate::state::AppState;
         auth::bot_login_poll,
         client::me,
         client::set_timezone,
+        client::allow_bot,
         workouts::list,
         workouts::get,
         workouts::log_set,
@@ -114,6 +115,7 @@ pub fn router(state: AppState) -> Router {
         .route("/auth/bot-login/poll", post(auth::bot_login_poll))
         .route("/me", get(client::me))
         .route("/me/timezone", put(client::set_timezone))
+        .route("/me/bot-allowed", post(client::allow_bot))
         .route("/me/workouts", get(workouts::list))
         .route("/workouts/{id}", get(workouts::get))
         .route("/workouts/{id}/finish", post(workouts::finish))

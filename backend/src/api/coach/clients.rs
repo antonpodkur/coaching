@@ -13,6 +13,7 @@ use crate::{
     error::{AppError, AppResult, ErrorBody},
     invites,
     state::AppState,
+    telegram::{Button, ShareableMessage},
 };
 
 const MAX_NAME_CHARS: usize = 80;
@@ -35,9 +36,14 @@ pub struct CoachClient {
 
 #[derive(Serialize, ToSchema)]
 pub struct InviteLink {
-    /// `https://t.me/<bot>?start=inv_<code>`. Works once.
+    /// `https://t.me/<bot>?startapp=inv_<code>`: opens the app straight away and
+    /// joins. Works once.
     pub url: String,
     pub expires_at: DateTime<Utc>,
+    /// The invitation as a message card with an "Відкрити" button, for
+    /// `Telegram.WebApp.shareMessage` in Dasha's Mini App. `null` if Telegram
+    /// could not prepare it; then share `url`.
+    pub prepared_message_id: Option<String>,
 }
 
 #[derive(Deserialize, ToSchema)]
@@ -147,14 +153,9 @@ pub async fn create(
         .await?
         .ok_or(AppError::NotFound)?;
     let client = fetch_client(&state, coach_id, client_id).await?;
+    let invite = invite_link(&state, coach_id, invite).await?;
 
-    Ok((
-        StatusCode::CREATED,
-        Json(CreatedClient {
-            client,
-            invite: invite_link(&state, invite),
-        }),
-    ))
+    Ok((StatusCode::CREATED, Json(CreatedClient { client, invite })))
 }
 
 /// A fresh invite link. The previous unused link stops working.
@@ -182,16 +183,53 @@ pub async fn reinvite(
     let invite = invites::issue(&state.db, coach_id, client_id)
         .await?
         .ok_or(AppError::NotFound)?;
-    Ok(Json(invite_link(&state, invite)))
+    Ok(Json(invite_link(&state, coach_id, invite).await?))
 }
 
-fn invite_link(state: &AppState, invite: invites::Invite) -> InviteLink {
-    InviteLink {
-        url: state
-            .config
-            .bot_start_url(&format!("{}{}", invites::START_PREFIX, invite.code)),
+async fn invite_link(
+    state: &AppState,
+    coach_id: Uuid,
+    invite: invites::Invite,
+) -> AppResult<InviteLink> {
+    let url = state
+        .config
+        .app_start_url(&format!("{}{}", invites::START_PREFIX, invite.code));
+    let coach_telegram_id =
+        sqlx::query_scalar!("SELECT telegram_id FROM coaches WHERE id = $1", coach_id)
+            .fetch_one(&state.db)
+            .await?;
+    let card = ShareableMessage {
+        title: "Запрошення до тренувань".to_owned(),
+        description: "Онлайн-тренування з Дарією Хижняк".to_owned(),
+        text: format!(
+            "Запрошення до онлайн-тренувань з Дарією Хижняк.\n\n\
+             У застосунку — твої тренування, відео техніки до вправ і звіт після кожного \
+             тренування. Натисни «Відкрити», і він відкриється просто в Telegram.\n\n\
+             Посилання особисте й діє {} днів.",
+            invites::INVITE_TTL.num_days()
+        ),
+        button: Button::Url {
+            text: "Відкрити".to_owned(),
+            url: url.clone(),
+        },
+    };
+    // The plain link still works without the card, so a failure only logs.
+    let prepared_message_id = match state
+        .telegram
+        .save_prepared_message(coach_telegram_id, card)
+        .await
+    {
+        Ok(id) => Some(id),
+        Err(err) => {
+            tracing::warn!(error = ?err, "could not prepare the invite card");
+            None
+        }
+    };
+    Ok(InviteLink {
+        url,
         expires_at: invite.expires_at,
-    }
+        prepared_message_id,
+    })
 }
 
 fn clean_name(name: &str) -> AppResult<&str> {

@@ -189,7 +189,8 @@ pub struct ResultSet {
 #[derive(Serialize, ToSchema)]
 pub struct PublishedWorkout {
     pub workout: Workout,
-    /// The bot has told the client; `false` while they have not joined the app.
+    /// The bot has told the client; `false` while they have not joined the app or
+    /// not allowed the bot to message them. They see the workout in the app either way.
     pub client_notified: bool,
 }
 

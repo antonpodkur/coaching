@@ -20,9 +20,12 @@ const COACH_TG: i64 = 555_000_222;
 const CLIENT_TG: i64 = 777_000_111;
 const STRANGER_TG: i64 = 999_000_333;
 
-/// The `/start` payload inside a `t.me/<bot>?start=<payload>` link.
+/// The payload of a `t.me/<bot>?start=<payload>` link (coach sign-in), or of an
+/// invite's `?startapp=<payload>` link. The bot still takes an invite as
+/// `/start <payload>`, the way invite links sent before app links arrive.
 fn start_payload(url: &str) -> String {
-    url.split_once("?start=").unwrap().1.to_owned()
+    let (_, query) = url.split_once('?').unwrap();
+    query.split_once('=').unwrap().1.to_owned()
 }
 
 fn web_app_url(message: &coaching_backend::telegram::OutgoingMessage) -> Option<String> {
@@ -67,7 +70,7 @@ async fn an_invite_links_the_client_and_opens_the_app(db: PgPool) {
     assert_eq!(created["client"]["name"], "Максим К.");
     assert_eq!(created["client"]["joined"], false);
     let url = created["invite"]["url"].as_str().unwrap();
-    assert!(url.starts_with("https://t.me/dasha_test_bot?start=inv_"));
+    assert!(url.starts_with("https://t.me/dasha_test_bot?startapp=inv_"));
     let start = format!("/start {}", start_payload(url));
 
     assert_eq!(

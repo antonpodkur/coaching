@@ -5,6 +5,7 @@ use utoipa::ToSchema;
 use crate::{
     api::auth::ClientProfile,
     auth::CurrentClient,
+    bot,
     error::{AppError, AppResult, ErrorBody},
     state::AppState,
 };
@@ -26,13 +27,41 @@ pub async fn me(
 ) -> AppResult<Json<ClientProfile>> {
     let profile = sqlx::query_as!(
         ClientProfile,
-        "SELECT id, name, timezone FROM clients WHERE id = $1 AND archived_at IS NULL",
+        r#"SELECT id, name, timezone, bot_allowed_at IS NOT NULL AS "bot_allowed!"
+           FROM clients WHERE id = $1 AND archived_at IS NULL"#,
         client_id,
     )
     .fetch_optional(&state.db)
     .await?
     .ok_or(AppError::NotFound)?;
     Ok(Json(profile))
+}
+
+/// The client allowed the bot to message them, in Telegram's popup in the app.
+/// The first time, the bot sends its pinned welcome.
+#[utoipa::path(
+    post,
+    operation_id = "allow_bot_messages",
+    path = "/me/bot-allowed",
+    tag = "client",
+    security(("bearer" = [])),
+    responses(
+        (status = 204),
+        (status = 401, body = ErrorBody),
+        (status = 503, body = ErrorBody, description = "`bot_cannot_write`: Telegram refused, so messages are not allowed after all"),
+    )
+)]
+pub async fn allow_bot(
+    State(state): State<AppState>,
+    CurrentClient(client_id): CurrentClient,
+) -> AppResult<StatusCode> {
+    bot::welcome_client(&state, client_id, None)
+        .await
+        .map_err(|err| {
+            tracing::warn!(error = ?err, "could not welcome a client in the bot");
+            AppError::Unavailable("bot_cannot_write")
+        })?;
+    Ok(StatusCode::NO_CONTENT)
 }
 
 #[derive(Deserialize, ToSchema)]

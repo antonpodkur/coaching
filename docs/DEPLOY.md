@@ -17,7 +17,10 @@ Every step below needs your own logins, and the secrets go straight into the pro
 
 1. In Telegram, open @BotFather and send `/newbot`. Give it a display name (for example "Daria Khyzhniak") and a username ending in `bot`.
 2. Keep the token for step 4. It goes only into Render.
-3. Optional: `/setuserpic`, `/setdescription` (shown before someone taps Start) and `/setabouttext`.
+3. **Turn on the main Mini App:** /mybots → the bot → Bot Settings → Configure Mini App → Enable. Give it the frontend's app address, `https://coaching.<subdomain>.workers.dev/app` (see step 3).
+   - Invite links open the app through it. Without it they don't work.
+   - It also puts a "Launch app" button on the bot's profile.
+4. Make it recognizably Dasha's: `/setname` (her name), `/setuserpic` (her photo), `/setdescription` (shown before someone opens the bot) and `/setabouttext`.
 
 This is a separate bot from the dev bot, so real clients never see test messages. Whoever creates the bot owns it. If you create it, you can hand it to Dasha later: /mybots > the bot > Bot Settings > Transfer Ownership.
 
@@ -78,6 +81,8 @@ The database has no access from the internet (`ipAllowList: []`). Only the backe
 4. Optional: under the build settings' watch paths, include only `frontend/**`, so backend-only pushes don't rebuild the frontend.
 
 If the address differs from what you entered in step 4, change `FRONTEND_ORIGIN` in Render (Environment, then save; it redeploys).
+
+If Render's logs show `could not prepare the invite card`, turn on inline mode with `/setinline` in @BotFather. The invite card is prepared through it. Until then Dasha's invites go out as plain links, which still work.
 
 ## 6. Bunny webhook
 

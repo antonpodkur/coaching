@@ -110,6 +110,28 @@ pub enum Sent {
         text: String,
         url: String,
     },
+    Pinned {
+        chat_id: i64,
+        message_id: i64,
+    },
+    /// A message card prepared for `user_id` to share from the Mini App.
+    Prepared {
+        user_id: i64,
+        text: String,
+        button: Button,
+    },
+}
+
+/// A message card the Mini App can share to a chat (`WebApp.shareMessage`):
+/// text with one link button under it.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ShareableMessage {
+    /// Shown in Telegram's share dialog above the chat list.
+    pub title: String,
+    pub description: String,
+    pub text: String,
+    /// A link button; `web_app` buttons only work in chats with the bot.
+    pub button: Button,
 }
 
 /// Talks to Telegram, or records what it would have sent (tests).
@@ -169,7 +191,8 @@ impl TelegramClient {
         }
     }
 
-    pub async fn send_message(&self, message: OutgoingMessage) -> anyhow::Result<()> {
+    /// Returns the sent message's ID, e.g. to pin it.
+    pub async fn send_message(&self, message: OutgoingMessage) -> anyhow::Result<i64> {
         let mut body = json!({ "chat_id": message.chat_id, "text": message.text });
         if !message.keyboard.is_empty() {
             let rows: Vec<Vec<Value>> = message
@@ -179,7 +202,58 @@ impl TelegramClient {
                 .collect();
             body["reply_markup"] = json!({ "inline_keyboard": rows });
         }
-        self.call("sendMessage", body, Sent::Message(message)).await
+        let sent = self
+            .call("sendMessage", body, Sent::Message(message))
+            .await?;
+        sent["message_id"]
+            .as_i64()
+            .context("sendMessage returned no message_id")
+    }
+
+    /// Pins a message in a private chat without a notification.
+    pub async fn pin_chat_message(&self, chat_id: i64, message_id: i64) -> anyhow::Result<()> {
+        let body = json!({
+            "chat_id": chat_id,
+            "message_id": message_id,
+            "disable_notification": true,
+        });
+        let sent = Sent::Pinned {
+            chat_id,
+            message_id,
+        };
+        self.call("pinChatMessage", body, sent).await?;
+        Ok(())
+    }
+
+    /// Stores a message `user_id` can then share from the Mini App; returns its ID.
+    /// Only to private chats with people, not bots, groups or channels.
+    pub async fn save_prepared_message(
+        &self,
+        user_id: i64,
+        message: ShareableMessage,
+    ) -> anyhow::Result<String> {
+        let body = json!({
+            "user_id": user_id,
+            "result": {
+                "type": "article",
+                "id": uuid::Uuid::new_v4().simple().to_string(),
+                "title": message.title,
+                "description": message.description,
+                "input_message_content": { "message_text": message.text },
+                "reply_markup": { "inline_keyboard": [[message.button.to_json()]] },
+            },
+            "allow_user_chats": true,
+        });
+        let sent = Sent::Prepared {
+            user_id,
+            text: message.text,
+            button: message.button,
+        };
+        let prepared = self.call("savePreparedInlineMessage", body, sent).await?;
+        prepared["id"]
+            .as_str()
+            .map(str::to_owned)
+            .context("savePreparedInlineMessage returned no id")
     }
 
     /// Replaces a message's text and removes its buttons.
@@ -195,7 +269,8 @@ impl TelegramClient {
             message_id,
             text: text.to_owned(),
         };
-        self.call("editMessageText", body, sent).await
+        self.call("editMessageText", body, sent).await?;
+        Ok(())
     }
 
     /// Stops the button's loading spinner and shows `text` briefly.
@@ -205,7 +280,8 @@ impl TelegramClient {
             id: id.to_owned(),
             text: text.to_owned(),
         };
-        self.call("answerCallbackQuery", body, sent).await
+        self.call("answerCallbackQuery", body, sent).await?;
+        Ok(())
     }
 
     pub async fn set_webhook(&self, url: &str, secret_token: &str) -> anyhow::Result<()> {
@@ -217,7 +293,8 @@ impl TelegramClient {
         let sent = Sent::WebhookSet {
             url: url.to_owned(),
         };
-        self.call("setWebhook", body, sent).await
+        self.call("setWebhook", body, sent).await?;
+        Ok(())
     }
 
     /// Makes the button next to the message box open the Mini App, in every
@@ -230,21 +307,27 @@ impl TelegramClient {
             text: text.to_owned(),
             url: url.to_owned(),
         };
-        self.call("setChatMenuButton", body, sent).await
+        self.call("setChatMenuButton", body, sent).await?;
+        Ok(())
     }
 
-    async fn call(&self, method: &str, body: Value, record: Sent) -> anyhow::Result<()> {
+    /// Calls a Bot API method and returns its `result`.
+    async fn call(&self, method: &str, body: Value, record: Sent) -> anyhow::Result<Value> {
         let (http, base_url) = match self {
             Self::Recording(recorder) => {
                 if recorder.failing.load(std::sync::atomic::Ordering::SeqCst) {
                     bail!("{method} failed: Telegram is unreachable (test)");
                 }
-                recorder
-                    .sent
-                    .lock()
-                    .expect("lock is never poisoned")
-                    .push(record);
-                return Ok(());
+                let mut sent = recorder.sent.lock().expect("lock is never poisoned");
+                // Results shaped like Telegram's, numbered by call.
+                let n = sent.len() + 1;
+                let result = match &record {
+                    Sent::Message(_) => json!({ "message_id": n }),
+                    Sent::Prepared { .. } => json!({ "id": format!("prepared-{n}") }),
+                    _ => json!(true),
+                };
+                sent.push(record);
+                return Ok(result);
             }
             Self::Live { http, base_url } => (http, base_url),
         };
@@ -253,6 +336,8 @@ impl TelegramClient {
         struct Reply {
             ok: bool,
             description: Option<String>,
+            #[serde(default)]
+            result: Value,
         }
 
         // `without_url` keeps the bot token out of error messages and logs.
@@ -270,6 +355,6 @@ impl TelegramClient {
         if !reply.ok {
             bail!("{method} failed: {}", reply.description.unwrap_or_default());
         }
-        Ok(())
+        Ok(reply.result)
     }
 }

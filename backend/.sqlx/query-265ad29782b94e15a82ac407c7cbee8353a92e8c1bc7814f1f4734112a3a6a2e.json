@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "INSERT INTO clients (coach_id, name, telegram_id) VALUES ($1, 'Максим К.', $2) RETURNING id",
+  "query": "INSERT INTO clients (coach_id, name, telegram_id, bot_allowed_at)\n         VALUES ($1, 'Максим К.', $2, now()) RETURNING id",
   "describe": {
     "columns": [
       {
@@ -25,5 +25,5 @@
       false
     ]
   },
-  "hash": "24e938a87d41c82d3df4bbbf9907d80028888289afa814f30239cf24ea21939b"
+  "hash": "265ad29782b94e15a82ac407c7cbee8353a92e8c1bc7814f1f4734112a3a6a2e"
 }
