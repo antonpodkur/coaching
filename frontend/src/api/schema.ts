@@ -258,7 +258,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Every active client's workouts in a date range, earliest first, after the
+         *     drafts that have no date yet. The workouts tab shows a week at a time.
+         */
+        get: operations["list_workouts"];
         put?: never;
         /** Starts a workout for a client: blank, or as a copy of an earlier one. */
         post: operations["create_workout"];
@@ -855,6 +859,13 @@ export interface components {
             target_reps_max: number;
             /** Format: int32 */
             target_reps_min: number;
+        };
+        /** @description A workout in the workouts tab, with whose it is. */
+        ScheduledWorkout: {
+            /** Format: uuid */
+            client_id: string;
+            client_name: string;
+            workout: components["schemas"]["WorkoutSummary"];
         };
         /**
          * @description One set as logged on the phone. Sending it again is harmless, and a write
@@ -1684,6 +1695,49 @@ export interface operations {
                 content?: never;
             };
             /** @description `unknown_timezone` */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    list_workouts: {
+        parameters: {
+            query: {
+                /** @description First day, inclusive. */
+                from: string;
+                /** @description Last day, inclusive; at most 62 days after `from`. */
+                to: string;
+                /** @description Only this client's workouts. */
+                client_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduledWorkout"][];
+                };
+            };
+            /** @description `invalid_range` */
             400: {
                 headers: {
                     [name: string]: unknown;

@@ -1,10 +1,21 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT w.id, w.title, w.date, w.status AS \"status: WorkoutStatus\", w.published_at,\n                  w.opened_at IS NOT NULL AS \"opened!\",\n                  count(DISTINCT we.id) AS \"exercise_count!\", count(s.id) AS \"set_count!\",\n                  count(s.completed_at) AS \"done_set_count!\",\n                  count(*) FILTER (WHERE set_differs(s)) AS \"different_count!\",\n                  r.effort AS \"effort?: Effort\", r.comment AS \"comment?\",\n                  r.finished_at AS \"finished_at?\", r.seen_at\n           FROM workouts w\n           LEFT JOIN workout_exercises we ON we.workout_id = w.id\n           LEFT JOIN workout_sets s ON s.workout_exercise_id = we.id\n           LEFT JOIN workout_reports r ON r.workout_id = w.id\n           WHERE w.client_id = $1 AND w.coach_id = $2\n           GROUP BY w.id, r.workout_id\n           ORDER BY w.date DESC NULLS FIRST, w.created_at DESC",
+  "query": "SELECT w.client_id, w.id, w.title, w.date, w.status AS \"status: WorkoutStatus\",\n                  w.published_at, w.opened_at IS NOT NULL AS \"opened!\",\n                  count(DISTINCT we.id) AS \"exercise_count!\", count(s.id) AS \"set_count!\",\n                  count(s.completed_at) AS \"done_set_count!\",\n                  count(*) FILTER (WHERE set_differs(s)) AS \"different_count!\",\n                  r.effort AS \"effort?: Effort\", r.comment AS \"comment?\",\n                  r.finished_at AS \"finished_at?\", r.seen_at\n           FROM workouts w\n           LEFT JOIN workout_exercises we ON we.workout_id = w.id\n           LEFT JOIN workout_sets s ON s.workout_exercise_id = we.id\n           LEFT JOIN workout_reports r ON r.workout_id = w.id\n           WHERE w.client_id = $1 AND w.coach_id = $2\n           GROUP BY w.id, r.workout_id\n           ORDER BY w.date DESC NULLS FIRST, w.created_at DESC",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
+        "name": "client_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "workouts",
+            "name": "client_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
         "name": "id",
         "type_info": "Uuid",
         "origin": {
@@ -15,7 +26,7 @@
         }
       },
       {
-        "ordinal": 1,
+        "ordinal": 2,
         "name": "title",
         "type_info": "Text",
         "origin": {
@@ -26,7 +37,7 @@
         }
       },
       {
-        "ordinal": 2,
+        "ordinal": 3,
         "name": "date",
         "type_info": "Date",
         "origin": {
@@ -37,7 +48,7 @@
         }
       },
       {
-        "ordinal": 3,
+        "ordinal": 4,
         "name": "status: WorkoutStatus",
         "type_info": {
           "Custom": {
@@ -59,7 +70,7 @@
         }
       },
       {
-        "ordinal": 4,
+        "ordinal": 5,
         "name": "published_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -70,37 +81,37 @@
         }
       },
       {
-        "ordinal": 5,
+        "ordinal": 6,
         "name": "opened!",
         "type_info": "Bool",
         "origin": "Expression"
       },
       {
-        "ordinal": 6,
+        "ordinal": 7,
         "name": "exercise_count!",
         "type_info": "Int8",
         "origin": "Expression"
       },
       {
-        "ordinal": 7,
+        "ordinal": 8,
         "name": "set_count!",
         "type_info": "Int8",
         "origin": "Expression"
       },
       {
-        "ordinal": 8,
+        "ordinal": 9,
         "name": "done_set_count!",
         "type_info": "Int8",
         "origin": "Expression"
       },
       {
-        "ordinal": 9,
+        "ordinal": 10,
         "name": "different_count!",
         "type_info": "Int8",
         "origin": "Expression"
       },
       {
-        "ordinal": 10,
+        "ordinal": 11,
         "name": "effort?: Effort",
         "type_info": {
           "Custom": {
@@ -122,7 +133,7 @@
         }
       },
       {
-        "ordinal": 11,
+        "ordinal": 12,
         "name": "comment?",
         "type_info": "Text",
         "origin": {
@@ -133,7 +144,7 @@
         }
       },
       {
-        "ordinal": 12,
+        "ordinal": 13,
         "name": "finished_at?",
         "type_info": "Timestamptz",
         "origin": {
@@ -144,7 +155,7 @@
         }
       },
       {
-        "ordinal": 13,
+        "ordinal": 14,
         "name": "seen_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -162,6 +173,7 @@
       ]
     },
     "nullable": [
+      true,
       false,
       false,
       true,
@@ -178,5 +190,5 @@
       true
     ]
   },
-  "hash": "e3024ccc202ce393d6a78aede9c2e673187ef8964f7968ec8350b0b921d4f458"
+  "hash": "36b9170d9a9e77d0c7f5ef26a21976b52d3086a5fa313e349714990c118f57a9"
 }

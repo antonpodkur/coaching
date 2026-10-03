@@ -55,6 +55,7 @@ use crate::state::AppState;
         coach::exercises::start_video_upload,
         coach::exercises::finish_video_upload,
         coach::import::parse,
+        coach::workouts::list,
         coach::workouts::create,
         coach::workouts::get,
         coach::workouts::save,
@@ -134,7 +135,10 @@ pub fn router(state: AppState) -> Router {
             "/coach/clients/{id}/workouts",
             get(coach::workouts::list_for_client),
         )
-        .route("/coach/workouts", post(coach::workouts::create))
+        .route(
+            "/coach/workouts",
+            get(coach::workouts::list).post(coach::workouts::create),
+        )
         .route(
             "/coach/workouts/{id}",
             get(coach::workouts::get)

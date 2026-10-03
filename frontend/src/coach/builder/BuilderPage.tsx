@@ -6,6 +6,7 @@ import { ApiError, api, unwrap } from '../../api/client'
 import { BackLink } from '../../shared/BackLink'
 import { plural } from '../../shared/format'
 import { CheckIcon, PlusIcon } from '../../shared/icons'
+import { useBackTarget } from '../backTarget'
 import { EXERCISES_KEY, WORKOUTS_KEY, isUnauthorized, useCoach } from '../context'
 import { type Exercise, confirmAction } from '../library'
 import { ExerciseCard } from './ExerciseCard'
@@ -70,6 +71,7 @@ function Builder({ workout, onReload }: { workout: Workout; onReload: () => void
     library.data?.find((exercise) => exercise.id === exerciseId)?.muscle_group
 
   const clientPath = workout.client_id ? `${base}/clients/${workout.client_id}` : base
+  const back = useBackTarget({ to: clientPath, label: 'Клієнт' })
   const setCount = draft.exercises.reduce((total, exercise) => total + exercise.sets.length, 0)
 
   const changeExercise = (id: string, change: (exercise: DraftExercise) => DraftExercise) =>
@@ -153,7 +155,7 @@ function Builder({ workout, onReload }: { workout: Workout; onReload: () => void
   return (
     <section className={editing ? 'page builder editing' : 'page builder'}>
       <div className="builder-top">
-        <BackLink to={clientPath} label="Клієнт" />
+        <BackLink to={back.to} label={back.label} />
         {isPublished ? (
           <span className="tag tag-ok publish-state">
             <CheckIcon size={12} />

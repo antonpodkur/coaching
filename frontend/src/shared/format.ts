@@ -42,6 +42,27 @@ export function addMonths(date: string, months: number): string {
   return localDate(target)
 }
 
+/** `2026-10-06` plus `days` (may be negative). */
+export function addDays(date: string, days: number): string {
+  const day = parseDate(date)
+  day.setDate(day.getDate() + days)
+  return localDate(day)
+}
+
+/** The Monday of `date`'s week. */
+export function startOfWeek(date: string): string {
+  const weekday = (parseDate(date).getDay() + 6) % 7
+  return addDays(date, -weekday)
+}
+
+/** `5–11 жовтня`, or `29 вересня – 5 жовтня` across months. */
+export function formatRange(from: string, to: string): string {
+  const start = parseDate(from)
+  const end = parseDate(to)
+  if (start.getMonth() === end.getMonth()) return `${start.getDate()}–${formatDate(to)}`
+  return `${formatDate(from)} – ${formatDate(to)}`
+}
+
 /** Whole days from `from` to `to`, both `2026-10-06`-style dates. */
 export function daysBetween(from: string, to: string): number {
   return Math.round((parseDate(to).getTime() - parseDate(from).getTime()) / 86_400_000)

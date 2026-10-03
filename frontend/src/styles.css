@@ -877,6 +877,43 @@ a.button {
   font-size: 15px;
 }
 
+.week-nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.week-label {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  text-align: center;
+}
+
+.week-label .link-button {
+  align-self: center;
+}
+
+.filter-select {
+  height: 44px;
+  padding: 0 12px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface-sunken);
+  color: var(--text);
+  color-scheme: dark;
+  font: inherit;
+  font-size: 15px;
+}
+
+.day-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .workout-list {
   list-style: none;
   margin: 0;
@@ -1135,33 +1172,55 @@ button.save-status {
 
 .note-field {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 44px;
-  padding: 0 12px;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
   border-radius: 10px;
   background: #1f1a1c;
   color: var(--pink);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
-.note-field input {
-  flex-grow: 1;
-  min-width: 0;
-  height: 40px;
+.note-field textarea {
+  width: 100%;
+  min-height: 40px;
+  padding: 0;
   border: 0;
+  resize: none;
   background: transparent;
   color: var(--pink-soft);
   font: inherit;
   font-size: 14px;
   font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: normal;
+  text-transform: none;
   outline: none;
+}
+
+.note-add {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px dashed #4a3a40;
+  background: transparent;
+  color: var(--pink);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
 }
 
 .card-menu {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
 }
 
@@ -1672,6 +1731,25 @@ button.save-status {
 .exercise-note {
   font-size: 12.5px;
   color: var(--pink);
+}
+
+.coach-note {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.coach-note span {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.8;
+}
+
+.coach-note p {
+  margin: 0;
+  white-space: pre-line;
 }
 
 .set-count {

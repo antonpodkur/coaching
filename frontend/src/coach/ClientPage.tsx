@@ -2,23 +2,16 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 
-import { ApiError, type Schemas, api, unwrap } from '../api/client'
+import { ApiError, api, unwrap } from '../api/client'
 import { BackLink } from '../shared/BackLink'
-import { formatDay, formatShortDate, initials, plural } from '../shared/format'
+import { formatDay, initials } from '../shared/format'
 import { CopyIcon, EditIcon, PlusIcon } from '../shared/icons'
 import { ArchivedNotice } from './ClientEditPage'
 import { InviteCard, type ShownInvite } from './InviteCard'
 import { ReportCard } from './ReportCard'
+import { WorkoutRow } from './WorkoutRow'
 import { clientQuery, payment } from './clients'
 import { CLIENTS_KEY, RESULTS_KEY, WORKOUTS_KEY, isUnauthorized, useCoach } from './context'
-
-type Summary = Schemas['WorkoutSummary']
-
-const STATUS: Record<Summary['status'], { text: string; className: string }> = {
-  draft: { text: 'Чернетка', className: 'tag' },
-  published: { text: 'Опубліковано', className: 'tag tag-new' },
-  done: { text: 'Виконано', className: 'tag tag-ok' },
-}
 
 /** One client: their workouts, and where new ones start. */
 export function ClientPage() {
@@ -187,47 +180,12 @@ export function ClientPage() {
         )}
         <ul className="workout-list">
           {workouts.data?.map((workout) => (
-            <li key={workout.id}>
-              <Link
-                className="workout-row"
-                to={
-                  workout.done_set_count > 0 || workout.report
-                    ? `${base}/workouts/${workout.id}/report`
-                    : `${base}/workouts/${workout.id}`
-                }
-              >
-                <span className="workout-text">
-                  <span className="workout-title">
-                    {workout.title || 'Без назви'}
-                    {' · '}
-                    {workout.date ? formatShortDate(workout.date) : 'без дати'}
-                  </span>
-                  <span className="muted small">{workoutMeta(workout)}</span>
-                </span>
-                {workout.report && !workout.report.seen ? (
-                  <span className="tag tag-warn">Новий звіт</span>
-                ) : (
-                  <span className={STATUS[workout.status].className}>{STATUS[workout.status].text}</span>
-                )}
-              </Link>
-            </li>
+            <WorkoutRow key={workout.id} workout={workout} />
           ))}
         </ul>
       </section>
     </section>
   )
-}
-
-function workoutMeta(workout: Summary): string {
-  if (workout.done_set_count === 0) {
-    const size = `${workout.exercise_count} ${plural(workout.exercise_count, 'вправа', 'вправи', 'вправ')} · ${workout.set_count} ${plural(workout.set_count, 'підхід', 'підходи', 'підходів')}`
-    if (workout.status !== 'published') return size
-    return `${size} · ${workout.opened ? 'відкрито' : 'ще не відкрито'}`
-  }
-  const parts = [`${workout.done_set_count} з ${workout.set_count} підходів`]
-  if (workout.different_count > 0) parts.push(`${workout.different_count} інакше`)
-  if (workout.report?.has_comment) parts.push('є коментар')
-  return parts.join(' · ')
 }
 
 /** The newest report, differences first, with the step Dasha usually takes next. */

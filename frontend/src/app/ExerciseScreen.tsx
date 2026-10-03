@@ -74,7 +74,12 @@ export function ExerciseScreen() {
         </p>
       </header>
 
-      {exercise.note && <p className="notice pink">{exercise.note}</p>}
+      {exercise.note && (
+        <div className="notice pink coach-note">
+          <span>Коментар від Даші</span>
+          <p>{exercise.note}</p>
+        </div>
+      )}
       {exercise.last_time.length > 0 && (
         <p className="last-time">
           Минулого разу:{' '}

@@ -2,12 +2,12 @@ use std::collections::{HashMap, HashSet};
 
 use axum::{
     Json,
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::{HeaderMap, StatusCode, header::IF_MATCH},
 };
 use chrono::{DateTime, Days, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
+use utoipa::{IntoParams, ToSchema};
 use uuid::Uuid;
 
 use crate::{
@@ -29,6 +29,8 @@ const MAX_KG: f64 = 999.0;
 const MAX_REPS: i32 = 3_600;
 /// "Copy to the next one" lands on the same weekday of the next week.
 const COPY_DAYS_LATER: u64 = 7;
+/// The workouts tab asks for a week; a couple of months is the most it may ask for.
+const MAX_LIST_DAYS: i64 = 62;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, ToSchema, sqlx::Type)]
 #[sqlx(type_name = "workout_status", rename_all = "snake_case")]
@@ -132,6 +134,24 @@ pub struct WorkoutSummary {
     pub opened: bool,
     /// Present once the client finished it.
     pub report: Option<ReportSummary>,
+}
+
+/// A workout in the workouts tab, with whose it is.
+#[derive(Serialize, ToSchema)]
+pub struct ScheduledWorkout {
+    pub client_id: Uuid,
+    pub client_name: String,
+    pub workout: WorkoutSummary,
+}
+
+#[derive(Deserialize, IntoParams)]
+pub struct WorkoutFilter {
+    /// First day, inclusive.
+    pub from: NaiveDate,
+    /// Last day, inclusive; at most 62 days after `from`.
+    pub to: NaiveDate,
+    /// Only this client's workouts.
+    pub client_id: Option<Uuid>,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -607,9 +627,10 @@ pub async fn list_for_client(
     if client.is_none() {
         return Err(AppError::NotFound);
     }
-    let rows = sqlx::query!(
-        r#"SELECT w.id, w.title, w.date, w.status AS "status: WorkoutStatus", w.published_at,
-                  w.opened_at IS NOT NULL AS "opened!",
+    let rows = sqlx::query_as!(
+        SummaryRow,
+        r#"SELECT w.client_id, w.id, w.title, w.date, w.status AS "status: WorkoutStatus",
+                  w.published_at, w.opened_at IS NOT NULL AS "opened!",
                   count(DISTINCT we.id) AS "exercise_count!", count(s.id) AS "set_count!",
                   count(s.completed_at) AS "done_set_count!",
                   count(*) FILTER (WHERE set_differs(s)) AS "different_count!",
@@ -628,30 +649,125 @@ pub async fn list_for_client(
     .fetch_all(&state.db)
     .await?;
     Ok(Json(
+        rows.into_iter().map(SummaryRow::into_summary).collect(),
+    ))
+}
+
+/// Every active client's workouts in a date range, earliest first, after the
+/// drafts that have no date yet. The workouts tab shows a week at a time.
+#[utoipa::path(
+    get,
+    operation_id = "list_workouts",
+    path = "/coach/workouts",
+    tag = "coach",
+    security(("bearer" = [])),
+    params(WorkoutFilter),
+    responses(
+        (status = 200, body = Vec<ScheduledWorkout>),
+        (status = 400, body = ErrorBody, description = "`invalid_range`"),
+        (status = 401, body = ErrorBody),
+    )
+)]
+pub async fn list(
+    State(state): State<AppState>,
+    CurrentCoach(coach_id): CurrentCoach,
+    Query(filter): Query<WorkoutFilter>,
+) -> AppResult<Json<Vec<ScheduledWorkout>>> {
+    let days = (filter.to - filter.from).num_days();
+    if !(0..=MAX_LIST_DAYS).contains(&days) {
+        return Err(AppError::BadRequest("invalid_range"));
+    }
+    let rows = sqlx::query_as!(
+        SummaryRow,
+        r#"SELECT w.client_id, w.id, w.title, w.date, w.status AS "status: WorkoutStatus",
+                  w.published_at, w.opened_at IS NOT NULL AS "opened!",
+                  count(DISTINCT we.id) AS "exercise_count!", count(s.id) AS "set_count!",
+                  count(s.completed_at) AS "done_set_count!",
+                  count(*) FILTER (WHERE set_differs(s)) AS "different_count!",
+                  r.effort AS "effort?: Effort", r.comment AS "comment?",
+                  r.finished_at AS "finished_at?", r.seen_at
+           FROM workouts w
+           JOIN clients c ON c.id = w.client_id AND c.archived_at IS NULL
+           LEFT JOIN workout_exercises we ON we.workout_id = w.id
+           LEFT JOIN workout_sets s ON s.workout_exercise_id = we.id
+           LEFT JOIN workout_reports r ON r.workout_id = w.id
+           WHERE w.coach_id = $1
+             AND ($4::uuid IS NULL OR w.client_id = $4)
+             AND (w.date BETWEEN $2 AND $3 OR (w.date IS NULL AND w.status = 'draft'))
+           GROUP BY w.id, r.workout_id
+           ORDER BY w.date NULLS FIRST, w.created_at"#,
+        coach_id,
+        filter.from,
+        filter.to,
+        filter.client_id,
+    )
+    .fetch_all(&state.db)
+    .await?;
+    let names: HashMap<Uuid, String> =
+        sqlx::query!("SELECT id, name FROM clients WHERE coach_id = $1", coach_id)
+            .fetch_all(&state.db)
+            .await?
+            .into_iter()
+            .map(|client| (client.id, client.name))
+            .collect();
+
+    Ok(Json(
         rows.into_iter()
-            .map(|row| WorkoutSummary {
-                report: row
-                    .effort
-                    .zip(row.finished_at)
-                    .map(|(effort, finished_at)| ReportSummary {
-                        effort,
-                        has_comment: row.comment.as_deref().is_some_and(|c| !c.is_empty()),
-                        finished_at,
-                        seen: row.seen_at.is_some(),
-                    }),
-                id: row.id,
-                title: row.title,
-                date: row.date,
-                status: row.status,
-                published_at: row.published_at,
-                exercise_count: row.exercise_count,
-                set_count: row.set_count,
-                done_set_count: row.done_set_count,
-                different_count: row.different_count,
-                opened: row.opened,
+            .filter_map(|row| {
+                let client_id = row.client_id?;
+                Some(ScheduledWorkout {
+                    client_id,
+                    client_name: names.get(&client_id).cloned().unwrap_or_default(),
+                    workout: row.into_summary(),
+                })
             })
             .collect(),
     ))
+}
+
+/// A workout with its set counts and report, as the lists select it.
+struct SummaryRow {
+    client_id: Option<Uuid>,
+    id: Uuid,
+    title: String,
+    date: Option<NaiveDate>,
+    status: WorkoutStatus,
+    published_at: Option<DateTime<Utc>>,
+    opened: bool,
+    exercise_count: i64,
+    set_count: i64,
+    done_set_count: i64,
+    different_count: i64,
+    effort: Option<Effort>,
+    comment: Option<String>,
+    finished_at: Option<DateTime<Utc>>,
+    seen_at: Option<DateTime<Utc>>,
+}
+
+impl SummaryRow {
+    fn into_summary(self) -> WorkoutSummary {
+        WorkoutSummary {
+            report: self
+                .effort
+                .zip(self.finished_at)
+                .map(|(effort, finished_at)| ReportSummary {
+                    effort,
+                    has_comment: self.comment.as_deref().is_some_and(|c| !c.is_empty()),
+                    finished_at,
+                    seen: self.seen_at.is_some(),
+                }),
+            id: self.id,
+            title: self.title,
+            date: self.date,
+            status: self.status,
+            published_at: self.published_at,
+            exercise_count: self.exercise_count,
+            set_count: self.set_count,
+            done_set_count: self.done_set_count,
+            different_count: self.different_count,
+            opened: self.opened,
+        }
+    }
 }
 
 /// What the client did, set by set next to the plan, and their report.

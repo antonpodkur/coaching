@@ -6,6 +6,7 @@ import { ApiError, api, unwrap } from '../api/client'
 import { BackLink } from '../shared/BackLink'
 import { CopyIcon } from '../shared/icons'
 import { ReportCard } from './ReportCard'
+import { useBackTarget } from './backTarget'
 import { RESULTS_KEY, WORKOUTS_KEY, isUnauthorized, useCoach } from './context'
 
 /** One workout's full report: every exercise and set next to the plan. */
@@ -37,7 +38,11 @@ export function ReportPage() {
   })
 
   const clientId = results.data?.client_id
-  const back = <BackLink to={clientId ? `${base}/clients/${clientId}` : base} label="Клієнт" />
+  const backTarget = useBackTarget({
+    to: clientId ? `${base}/clients/${clientId}` : base,
+    label: 'Клієнт',
+  })
+  const back = <BackLink to={backTarget.to} label={backTarget.label} />
   if (!results.data) {
     const missing = results.error instanceof ApiError && results.error.status === 404
     return (

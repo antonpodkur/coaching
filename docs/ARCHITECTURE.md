@@ -233,6 +233,7 @@ Coach (`role = coach`):
 | GET/POST/PATCH | `/coach/clients`, `/coach/clients/{id}` | List (with each client's unseen reports; `?archived=true` for the archive); add (returns the first invite link); edit (name, `paid_until`, archive or restore) |
 | PUT | `/coach/me/timezone` | From Dasha's phone; her evening summary follows it |
 | POST | `/coach/clients/{id}/invite` | New invite link |
+| GET | `/coach/workouts?from&to&client_id` | Every active client's workouts in a date range (at most 62 days) plus undated drafts, with the client's name: the workouts tab |
 | GET | `/coach/clients/{id}/workouts` | Her workouts for this client: undated drafts first, then newest date first, with done and differing set counts and the report's effort and seen state |
 | GET | `/coach/workouts/{id}/results` | Every set's target next to what the client logged, `differs` per set, and the report |
 | POST | `/coach/workouts/{id}/report/seen` | Marks the report seen, so it stops showing as new |

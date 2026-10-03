@@ -16,7 +16,10 @@ interface Props {
   onRemove: () => void
 }
 
-/** One exercise in the builder: its sets as chips, and a ⋯ menu for the rest. */
+/**
+ * One exercise in the builder: its sets as chips, Dasha's comment for the
+ * client right under them, and a ⋯ menu for moving and removing.
+ */
 export function ExerciseCard({
   exercise,
   index,
@@ -29,7 +32,8 @@ export function ExerciseCard({
   onRemove,
 }: Props) {
   const [menuOpen, setMenuOpen] = useState(false)
-  const [noteOpen, setNoteOpen] = useState(exercise.note !== null)
+  // A new comment stays open while she types, even before it has any text.
+  const [writingNote, setWritingNote] = useState(false)
   const closeMenuAnd = (action: () => void) => () => {
     setMenuOpen(false)
     action()
@@ -91,16 +95,25 @@ export function ExerciseCard({
         <p className="error small">Додай хоча б один підхід.</p>
       )}
 
-      {noteOpen && (
+      {writingNote || exercise.note !== null ? (
         <label className="note-field">
-          <span>Нотатка</span>
-          <input
+          <span>Коментар до вправи · клієнт бачить його</span>
+          <textarea
             value={exercise.note ?? ''}
-            placeholder="що важливо в техніці"
+            placeholder="Наприклад: тримай спину рівно, не поспішай униз"
             maxLength={500}
-            onChange={(event) => onNote(event.target.value || null)}
+            rows={2}
+            // Focus only a comment she just asked for, not every saved one.
+            autoFocus={writingNote && exercise.note === null}
+            onChange={(event) => onNote(event.target.value.trim() ? event.target.value : null)}
+            onBlur={() => setWritingNote(false)}
           />
         </label>
+      ) : (
+        <button type="button" className="note-add" onClick={() => setWritingNote(true)}>
+          <PlusIcon />
+          Коментар до вправи
+        </button>
       )}
 
       {menuOpen && (
@@ -114,9 +127,6 @@ export function ExerciseCard({
             onClick={closeMenuAnd(() => onMove(1))}
           >
             Нижче
-          </button>
-          <button type="button" onClick={closeMenuAnd(() => setNoteOpen(true))}>
-            Нотатка
           </button>
           <button type="button" className="danger" onClick={closeMenuAnd(onRemove)}>
             Прибрати

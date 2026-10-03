@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { Link, Route, Routes, useLocation } from 'react-router'
 
-import { ImportIcon, LibraryIcon, PeopleIcon } from '../shared/icons'
+import { CalendarIcon, ImportIcon, LibraryIcon, PeopleIcon } from '../shared/icons'
 import { ClientEditPage } from './ClientEditPage'
 import { ClientPage } from './ClientPage'
 import { ClientsPage } from './ClientsPage'
@@ -11,6 +11,7 @@ import { InvitePage } from './InvitePage'
 import { LibraryPage } from './LibraryPage'
 import { NewExercisePage } from './NewExercisePage'
 import { ReportPage } from './ReportPage'
+import { WorkoutsPage } from './WorkoutsPage'
 import { BuilderPage } from './builder/BuilderPage'
 import { CoachContext } from './context'
 
@@ -34,7 +35,9 @@ export function CoachWorkspace({ base, onUnauthorized, onSignOut }: Props) {
     ? 'import'
     : pathname.startsWith(`${base}/exercises`)
       ? 'exercises'
-      : 'clients'
+      : pathname === `${base}/workouts`
+        ? 'workouts'
+        : 'clients'
   // Sub-pages take the whole screen and go back with Telegram's back arrow.
   const subPage = ['invite', 'clients/', 'workouts/', 'exercises/'].some((page) =>
     pathname.startsWith(`${base}/${page}`),
@@ -60,6 +63,7 @@ export function CoachWorkspace({ base, onUnauthorized, onSignOut }: Props) {
             <Route path="invite" element={<InvitePage />} />
             <Route path="clients/:id" element={<ClientPage />} />
             <Route path="clients/:id/edit" element={<ClientEditPage />} />
+            <Route path="workouts" element={<WorkoutsPage />} />
             <Route path="workouts/:id" element={<BuilderPage />} />
             <Route path="workouts/:id/report" element={<ReportPage />} />
             <Route path="exercises" element={<LibraryPage />} />
@@ -73,6 +77,10 @@ export function CoachWorkspace({ base, onUnauthorized, onSignOut }: Props) {
             <Link to={base} aria-current={section === 'clients' ? 'page' : undefined}>
               <PeopleIcon size={22} />
               Клієнти
+            </Link>
+            <Link to={`${base}/workouts`} aria-current={section === 'workouts' ? 'page' : undefined}>
+              <CalendarIcon size={22} />
+              Тренування
             </Link>
             <Link
               to={`${base}/exercises`}
