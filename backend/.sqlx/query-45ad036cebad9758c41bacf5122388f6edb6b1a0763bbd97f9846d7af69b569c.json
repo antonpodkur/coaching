@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT video_uid FROM form_videos\n         WHERE status = 'processing' ORDER BY created_at LIMIT $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "video_uid",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "form_videos",
+            "name": "video_uid"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "45ad036cebad9758c41bacf5122388f6edb6b1a0763bbd97f9846d7af69b569c"
+}

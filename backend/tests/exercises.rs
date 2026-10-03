@@ -36,6 +36,7 @@ fn fake_stream() -> StreamClient {
         api_key: API_KEY.to_owned(),
         read_only_api_key: Some(READ_ONLY_KEY.to_owned()),
         cdn_hostname: "vz-test.b-cdn.net".to_owned(),
+        token_key: None,
     })
 }
 

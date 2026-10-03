@@ -1,0 +1,64 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT c.name AS client_name, e.name AS exercise_name, w.id AS workout_id,\n                co.telegram_id AS coach_telegram_id\n         FROM form_videos v\n         JOIN workout_exercises we ON we.id = v.workout_exercise_id\n         JOIN workouts w ON w.id = we.workout_id\n         JOIN exercises e ON e.id = we.exercise_id\n         JOIN clients c ON c.id = v.client_id\n         JOIN coaches co ON co.id = c.coach_id\n         WHERE v.id = $1 AND v.status = 'ready' AND v.seen_at IS NULL",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "client_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "clients",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "exercise_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "exercises",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "workout_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "workouts",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "coach_telegram_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "coaches",
+            "name": "telegram_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "e3284d4c5bebcbf7b29b7734a7ada68d51cfe9f1d27e58565a108cd8c0495995"
+}

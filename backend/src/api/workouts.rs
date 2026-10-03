@@ -17,6 +17,7 @@ use crate::{
     api::coach::{exercises::Measure, workouts::WorkoutStatus},
     auth::CurrentClient,
     error::{AppError, AppResult, ErrorBody},
+    form_videos::{self, FormVideo, Viewer},
     history::{self, PastSet},
     notify,
     state::AppState,
@@ -49,6 +50,9 @@ pub struct ClientWorkout {
     pub exercises: Vec<ClientExercise>,
     /// Present once the client has finished it.
     pub report: Option<Report>,
+    /// The client can send Dasha videos of an exercise (the private video
+    /// library is set up).
+    pub videos_enabled: bool,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -63,6 +67,8 @@ pub struct ClientExercise {
     pub sets: Vec<ClientSet>,
     /// Completed sets from the last earlier workout with this exercise.
     pub last_time: Vec<PastSet>,
+    /// Videos the client sent Dasha of how they did it, oldest first.
+    pub videos: Vec<FormVideo>,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -263,6 +269,7 @@ pub async fn get(
     let exercise_ids: Vec<Uuid> = rows.iter().map(|row| row.exercise_id).collect();
     let mut last_time =
         history::last_time(&state.db, client_id, id, Some(workout.date), &exercise_ids).await?;
+    let mut videos = form_videos::for_workout(&state, id, Viewer::Client).await?;
 
     let exercises = rows
         .into_iter()
@@ -277,6 +284,7 @@ pub async fn get(
                 }),
             sets: sets_by_row.remove(&row.id).unwrap_or_default(),
             last_time: last_time.remove(&row.exercise_id).unwrap_or_default(),
+            videos: videos.remove(&row.id).unwrap_or_default(),
             id: row.id,
             name: row.name,
             measure: row.measure,
@@ -301,6 +309,7 @@ pub async fn get(
         status: workout.status,
         exercises,
         report,
+        videos_enabled: state.client_videos.is_some(),
     }))
 }
 

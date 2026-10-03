@@ -3,6 +3,7 @@
 pub mod auth;
 pub mod client;
 pub mod coach;
+pub mod form_videos;
 pub mod health;
 pub mod stream;
 pub mod telegram;
@@ -14,7 +15,7 @@ use axum::{
         Method,
         header::{AUTHORIZATION, CONTENT_TYPE, IF_MATCH},
     },
-    routing::{get, post, put},
+    routing::{delete, get, post, put},
 };
 use tower_http::{
     compression::CompressionLayer, cors::CorsLayer,
@@ -42,6 +43,9 @@ use crate::state::AppState;
         workouts::get,
         workouts::log_set,
         workouts::finish,
+        form_videos::start,
+        form_videos::finish,
+        form_videos::delete,
         coach::clients::list,
         coach::clients::create,
         coach::clients::get,
@@ -121,6 +125,9 @@ pub fn router(state: AppState) -> Router {
         .route("/workouts/{id}", get(workouts::get))
         .route("/workouts/{id}/finish", post(workouts::finish))
         .route("/sets/{id}/result", put(workouts::log_set))
+        .route("/workout-exercises/{id}/videos", post(form_videos::start))
+        .route("/form-videos/{id}/uploaded", post(form_videos::finish))
+        .route("/form-videos/{id}", delete(form_videos::delete))
         .route(
             "/coach/clients",
             get(coach::clients::list).post(coach::clients::create),
@@ -176,6 +183,10 @@ pub fn router(state: AppState) -> Router {
         .route("/coach/import/parse", post(coach::import::parse))
         .route("/telegram/webhook", post(telegram::webhook))
         .route("/webhooks/stream", post(stream::webhook))
+        .route(
+            "/webhooks/client-videos",
+            post(stream::client_videos_webhook),
+        )
         .layer(CompressionLayer::new())
         .layer(cors)
         .layer(TraceLayer::new_for_http())

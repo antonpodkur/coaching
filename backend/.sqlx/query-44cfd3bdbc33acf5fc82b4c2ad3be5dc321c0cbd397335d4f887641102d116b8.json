@@ -1,0 +1,60 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT c.name AS client_name, e.name AS exercise_name, w.date,\n                  (SELECT count(*) FROM form_videos v\n                   WHERE v.workout_exercise_id = we.id AND v.status <> 'failed') AS \"videos!\"\n           FROM workout_exercises we\n           JOIN workouts w ON w.id = we.workout_id\n           JOIN exercises e ON e.id = we.exercise_id\n           JOIN clients c ON c.id = w.client_id\n           WHERE we.id = $1 AND w.client_id = $2 AND w.status IN ('published', 'done')",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "client_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "clients",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "exercise_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "exercises",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "date",
+        "type_info": "Date",
+        "origin": {
+          "Table": {
+            "table": "workouts",
+            "name": "date"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "videos!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      null
+    ]
+  },
+  "hash": "44cfd3bdbc33acf5fc82b4c2ad3be5dc321c0cbd397335d4f887641102d116b8"
+}

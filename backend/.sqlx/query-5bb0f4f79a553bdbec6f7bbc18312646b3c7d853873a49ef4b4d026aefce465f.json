@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE form_videos SET status = 'ready', ready_at = $2, length_secs = $3\n                 WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Timestamptz",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "5bb0f4f79a553bdbec6f7bbc18312646b3c7d853873a49ef4b4d026aefce465f"
+}

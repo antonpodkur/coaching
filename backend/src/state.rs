@@ -12,6 +12,8 @@ pub struct AppState {
     pub telegram: TelegramClient,
     /// Bunny Stream; `None` when it is not configured, which turns video uploads off.
     pub video: Option<StreamClient>,
+    /// The private library for clients' technique videos; `None` turns them off.
+    pub client_videos: Option<StreamClient>,
 }
 
 impl AppState {
@@ -23,11 +25,17 @@ impl AppState {
             jwt: Arc::new(jwt),
             telegram,
             video: None,
+            client_videos: None,
         }
     }
 
     pub fn with_video(mut self, video: Option<StreamClient>) -> Self {
         self.video = video;
+        self
+    }
+
+    pub fn with_client_videos(mut self, library: Option<StreamClient>) -> Self {
+        self.client_videos = library;
         self
     }
 }

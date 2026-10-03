@@ -30,6 +30,8 @@ pub struct CoachClient {
     pub created_at: DateTime<Utc>,
     /// Reports Dasha has not opened yet.
     pub unseen_reports: i64,
+    /// Ready videos from the client that Dasha has not watched yet.
+    pub new_videos: i64,
     /// Hidden from the list; the client cannot open the app until restored.
     pub archived: bool,
 }
@@ -109,6 +111,9 @@ pub async fn list(
                   c.paid_until, c.created_at,
                   (SELECT count(*) FROM workout_reports r JOIN workouts w ON w.id = r.workout_id
                    WHERE w.client_id = c.id AND r.seen_at IS NULL) AS "unseen_reports!",
+                  (SELECT count(*) FROM form_videos v
+                   WHERE v.client_id = c.id AND v.status = 'ready' AND v.seen_at IS NULL)
+                   AS "new_videos!",
                   c.archived_at IS NOT NULL AS "archived!"
            FROM clients c
            WHERE c.coach_id = $1 AND (c.archived_at IS NOT NULL) = $2
@@ -321,6 +326,9 @@ async fn fetch_client(state: &AppState, coach_id: Uuid, client_id: Uuid) -> AppR
                   c.paid_until, c.created_at,
                   (SELECT count(*) FROM workout_reports r JOIN workouts w ON w.id = r.workout_id
                    WHERE w.client_id = c.id AND r.seen_at IS NULL) AS "unseen_reports!",
+                  (SELECT count(*) FROM form_videos v
+                   WHERE v.client_id = c.id AND v.status = 'ready' AND v.seen_at IS NULL)
+                   AS "new_videos!",
                   c.archived_at IS NOT NULL AS "archived!"
            FROM clients c WHERE c.id = $1 AND c.coach_id = $2"#,
         client_id,

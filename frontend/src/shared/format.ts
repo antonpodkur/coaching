@@ -145,6 +145,11 @@ export function formatDone(
   return `${measure === 'bodyweight' ? '+' : ''}${formatKg(kg)} × ${count}`
 }
 
+/** A video's length: `0:42`, `2:05`. */
+export function formatClock(secs: number): string {
+  return `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`
+}
+
 /** Seconds as typed: `45`, or `1:30` from a minute up. */
 export function formatSecsInput(secs: number): string {
   return secs < 60 ? `${secs}` : `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`

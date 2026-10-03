@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE workout_reports SET seen_at = COALESCE(seen_at, now()) WHERE workout_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "13de96f7bda39f67bd38ca2abbceae8c96efe0042c194e0ff59df553d335e1ac"
+}

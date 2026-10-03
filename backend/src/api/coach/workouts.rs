@@ -14,6 +14,7 @@ use crate::{
     api::{coach::exercises::Measure, workouts::Effort},
     auth::CurrentCoach,
     error::{AppError, AppResult, ErrorBody},
+    form_videos::{self, FormVideo, Viewer},
     history::{self, PastSet},
     notify,
     state::AppState,
@@ -132,6 +133,8 @@ pub struct WorkoutSummary {
     pub different_count: i64,
     /// The client has opened it in the app.
     pub opened: bool,
+    /// Ready videos from the client that Dasha has not watched yet.
+    pub new_videos: i64,
     /// Present once the client finished it.
     pub report: Option<ReportSummary>,
 }
@@ -191,6 +194,8 @@ pub struct ResultExercise {
     pub measure: Measure,
     pub per_side_label: Option<String>,
     pub sets: Vec<ResultSet>,
+    /// The client's videos of it, encoding or ready.
+    pub videos: Vec<FormVideo>,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -635,7 +640,11 @@ pub async fn list_for_client(
                   count(s.completed_at) AS "done_set_count!",
                   count(*) FILTER (WHERE set_differs(s)) AS "different_count!",
                   r.effort AS "effort?: Effort", r.comment AS "comment?",
-                  r.finished_at AS "finished_at?", r.seen_at
+                  r.finished_at AS "finished_at?", r.seen_at,
+                  (SELECT count(*) FROM form_videos v
+                   JOIN workout_exercises vwe ON vwe.id = v.workout_exercise_id
+                   WHERE vwe.workout_id = w.id AND v.status = 'ready' AND v.seen_at IS NULL)
+                   AS "new_videos!"
            FROM workouts w
            LEFT JOIN workout_exercises we ON we.workout_id = w.id
            LEFT JOIN workout_sets s ON s.workout_exercise_id = we.id
@@ -685,7 +694,11 @@ pub async fn list(
                   count(s.completed_at) AS "done_set_count!",
                   count(*) FILTER (WHERE set_differs(s)) AS "different_count!",
                   r.effort AS "effort?: Effort", r.comment AS "comment?",
-                  r.finished_at AS "finished_at?", r.seen_at
+                  r.finished_at AS "finished_at?", r.seen_at,
+                  (SELECT count(*) FROM form_videos v
+                   JOIN workout_exercises vwe ON vwe.id = v.workout_exercise_id
+                   WHERE vwe.workout_id = w.id AND v.status = 'ready' AND v.seen_at IS NULL)
+                   AS "new_videos!"
            FROM workouts w
            JOIN clients c ON c.id = w.client_id AND c.archived_at IS NULL
            LEFT JOIN workout_exercises we ON we.workout_id = w.id
@@ -742,6 +755,7 @@ struct SummaryRow {
     comment: Option<String>,
     finished_at: Option<DateTime<Utc>>,
     seen_at: Option<DateTime<Utc>>,
+    new_videos: i64,
 }
 
 impl SummaryRow {
@@ -766,6 +780,7 @@ impl SummaryRow {
             done_set_count: self.done_set_count,
             different_count: self.different_count,
             opened: self.opened,
+            new_videos: self.new_videos,
         }
     }
 }
@@ -832,6 +847,7 @@ pub async fn results(
                 differs: set.differs,
             });
     }
+    let mut videos = form_videos::for_workout(&state, id, Viewer::Coach).await?;
     let exercises = sqlx::query!(
         r#"SELECT we.id, e.name, e.measure AS "measure: Measure", we.per_side_label
          FROM workout_exercises we
@@ -845,6 +861,7 @@ pub async fn results(
     .into_iter()
     .map(|row| ResultExercise {
         sets: sets_by_row.remove(&row.id).unwrap_or_default(),
+        videos: videos.remove(&row.id).unwrap_or_default(),
         id: row.id,
         name: row.name,
         measure: row.measure,
@@ -873,7 +890,8 @@ pub async fn results(
     }))
 }
 
-/// Marks the workout's report as seen, so it stops showing as new.
+/// Marks the workout's report, and the client's videos in it, as seen, so they
+/// stop showing as new.
 #[utoipa::path(
     post,
     operation_id = "mark_report_seen",
@@ -884,7 +902,7 @@ pub async fn results(
     responses(
         (status = 204),
         (status = 401, body = ErrorBody),
-        (status = 404, body = ErrorBody, description = "No such workout, or no report yet"),
+        (status = 404, body = ErrorBody, description = "No such workout"),
     )
 )]
 pub async fn mark_report_seen(
@@ -892,20 +910,32 @@ pub async fn mark_report_seen(
     CurrentCoach(coach_id): CurrentCoach,
     Path(id): Path<Uuid>,
 ) -> AppResult<StatusCode> {
-    let marked = sqlx::query_scalar!(
-        "UPDATE workout_reports r SET seen_at = COALESCE(r.seen_at, now())
-         FROM workouts w
-         WHERE r.workout_id = $1 AND w.id = r.workout_id AND w.coach_id = $2
-         RETURNING r.workout_id",
+    let workout = sqlx::query_scalar!(
+        "SELECT id FROM workouts WHERE id = $1 AND coach_id = $2",
         id,
         coach_id,
     )
     .fetch_optional(&state.db)
     .await?;
-    match marked {
-        Some(_) => Ok(StatusCode::NO_CONTENT),
-        None => Err(AppError::NotFound),
+    if workout.is_none() {
+        return Err(AppError::NotFound);
     }
+    sqlx::query!(
+        "UPDATE workout_reports SET seen_at = COALESCE(seen_at, now()) WHERE workout_id = $1",
+        id,
+    )
+    .execute(&state.db)
+    .await?;
+    sqlx::query!(
+        "UPDATE form_videos v SET seen_at = now()
+         FROM workout_exercises we
+         WHERE we.id = v.workout_exercise_id AND we.workout_id = $1
+           AND v.status = 'ready' AND v.seen_at IS NULL",
+        id,
+    )
+    .execute(&state.db)
+    .await?;
+    Ok(StatusCode::NO_CONTENT)
 }
 
 async fn fetch(state: &AppState, coach_id: Uuid, id: Uuid) -> AppResult<Workout> {

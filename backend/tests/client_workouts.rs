@@ -412,7 +412,7 @@ async fn dasha_sees_the_report_with_differences_and_marks_it_seen(db: PgPool) {
     let (_, clients) = call(&s.app, "GET", "/coach/clients", Some(&s.coach), None).await;
     assert_eq!(clients[0]["unseen_reports"], 0);
 
-    // No report yet, or someone else's workout: nothing to mark.
+    // No report yet is fine (videos can come first); someone else's workout is not.
     let unfinished = workout(&s, "2026-10-08", true).await;
     let (status, _) = call(
         &s.app,
@@ -422,9 +422,18 @@ async fn dasha_sees_the_report_with_differences_and_marks_it_seen(db: PgPool) {
         None,
     )
     .await;
-    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert_eq!(status, StatusCode::NO_CONTENT);
     let other_coach = seed_coach(&db, 111).await;
     let other = coach_token(&s.state, other_coach);
+    let (status, _) = call(
+        &s.app,
+        "POST",
+        &format!("/coach/workouts/{id}/report/seen"),
+        Some(&other),
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
     let (status, _) = call(
         &s.app,
         "GET",

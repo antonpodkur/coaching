@@ -27,7 +27,7 @@ interface Props {
  */
 export function WorkoutRow({ workout, heading, back }: Props) {
   const { base } = useCoach()
-  const hasResults = workout.done_set_count > 0 || !!workout.report
+  const hasResults = workout.done_set_count > 0 || !!workout.report || workout.new_videos > 0
   return (
     <li>
       <Link
@@ -44,6 +44,8 @@ export function WorkoutRow({ workout, heading, back }: Props) {
         </span>
         {workout.report && !workout.report.seen ? (
           <span className="tag tag-warn">Новий звіт</span>
+        ) : workout.new_videos > 0 ? (
+          <span className="tag tag-warn">Нове відео</span>
         ) : (
           <span className={STATUS[workout.status].className}>{STATUS[workout.status].text}</span>
         )}

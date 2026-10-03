@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE form_videos SET status = 'processing'\n         WHERE id = $1 AND client_id = $2 AND status IN ('uploading', 'processing')\n         RETURNING video_uid",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "video_uid",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "form_videos",
+            "name": "video_uid"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "5be0c6b599f263d1e814762d4ec285050766a6c7df3776ab115bf556897f8b3b"
+}

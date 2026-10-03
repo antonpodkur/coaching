@@ -39,8 +39,19 @@ async fn main() -> anyhow::Result<()> {
         tracing::warn!("Bunny Stream is not configured; video uploads are off");
     }
 
+    let client_videos = config
+        .client_videos
+        .clone()
+        .map(StreamClient::live)
+        .transpose()?;
+    if client_videos.is_none() {
+        tracing::warn!("the client video library is not configured; clients cannot send videos");
+    }
+
     let addr = config.bind_addr;
-    let state = AppState::new(db, config, telegram).with_video(video);
+    let state = AppState::new(db, config, telegram)
+        .with_video(video)
+        .with_client_videos(client_videos);
     // Reminders, Dasha's summary and retries run inside this process.
     tokio::spawn(coaching_backend::jobs::run(state.clone()));
     let app = coaching_backend::router(state);

@@ -84,6 +84,22 @@ If the address differs from what you entered in step 4, change `FRONTEND_ORIGIN`
 
 If Render's logs show `could not prepare the invite card`, turn on inline mode with `/setinline` in @BotFather. The invite card is prepared through it. Until then Dasha's invites go out as plain links, which still work.
 
+## 5b. The private library for clients' videos
+
+Clients can send Dasha videos of how they did an exercise. These go to a second Bunny library, which serves files only through signed links that expire.
+
+1. In Bunny, add a Stream library such as `client-videos`, with Frankfurt storage and Stockholm replication.
+2. Turn on token authentication for its CDN: library → API → CDN zone management → Manage → Security → Token Authentication.
+   - Copy the **URL Token Authentication Key**.
+   - Leave "Block direct URL file access" and allowed referrers off: the app plays direct URLs, signed.
+3. In Render, set these five values. Without them the "Надіслати відео" button stays hidden.
+   - `BUNNY_CLIENT_LIBRARY_ID`, `BUNNY_CLIENT_API_KEY`, `BUNNY_CLIENT_READ_ONLY_API_KEY`: from the library's API page.
+   - `BUNNY_CLIENT_CDN_HOSTNAME`: the `vz-….b-cdn.net` hostname.
+   - `BUNNY_CLIENT_TOKEN_KEY`: the key from step 2.
+4. Set the library's webhook URL to `https://<Render address>/webhooks/client-videos`. Without it, the backend checks every 5 minutes.
+
+The pull zone's bare address answering 403 is expected: there is no file there, and unsigned requests are refused.
+
 ## 6. Bunny webhook
 
 On the library's API page in Bunny, set the webhook URL to `https://<Render address>/webhooks/stream`. With it, a video shows as ready as soon as Bunny finishes encoding. Without it, the app checks with Bunny whenever Dasha opens the exercise.

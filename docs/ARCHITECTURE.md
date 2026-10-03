@@ -206,6 +206,11 @@ coach_logins      id, code_hash UNIQUE, poll_secret_hash UNIQUE, display_code, c
 - **"Missed"** is not stored. It is a published workout whose date has passed without being marked done.
 - **Dates:** `workouts.date` is a calendar date in the client's timezone, not a timestamp. Reminders use `clients.timezone` via `chrono-tz`, and Dasha's summary uses `coaches.timezone`. The Mini App sends the phone's timezone whenever it differs from the stored one, for clients and for Dasha.
 - **Exercises are archived, never deleted,** because old workouts refer to them.
+- **Clients' technique videos** (`form_videos`) sit under a workout exercise, at most 3 per exercise in a workout.
+  - **Storage:** a separate Bunny library whose CDN has token authentication on. The backend signs a directory token per video (`bcdn_token=HS256-…&token_path=/<guid>/`), which covers the playlist, segments and thumbnail, and expires on the hour 6 to 7 hours out.
+  - **Encoding:** followed like exercise videos. That's the library's own webhook (`/webhooks/client-videos`), the phone's "uploaded", and a check in every jobs round. A ready video sends Dasha one bot message.
+  - **Seen:** opening the report marks its videos seen.
+  - **Kept** until the exercise row or the client is deleted.
 - **Clients are archived, never deleted,** so Dasha keeps their history. An archived client is signed out on their next request (the client extractor checks `archived_at`), gets no bot messages, and cannot use an invite. If they come back and Dasha adds them as a new client, the archived profile gives up the Telegram account to the new one.
 - **`coach_id`** is on the top-level tables even though there is one coach. It costs nothing and keeps the door open.
 - **Invite and login codes are stored hashed.** Until it is used, a code in a link works like a password.
@@ -223,6 +228,9 @@ Client (`role = client`):
 | GET | `/workouts/{id}` | Workout with sets, video playback info and "last time" per exercise |
 | PUT | `/sets/{id}/result` | `{actual_kg, actual_reps, completed, client_updated_at}`. Idempotent. |
 | POST | `/workouts/{id}/finish` | `{effort, comment, duration_min}`. Marks the workout done and notifies Dasha once; repeating it updates the report quietly. |
+| POST | `/workout-exercises/{id}/videos` | Starts a technique video for Dasha: a tus ticket into the private library. Up to 3 per exercise. |
+| POST | `/form-videos/{id}/uploaded` | The file is in; Bunny encodes it, then Dasha is told |
+| DELETE | `/form-videos/{id}` | The client deletes their video, on Bunny too |
 
 Coach (`role = coach`):
 

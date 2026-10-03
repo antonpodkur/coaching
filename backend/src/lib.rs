@@ -8,6 +8,7 @@ pub mod coaches;
 pub mod codes;
 pub mod config;
 pub mod error;
+pub mod form_videos;
 pub mod history;
 pub mod import;
 pub mod invites;

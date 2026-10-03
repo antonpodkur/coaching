@@ -324,7 +324,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Marks the workout's report as seen, so it stops showing as new. */
+        /**
+         * Marks the workout's report, and the client's videos in it, as seen, so they
+         *     stop showing as new.
+         */
         post: operations["mark_report_seen"];
         delete?: never;
         options?: never;
@@ -343,6 +346,40 @@ export interface paths {
         get: operations["get_workout_results"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/form-videos/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** The client deletes one of their videos, on Bunny too. */
+        delete: operations["delete_form_video"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/form-videos/{id}/uploaded": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** The phone finished sending the file; Bunny encodes it next, then Dasha is told. */
+        post: operations["finish_form_video"];
         delete?: never;
         options?: never;
         head?: never;
@@ -457,6 +494,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/workout-exercises/{id}/videos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Starts uploading a video of how the client did this exercise: creates it on
+         *     Bunny and signs a tus upload straight from the phone. Up to three per
+         *     exercise in a workout.
+         */
+        post: operations["start_form_video"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/workouts/{id}": {
         parameters: {
             query?: never;
@@ -552,6 +610,8 @@ export interface components {
             per_side_label?: string | null;
             sets: components["schemas"]["ClientSet"][];
             video?: components["schemas"]["ClientVideo"] | null;
+            /** @description Videos the client sent Dasha of how they did it, oldest first. */
+            videos: components["schemas"]["FormVideo"][];
         };
         ClientProfile: {
             /**
@@ -606,6 +666,11 @@ export interface components {
             report?: components["schemas"]["Report"] | null;
             status: components["schemas"]["WorkoutStatus"];
             title: string;
+            /**
+             * @description The client can send Dasha videos of an exercise (the private video
+             *     library is set up).
+             */
+            videos_enabled: boolean;
         };
         ClientWorkoutSummary: {
             /** Format: date */
@@ -638,6 +703,11 @@ export interface components {
             /** @description The client opened their invite and is linked to a Telegram account. */
             joined: boolean;
             name: string;
+            /**
+             * Format: int64
+             * @description Ready videos from the client that Dasha has not watched yet.
+             */
+            new_videos: number;
             /** Format: date */
             paid_until?: string | null;
             /**
@@ -708,6 +778,30 @@ export interface components {
              */
             duration_min?: number | null;
             effort: components["schemas"]["Effort"];
+        };
+        FormVideo: {
+            /** Format: date-time */
+            created_at: string;
+            /** @description HLS playlist, signed for a few hours. Only once ready. */
+            hls_url?: string | null;
+            /** Format: uuid */
+            id: string;
+            /** Format: int32 */
+            length_secs?: number | null;
+            /** @description Dasha has opened the report since it was ready. */
+            seen: boolean;
+            status: components["schemas"]["FormVideoStatus"];
+            thumbnail_url?: string | null;
+        };
+        /** @enum {string} */
+        FormVideoStatus: "uploading" | "processing" | "ready" | "failed";
+        FormVideoUpload: {
+            /**
+             * Format: uuid
+             * @description The new video; tell `/form-videos/{id}/uploaded` when the file is sent.
+             */
+            id: string;
+            ticket: components["schemas"]["UploadTicket"];
         };
         Health: {
             database: boolean;
@@ -842,6 +936,8 @@ export interface components {
             name: string;
             per_side_label?: string | null;
             sets: components["schemas"]["ResultSet"][];
+            /** @description The client's videos of it, encoding or ready. */
+            videos: components["schemas"]["FormVideo"][];
         };
         ResultSet: {
             /** Format: double */
@@ -1030,6 +1126,11 @@ export interface components {
             exercise_count: number;
             /** Format: uuid */
             id: string;
+            /**
+             * Format: int64
+             * @description Ready videos from the client that Dasha has not watched yet.
+             */
+            new_videos: number;
             /** @description The client has opened it in the app. */
             opened: boolean;
             /** Format: date-time */
@@ -2006,7 +2107,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
-            /** @description No such workout, or no report yet */
+            /** @description No such workout */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -2036,6 +2137,78 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["WorkoutResults"];
                 };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_form_video: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Form video id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    finish_form_video: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Form video id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             401: {
                 headers: {
@@ -2240,6 +2413,62 @@ export interface operations {
                 };
             };
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    start_form_video: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The exercise's ID in the workout */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FormVideoUpload"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description `too_many_videos` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description `client_videos_not_configured` */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

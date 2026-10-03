@@ -11,6 +11,7 @@ import {
   formatWhen,
   plural,
 } from '../shared/format'
+import { FormVideoTile } from '../shared/FormVideoTile'
 import { CLIENTS_KEY, RESULTS_KEY, WORKOUTS_KEY } from './context'
 
 type Results = Schemas['WorkoutResults']
@@ -35,9 +36,15 @@ function resultLabel(set: ResultSet, measure: Measure): string {
   return `${done} · план ${plan}`
 }
 
-/** Something to look at: a set done differently, or not done. */
+/** Something to look at: a set done differently or not done, or a video. */
 function standsOut(exercise: ResultExercise): boolean {
-  return exercise.sets.some((set) => set.differs || !set.completed)
+  return exercise.videos.length > 0 || exercise.sets.some((set) => set.differs || !set.completed)
+}
+
+function hasNewVideo(results: Results): boolean {
+  return results.exercises.some((exercise) =>
+    exercise.videos.some((video) => video.status === 'ready' && !video.seen),
+  )
 }
 
 interface Props {
@@ -55,6 +62,8 @@ export function ReportCard({ results, compact = false, actions }: Props) {
   const queryClient = useQueryClient()
   // Keep the "new" label while she reads, even after it is marked seen.
   const [isNew] = useState(results.report?.seen === false)
+  // Opening the report also sees the client's new videos.
+  const [toMark] = useState(isNew || hasNewVideo(results))
   const [showAll, setShowAll] = useState(!compact)
 
   const markSeen = useMutation({
@@ -73,8 +82,8 @@ export function ReportCard({ results, compact = false, actions }: Props) {
   })
   const { mutate } = markSeen
   useEffect(() => {
-    if (isNew) mutate()
-  }, [isNew, mutate])
+    if (toMark) mutate()
+  }, [toMark, mutate])
 
   let total = 0
   let done = 0
@@ -123,7 +132,13 @@ export function ReportCard({ results, compact = false, actions }: Props) {
 
       <div className="report-rows">
         <span className="section-title">
-          {showAll ? 'Усі вправи' : notable.length > 0 ? 'Інакше, ніж у плані' : 'Усе за планом'}
+          {showAll
+            ? 'Усі вправи'
+            : notable.some((exercise) => exercise.videos.length > 0)
+              ? 'Варто переглянути'
+              : notable.length > 0
+                ? 'Інакше, ніж у плані'
+                : 'Усе за планом'}
         </span>
         {shown.map((exercise) => (
           <div key={exercise.id} className="report-row">
@@ -145,6 +160,17 @@ export function ReportCard({ results, compact = false, actions }: Props) {
                 </span>
               ))}
             </span>
+            {exercise.videos.length > 0 && (
+              <div className="form-videos">
+                {exercise.videos.map((video, index) => (
+                  <FormVideoTile
+                    key={video.id}
+                    video={video}
+                    label={`Відео ${index + 1}${video.status === 'ready' && !video.seen ? ' · нове' : ''}`}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         ))}
         {compact && results.exercises.length > notable.length && (

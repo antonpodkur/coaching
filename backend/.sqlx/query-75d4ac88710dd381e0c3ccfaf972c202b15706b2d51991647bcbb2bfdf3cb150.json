@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM form_videos WHERE id = $1 AND client_id = $2 RETURNING video_uid",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "video_uid",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "form_videos",
+            "name": "video_uid"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "75d4ac88710dd381e0c3ccfaf972c202b15706b2d51991647bcbb2bfdf3cb150"
+}

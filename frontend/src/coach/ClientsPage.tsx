@@ -45,10 +45,9 @@ export function ClientsPage() {
     },
   })
 
-  // Clients with a report Dasha has not opened come first.
-  const all = [...(clients.data ?? [])].sort(
-    (a, b) => Number(b.unseen_reports > 0) - Number(a.unseen_reports > 0),
-  )
+  // Clients with a report or a video Dasha has not opened come first.
+  const fresh = (client: Client) => client.unseen_reports > 0 || client.new_videos > 0
+  const all = [...(clients.data ?? [])].sort((a, b) => Number(fresh(b)) - Number(fresh(a)))
   const needle = query.trim().toLocaleLowerCase('uk')
   const shown = needle
     ? all.filter((client) => client.name.toLocaleLowerCase('uk').includes(needle))
@@ -186,6 +185,13 @@ function ClientStatus({ client }: { client: Client }) {
     return (
       <span className="client-status warn">
         {client.unseen_reports === 1 ? 'Новий звіт' : `Нових звітів: ${client.unseen_reports}`}
+      </span>
+    )
+  }
+  if (client.new_videos > 0) {
+    return (
+      <span className="client-status warn">
+        {client.new_videos === 1 ? 'Нове відео' : `Нових відео: ${client.new_videos}`}
       </span>
     )
   }

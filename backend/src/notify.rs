@@ -61,6 +61,8 @@ pub enum Kind {
     WorkoutFinished,
     /// To Dasha in the evening; the subject is the coach.
     CoachDaily,
+    /// To Dasha when a client's technique video is ready; the subject is the video.
+    FormVideo,
 }
 
 impl Kind {
@@ -70,6 +72,7 @@ impl Kind {
             Self::WorkoutReminder => "workout_reminder",
             Self::WorkoutFinished => "workout_finished",
             Self::CoachDaily => "coach_daily",
+            Self::FormVideo => "form_video",
         }
     }
 
@@ -79,6 +82,7 @@ impl Kind {
             Self::WorkoutReminder,
             Self::WorkoutFinished,
             Self::CoachDaily,
+            Self::FormVideo,
         ]
         .into_iter()
         .find(|known| known.as_str() == kind)
@@ -140,6 +144,7 @@ pub async fn deliver(state: &AppState, id: Uuid, now: DateTime<Utc>) -> anyhow::
         Some(Kind::WorkoutReminder) => reminder(state, row.entity_id).await?,
         Some(Kind::WorkoutFinished) => finished(state, row.entity_id).await?,
         Some(Kind::CoachDaily) => daily_summary(state, row.entity_id, row.local_date).await?,
+        Some(Kind::FormVideo) => form_video(state, row.entity_id).await?,
         None => None,
     };
     let Some(message) = message else {
@@ -393,6 +398,42 @@ async fn daily_summary(
     )))
 }
 
+/// "Максим К.: нове відео техніки — «Присідання».", with a button to the report,
+/// unless Dasha has already watched it.
+async fn form_video(state: &AppState, id: Uuid) -> anyhow::Result<Option<OutgoingMessage>> {
+    let Some(video) = sqlx::query!(
+        "SELECT c.name AS client_name, e.name AS exercise_name, w.id AS workout_id,
+                co.telegram_id AS coach_telegram_id
+         FROM form_videos v
+         JOIN workout_exercises we ON we.id = v.workout_exercise_id
+         JOIN workouts w ON w.id = we.workout_id
+         JOIN exercises e ON e.id = we.exercise_id
+         JOIN clients c ON c.id = v.client_id
+         JOIN coaches co ON co.id = c.coach_id
+         WHERE v.id = $1 AND v.status = 'ready' AND v.seen_at IS NULL",
+        id,
+    )
+    .fetch_optional(&state.db)
+    .await?
+    else {
+        return Ok(None);
+    };
+    let text = format!(
+        "{}: нове відео техніки — «{}».",
+        video.client_name, video.exercise_name
+    );
+    Ok(Some(
+        OutgoingMessage::text(video.coach_telegram_id, text).with_row(vec![Button::WebApp {
+            text: "Переглянути".to_owned(),
+            url: format!(
+                "{}/workouts/{}/report",
+                state.config.mini_app_url(),
+                video.workout_id
+            ),
+        }]),
+    ))
+}
+
 /// A message with a button that opens the Mini App on the workout.
 fn open_workout(state: &AppState, chat_id: i64, text: String, workout_id: Uuid) -> OutgoingMessage {
     OutgoingMessage::text(chat_id, text).with_row(vec![Button::WebApp {
@@ -420,6 +461,7 @@ mod tests {
             Kind::WorkoutReminder,
             Kind::WorkoutFinished,
             Kind::CoachDaily,
+            Kind::FormVideo,
         ] {
             assert_eq!(Kind::parse(kind.as_str()), Some(kind));
         }

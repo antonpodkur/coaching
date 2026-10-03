@@ -9,6 +9,7 @@ use std::{
 
 use anyhow::Context;
 use axum::http::HeaderMap;
+use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use hmac::{Hmac, KeyInit, Mac};
 use reqwest::StatusCode;
 use serde::Deserialize;
@@ -30,6 +31,9 @@ pub struct StreamSettings {
     pub read_only_api_key: Option<String>,
     /// The library's CDN hostname, e.g. `vz-1234abcd-567.b-cdn.net`.
     pub cdn_hostname: String,
+    /// The CDN's token authentication key, for a private library: its files
+    /// are only served through links signed with it.
+    pub token_key: Option<String>,
 }
 
 /// Encoding as Bunny's API reports it (`VideoModel.status`). Webhooks number
@@ -230,6 +234,19 @@ impl StreamClient {
         )
     }
 
+    /// A link to one file of a video in a private library, e.g. `playlist.m3u8`,
+    /// that works until `expires` (Unix seconds). The token covers the video's
+    /// whole directory, so the player can also fetch its segments and thumbnail.
+    /// Without a token key the link is unsigned.
+    pub fn signed_url(&self, guid: &str, file: &str, expires: i64) -> String {
+        let host = &self.settings.cdn_hostname;
+        let path = format!("/{guid}/{file}");
+        match &self.settings.token_key {
+            Some(key) => sign_directory(host, key, &format!("/{guid}/"), &path, expires),
+            None => format!("https://{host}{path}"),
+        }
+    }
+
     /// Checks Bunny's `v1` webhook signature: lowercase hex HMAC-SHA256 of the
     /// raw body, keyed with the library's read-only API key.
     pub fn webhook_is_authentic(&self, headers: &HeaderMap, body: &[u8]) -> bool {
@@ -280,6 +297,22 @@ impl StreamClient {
     }
 }
 
+/// Bunny's directory token (HS256, as in BunnyWay/BunnyCDN.TokenAuthentication):
+/// an HMAC-SHA256, keyed with the token key, over the allowed path, the expiry
+/// and `token_path=<path>`. It goes into the URL path, so relative links inside
+/// an HLS playlist carry it along.
+fn sign_directory(host: &str, key: &str, allowed: &str, path: &str, expires: i64) -> String {
+    let mut mac = Hmac::<Sha256>::new_from_slice(key.as_bytes()).expect("HMAC takes any key");
+    mac.update(allowed.as_bytes());
+    mac.update(expires.to_string().as_bytes());
+    mac.update(format!("token_path={allowed}").as_bytes());
+    let token = URL_SAFE_NO_PAD.encode(mac.finalize().into_bytes());
+    let token_path: String = form_urlencoded::byte_serialize(allowed.as_bytes()).collect();
+    format!(
+        "https://{host}/bcdn_token=HS256-{token}&token_path={token_path}&expires={expires}{path}"
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use axum::http::HeaderValue;
@@ -292,7 +325,24 @@ mod tests {
             api_key: "stream-api-key".to_owned(),
             read_only_api_key: read_only_api_key.map(str::to_owned),
             cdn_hostname: "vz-test.b-cdn.net".to_owned(),
+            token_key: None,
         })
+    }
+
+    #[test]
+    fn signs_directories_the_way_bunny_documents() {
+        // test_directory_and_path_allowed in BunnyWay/BunnyCDN.TokenAuthentication.
+        assert_eq!(
+            sign_directory(
+                "token-tester.b-cdn.net",
+                "SecurityKey",
+                "/abc",
+                "/abc/",
+                1_598_024_587
+            ),
+            "https://token-tester.b-cdn.net/bcdn_token=HS256-uVZvT3SbEoVKYJyDJgbcsDmSFf73cv-uNUVaJiKWpbQ\
+             &token_path=%2Fabc&expires=1598024587/abc/"
+        );
     }
 
     #[test]

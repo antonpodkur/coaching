@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE form_videos v SET seen_at = now()\n         FROM workout_exercises we\n         WHERE we.id = v.workout_exercise_id AND we.workout_id = $1\n           AND v.status = 'ready' AND v.seen_at IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "9573f22c0a3441cc40e3641bfe8c6c9aa73246d323ab82d5cfa3d2848d31ea5e"
+}

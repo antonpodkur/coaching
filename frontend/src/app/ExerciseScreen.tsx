@@ -1,7 +1,10 @@
-import { useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import { type ChangeEvent, useState } from 'react'
 import { Link, useParams } from 'react-router'
 
+import { type Schemas, api } from '../api/client'
 import { BackLink } from '../shared/BackLink'
+import { FormVideoTile } from '../shared/FormVideoTile'
 import { VideoPlayer } from '../shared/VideoPlayer'
 import {
   type Measure,
@@ -12,12 +15,13 @@ import {
   parseSecs,
   plural,
 } from '../shared/format'
-import { CheckIcon, ChevronIcon } from '../shared/icons'
+import { CameraIcon, CheckIcon, ChevronIcon, CloseIcon } from '../shared/icons'
 import { Screen } from '../shared/Screen'
 import { useNoSwipeToClose } from './gestures'
 import { logSet } from './outbox'
 import { telegramWebApp } from './telegram'
-import { type ClientSet, differs, useMyWorkout } from './workouts'
+import { dismissSend, sendVideo, useVideoSends } from './videoSends'
+import { type ClientSet, MY_WORKOUTS_KEY, differs, useMyWorkout } from './workouts'
 
 /**
  * One exercise in the gym: Dasha's video and note, last time's numbers, and
@@ -115,6 +119,12 @@ export function ExerciseScreen() {
           : `Виконано ${done} з ${exercise.sets.length}.${different > 0 ? ` Інакше, ніж у плані: ${different} — Даша побачить це у звіті.` : ''}`}
       </p>
 
+      <FormVideos
+        workoutId={id}
+        exercise={exercise}
+        enabled={workout.data.videos_enabled === true}
+      />
+
       <div className="exercise-nav">
         <Link className="button" to={`/app/workouts/${id}`}>
           Усі вправи
@@ -131,6 +141,112 @@ export function ExerciseScreen() {
         )}
       </div>
     </Screen>
+  )
+}
+
+/** Videos the client sends Dasha of how they did this exercise. */
+const MAX_VIDEOS = 3
+
+function FormVideos({
+  workoutId,
+  exercise,
+  enabled,
+}: {
+  workoutId: string
+  exercise: { id: string; name: string; videos?: Schemas['FormVideo'][] }
+  enabled: boolean
+}) {
+  const queryClient = useQueryClient()
+  const sends = useVideoSends().filter((send) => send.workoutExerciseId === exercise.id)
+  // Workouts cached before videos existed have no list.
+  const videos = exercise.videos ?? []
+  if (!enabled && videos.length === 0) return null
+
+  const counted =
+    videos.filter((video) => video.status !== 'failed').length +
+    sends.filter((send) => send.phase !== 'failed').length
+
+  const pick = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (file) void sendVideo(workoutId, exercise.id, file, queryClient)
+  }
+  const remove = (videoId: string) => {
+    const deleteIt = (confirmed: boolean) => {
+      if (!confirmed) return
+      void api
+        .DELETE('/form-videos/{id}', { params: { path: { id: videoId } } })
+        .finally(
+          () => void queryClient.invalidateQueries({ queryKey: [...MY_WORKOUTS_KEY, workoutId] }),
+        )
+    }
+    const question = 'Видалити це відео? Даша його більше не побачить.'
+    const webApp = telegramWebApp()
+    if (webApp) webApp.showConfirm(question, deleteIt)
+    else deleteIt(window.confirm(question))
+  }
+
+  return (
+    <section className="form-videos" aria-labelledby={`videos-${exercise.id}`}>
+      <h2 id={`videos-${exercise.id}`} className="section-title">
+        Відео для Даші
+      </h2>
+      {videos.map((video, index) => (
+        <FormVideoTile
+          key={video.id}
+          video={video}
+          label={`Відео ${index + 1}`}
+          onDelete={() => remove(video.id)}
+        />
+      ))}
+      {sends.map((send) => (
+        <div key={send.key} className={send.phase === 'failed' ? 'video-send failed' : 'video-send'}>
+          <div className="video-send-head">
+            <span className="small">
+              {send.phase === 'failed'
+                ? send.error
+                : send.phase === 'uploading'
+                  ? `Надсилаю відео… ${Math.round(send.progress * 100)}%`
+                  : 'Готую відео…'}
+            </span>
+            {send.phase === 'failed' && (
+              <button
+                type="button"
+                className="icon-button"
+                aria-label="Закрити"
+                onClick={() => dismissSend(send.key)}
+              >
+                <CloseIcon />
+              </button>
+            )}
+          </div>
+          {send.phase !== 'failed' && (
+            <div
+              className="progress"
+              role="progressbar"
+              aria-valuenow={Math.round(send.progress * 100)}
+              aria-valuemin={0}
+              aria-valuemax={100}
+            >
+              <div style={{ width: `${Math.round(send.progress * 100)}%` }} />
+            </div>
+          )}
+        </div>
+      ))}
+      {enabled && counted < MAX_VIDEOS && (
+        <label className="button block file-button">
+          <CameraIcon />
+          Надіслати відео Даші
+          <input type="file" accept="video/*" onChange={pick} />
+        </label>
+      )}
+      {enabled && (
+        <p className="muted small">
+          Зніми підхід збоку, щоб було видно все тіло. До 3 хвилин і до 3 відео на вправу. Відео
+          бачить лише Даша.
+        </p>
+      )}
+    </section>
   )
 }
 

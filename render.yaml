@@ -55,6 +55,18 @@ services:
         sync: false
       - key: BUNNY_CDN_HOSTNAME
         sync: false
+      # The private library for clients' technique videos, with CDN token
+      # authentication on; see docs/DEPLOY.md.
+      - key: BUNNY_CLIENT_LIBRARY_ID
+        sync: false
+      - key: BUNNY_CLIENT_API_KEY
+        sync: false
+      - key: BUNNY_CLIENT_READ_ONLY_API_KEY
+        sync: false
+      - key: BUNNY_CLIENT_CDN_HOSTNAME
+        sync: false
+      - key: BUNNY_CLIENT_TOKEN_KEY
+        sync: false
     # The Telegram webhook needs no setting: the backend registers
     # $RENDER_EXTERNAL_URL/telegram/webhook on startup.
 

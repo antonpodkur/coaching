@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT w.client_id, w.id, w.title, w.date, w.status AS \"status: WorkoutStatus\",\n                  w.published_at, w.opened_at IS NOT NULL AS \"opened!\",\n                  count(DISTINCT we.id) AS \"exercise_count!\", count(s.id) AS \"set_count!\",\n                  count(s.completed_at) AS \"done_set_count!\",\n                  count(*) FILTER (WHERE set_differs(s)) AS \"different_count!\",\n                  r.effort AS \"effort?: Effort\", r.comment AS \"comment?\",\n                  r.finished_at AS \"finished_at?\", r.seen_at\n           FROM workouts w\n           JOIN clients c ON c.id = w.client_id AND c.archived_at IS NULL\n           LEFT JOIN workout_exercises we ON we.workout_id = w.id\n           LEFT JOIN workout_sets s ON s.workout_exercise_id = we.id\n           LEFT JOIN workout_reports r ON r.workout_id = w.id\n           WHERE w.coach_id = $1\n             AND ($4::uuid IS NULL OR w.client_id = $4)\n             AND (w.date BETWEEN $2 AND $3 OR (w.date IS NULL AND w.status = 'draft'))\n           GROUP BY w.id, r.workout_id\n           ORDER BY w.date NULLS FIRST, w.created_at",
+  "query": "SELECT w.client_id, w.id, w.title, w.date, w.status AS \"status: WorkoutStatus\",\n                  w.published_at, w.opened_at IS NOT NULL AS \"opened!\",\n                  count(DISTINCT we.id) AS \"exercise_count!\", count(s.id) AS \"set_count!\",\n                  count(s.completed_at) AS \"done_set_count!\",\n                  count(*) FILTER (WHERE set_differs(s)) AS \"different_count!\",\n                  r.effort AS \"effort?: Effort\", r.comment AS \"comment?\",\n                  r.finished_at AS \"finished_at?\", r.seen_at,\n                  (SELECT count(*) FROM form_videos v\n                   JOIN workout_exercises vwe ON vwe.id = v.workout_exercise_id\n                   WHERE vwe.workout_id = w.id AND v.status = 'ready' AND v.seen_at IS NULL)\n                   AS \"new_videos!\"\n           FROM workouts w\n           JOIN clients c ON c.id = w.client_id AND c.archived_at IS NULL\n           LEFT JOIN workout_exercises we ON we.workout_id = w.id\n           LEFT JOIN workout_sets s ON s.workout_exercise_id = we.id\n           LEFT JOIN workout_reports r ON r.workout_id = w.id\n           WHERE w.coach_id = $1\n             AND ($4::uuid IS NULL OR w.client_id = $4)\n             AND (w.date BETWEEN $2 AND $3 OR (w.date IS NULL AND w.status = 'draft'))\n           GROUP BY w.id, r.workout_id\n           ORDER BY w.date NULLS FIRST, w.created_at",
   "describe": {
     "columns": [
       {
@@ -164,6 +164,12 @@
             "name": "seen_at"
           }
         }
+      },
+      {
+        "ordinal": 15,
+        "name": "new_videos!",
+        "type_info": "Int8",
+        "origin": "Expression"
       }
     ],
     "parameters": {
@@ -189,8 +195,9 @@
       false,
       false,
       false,
-      true
+      true,
+      null
     ]
   },
-  "hash": "885830f329ea56a80e1ab6b84c36bf75154e482805d0b840b86988c1272b0ff4"
+  "hash": "6251a52831111d0057fbc7736c3f88add048b02f3c3f1c042d6ec2f350541df5"
 }

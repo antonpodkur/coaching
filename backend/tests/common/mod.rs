@@ -39,6 +39,7 @@ pub fn test_config() -> Config {
         frontend_url: FRONTEND_URL.to_owned(),
         frontend_origin: header::HeaderValue::from_static(FRONTEND_URL),
         bunny: None,
+        client_videos: None,
     }
 }
 

@@ -28,6 +28,9 @@ pub struct Config {
     pub frontend_origin: HeaderValue,
     /// Bunny Stream; without it the library works but videos cannot be uploaded.
     pub bunny: Option<StreamSettings>,
+    /// A second, private Bunny library for clients' own technique videos,
+    /// played only through signed links. Without it clients cannot send videos.
+    pub client_videos: Option<StreamSettings>,
 }
 
 impl Config {
@@ -54,10 +57,19 @@ impl Config {
                 library_id,
                 api_key: var("BUNNY_STREAM_API_KEY")?,
                 read_only_api_key: optional_var("BUNNY_STREAM_READ_ONLY_API_KEY"),
-                cdn_hostname: var("BUNNY_CDN_HOSTNAME")?
-                    .trim_start_matches("https://")
-                    .trim_end_matches('/')
-                    .to_owned(),
+                cdn_hostname: hostname(&var("BUNNY_CDN_HOSTNAME")?),
+                token_key: None,
+            }),
+        };
+        let client_videos = match optional_var("BUNNY_CLIENT_LIBRARY_ID") {
+            None => None,
+            Some(library_id) => Some(StreamSettings {
+                library_id,
+                api_key: var("BUNNY_CLIENT_API_KEY")?,
+                read_only_api_key: optional_var("BUNNY_CLIENT_READ_ONLY_API_KEY"),
+                cdn_hostname: hostname(&var("BUNNY_CLIENT_CDN_HOSTNAME")?),
+                // Required: these videos must never be served unsigned.
+                token_key: Some(var("BUNNY_CLIENT_TOKEN_KEY")?),
             }),
         };
 
@@ -86,6 +98,7 @@ impl Config {
             frontend_url,
             frontend_origin,
             bunny,
+            client_videos,
         })
     }
 
@@ -104,6 +117,15 @@ impl Config {
     pub fn app_start_url(&self, payload: &str) -> String {
         format!("https://t.me/{}?startapp={payload}", self.bot_username)
     }
+}
+
+/// `https://vz-….b-cdn.net/` → `vz-….b-cdn.net`.
+fn hostname(value: &str) -> String {
+    value
+        .trim()
+        .trim_start_matches("https://")
+        .trim_end_matches('/')
+        .to_owned()
 }
 
 fn var(name: &str) -> Result<String> {

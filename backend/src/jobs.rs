@@ -9,6 +9,7 @@ use chrono::{DateTime, NaiveTime, Utc};
 use tokio::time::MissedTickBehavior;
 
 use crate::{
+    form_videos,
     notify::{self, Kind},
     state::AppState,
 };
@@ -66,6 +67,8 @@ pub async fn tick(state: &AppState, now: DateTime<Utc>) -> anyhow::Result<()> {
 async fn round(state: &AppState, now: DateTime<Utc>) -> anyhow::Result<()> {
     queue_reminders(state, now).await?;
     queue_summaries(state, now).await?;
+    // Clients' videos that finished encoding without a webhook; tells Dasha.
+    form_videos::refresh_processing(state, now).await?;
     send_due(state, now).await
 }
 
