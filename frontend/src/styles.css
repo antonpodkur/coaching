@@ -91,9 +91,19 @@ a.button {
 
 .button.block {
   width: 100%;
-  height: 52px;
+  height: auto;
+  min-height: 52px;
+  padding-block: 8px;
   border-radius: 14px;
   font-size: 15px;
+  line-height: 1.25;
+  /* A long label, e.g. a workout's title, wraps instead of widening the page. */
+  white-space: normal;
+  text-align: center;
+}
+
+.button.block svg {
+  flex: none;
 }
 
 .link-button {
@@ -128,6 +138,20 @@ a.button {
 }
 
 /* Mini App */
+
+/* Swiping back from the left edge on an iPhone: the page follows the finger
+   over a darker backdrop. */
+.swiping-back body {
+  background: #050505;
+  overflow-x: clip;
+}
+
+.swiping-back #root {
+  position: relative;
+  min-height: 100dvh;
+  background: var(--bg);
+  box-shadow: -12px 0 32px rgba(0, 0, 0, 0.7);
+}
 
 .screen {
   max-width: 640px;

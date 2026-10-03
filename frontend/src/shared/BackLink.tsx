@@ -1,12 +1,14 @@
 import { useEffect } from 'react'
 import { Link, useNavigate } from 'react-router'
 
+import { setSwipeBack } from '../app/gestures'
 import { telegramWebApp } from '../app/telegram'
 import { BackIcon } from './icons'
 
 /**
  * Way back from a sub-page. Inside Telegram this is the back arrow in
- * Telegram's own header; in a browser it is a link at the top of the page.
+ * Telegram's own header, and on iPhones a swipe from the left edge too; in a
+ * browser it is a link at the top of the page.
  */
 export function BackLink({ to, label }: { to: string; label: string }) {
   const navigate = useNavigate()
@@ -17,9 +19,11 @@ export function BackLink({ to, label }: { to: string; label: string }) {
     const back = () => void navigate(to)
     webApp.BackButton.onClick(back)
     webApp.BackButton.show()
+    const releaseSwipe = setSwipeBack(back)
     return () => {
       webApp.BackButton.offClick(back)
       webApp.BackButton.hide()
+      releaseSwipe()
     }
   }, [webApp, navigate, to])
 

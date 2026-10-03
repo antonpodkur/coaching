@@ -7,6 +7,8 @@ export type HomeScreenStatus = 'unsupported' | 'unknown' | 'added' | 'missed'
 export interface TelegramWebApp {
   /** Signed launch data; the backend verifies it. Empty outside Telegram. */
   initData: string
+  /** `ios`, `android`, `tdesktop`, `macos`, `web`… */
+  platform: string
   initDataUnsafe: {
     /** From an app link `t.me/<bot>?startapp=<param>`, e.g. an invite. */
     start_param?: string
