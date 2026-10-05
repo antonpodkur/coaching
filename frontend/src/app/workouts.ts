@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 
 import { type Schemas, api, unwrap } from '../api/client'
-import { type OutboxEntry, useOutbox } from './outbox'
+import { type OutboxEntry, settle, useOutbox } from './outbox'
 
 export type ClientWorkout = Schemas['ClientWorkout']
 export type ClientWorkoutSummary = Schemas['ClientWorkoutSummary']
@@ -48,6 +48,14 @@ export function useMyWorkouts() {
     () => query.data?.map((workout) => withQueuedSummary(workout, outbox)),
     [query.data, outbox],
   )
+  // Once the list on screen shows a sent report, the phone's copy can go.
+  useEffect(() => {
+    if (!query.data) return
+    const done = new Set(
+      query.data.filter((workout) => workout.status === 'done').map((workout) => workout.id),
+    )
+    settle((entry) => entry.kind === 'finish' && done.has(entry.workoutId))
+  }, [query.data])
   return { ...query, data }
 }
 
@@ -68,12 +76,31 @@ export function useMyWorkout(id: string) {
     () => (query.data ? withQueued(query.data, outbox) : undefined),
     [query.data, outbox],
   )
+  // Sent changes this copy shows are forgotten only now that it is on screen.
+  useEffect(() => {
+    const workout = query.data
+    if (workout) settle((entry) => entry.workoutId === workout.id && shownIn(workout, entry))
+  }, [query.data])
   return { ...query, data }
 }
 
-/** The workout as the client sees it: the server's copy plus changes still queued. */
+/** Whether the server's copy of the workout has this change, or a newer one. */
+function shownIn(workout: ClientWorkout, entry: OutboxEntry): boolean {
+  if (entry.kind === 'finish') return workout.status === 'done'
+  const set = workout.exercises
+    .flatMap((exercise) => exercise.sets)
+    .find((candidate) => candidate.id === entry.setId)
+  // Gone from the plan: nothing to show it on.
+  if (!set) return true
+  if (!set.client_updated_at) return false
+  return Date.parse(set.client_updated_at) >= Date.parse(entry.result.client_updated_at)
+}
+
+/** The workout as the client sees it: the server's copy plus changes it does not show yet. */
 function withQueued(workout: ClientWorkout, outbox: OutboxEntry[]): ClientWorkout {
-  const queued = outbox.filter((entry) => entry.workoutId === workout.id)
+  const queued = outbox.filter(
+    (entry) => entry.workoutId === workout.id && !(entry.sentAt && shownIn(workout, entry)),
+  )
   if (queued.length === 0) return workout
   const results = new Map<string, Schemas['SetResult']>()
   let finish: Schemas['FinishWorkout'] | undefined
