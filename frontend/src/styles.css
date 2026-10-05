@@ -1,5 +1,7 @@
 /* Graphite: dark gym tones, white actions, a little pink. Matches the prototype. */
 :root {
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-ios: cubic-bezier(0.32, 0.72, 0, 1);
   --bg: #121212;
   --surface: #1b1b1b;
   --surface-sunken: #161616;
@@ -138,6 +140,48 @@ a.button {
   font: inherit;
   /* iPhone zooms into any field with text under 16px. */
   font-size: 16px;
+}
+
+/* Touch: everything tappable gives under the finger and springs back, and
+   changes of color fade instead of snapping. No grey flash from the phone. */
+
+:where(button, a, label.button, label.date-chip) {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition:
+    transform 220ms var(--ease-out),
+    background-color 200ms ease,
+    border-color 200ms ease,
+    color 200ms ease,
+    opacity 200ms ease;
+}
+
+:where(button, a, label.button, label.date-chip):active:not(:disabled) {
+  transform: scale(0.96);
+  transition-duration: 80ms;
+}
+
+/* Whole rows give less, as list rows do on an iPhone. */
+:is(
+    .workout-row,
+    .client-link,
+    .client-exercise,
+    .exercise-row,
+    .other-workout,
+    .sheet-item,
+    .upload-name
+  ):active {
+  transform: scale(0.985);
+}
+
+.photo-viewer-step.previous:active:not(:disabled) {
+  transform: scaleX(-1) scale(0.92);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where(button, a, label.button, label.date-chip):active:not(:disabled) {
+    transform: none;
+  }
 }
 
 /* Mini App */
@@ -1292,6 +1336,14 @@ button.save-status {
   cursor: pointer;
 }
 
+/* Its press and its coming and going are Motion's (ExerciseCard.tsx). */
+.set-chip {
+  transition:
+    background-color 200ms ease,
+    border-color 200ms ease,
+    color 200ms ease;
+}
+
 .set-chip[aria-pressed='true'] {
   border-color: var(--text);
   background: var(--text);
@@ -1361,6 +1413,7 @@ button.save-status {
 }
 
 .card-menu {
+  animation: appear 180ms var(--ease-out);
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
@@ -1397,8 +1450,7 @@ button.save-status {
 }
 
 /* Bottom of the screen: "add exercise", or the set editor. */
-.builder-add,
-.set-editor {
+.builder-bottom {
   position: fixed;
   left: 0;
   right: 0;
@@ -1406,6 +1458,15 @@ button.save-status {
   z-index: 5;
   max-width: 640px;
   margin: 0 auto;
+}
+
+/* The editor slides up over the "add exercise" bar going down. */
+.builder-bottom:has(.set-editor) {
+  z-index: 6;
+}
+
+.builder-add,
+.set-editor {
   padding: 10px 16px calc(14px + var(--safe-bottom));
 }
 
@@ -1600,6 +1661,16 @@ button.save-status {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+/* Handle and title: dragging them pulls the sheet down. */
+.sheet-grip {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: -8px -16px 0;
+  padding: 8px 16px 0;
+  touch-action: none;
 }
 
 .sheet-handle {
@@ -2136,6 +2207,7 @@ button.save-status {
   padding: 6px 8px;
   border-radius: 14px;
   background: var(--surface);
+  transition: background-color 250ms ease;
 }
 
 .set-row.completed {
@@ -2191,6 +2263,23 @@ button.save-status {
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  /* Its press and pop are Motion's (ExerciseScreen.tsx); CSS only fades the colors. */
+  transition:
+    background-color 200ms ease,
+    border-color 200ms ease,
+    color 200ms ease;
+}
+
+/* Just ticked: the check draws itself. */
+.set-check.ticked path {
+  stroke-dasharray: 1;
+  animation: check-draw 300ms var(--ease-out) 60ms both;
+}
+
+@keyframes check-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
 }
 
 .set-check[aria-pressed='true'] {
@@ -2222,6 +2311,28 @@ button.save-status {
   justify-content: center;
   gap: 14px;
   text-align: center;
+}
+
+.finish-action {
+  align-self: stretch;
+}
+
+/* Just finished: the check pops in and draws itself as a ring ripples out. */
+.round-icon.celebrate {
+  position: relative;
+}
+
+.round-icon.celebrate path {
+  stroke-dasharray: 1;
+  animation: check-draw 420ms var(--ease-out) 260ms both;
+}
+
+.finish-ring {
+  position: absolute;
+  inset: -1.5px;
+  border-radius: 50%;
+  border: 2px solid var(--pink);
+  pointer-events: none;
 }
 
 .effort {
@@ -2725,3 +2836,112 @@ button.save-status {
   font-size: 20px;
   font-weight: 600;
 }
+
+/* Motion (see shared/motion.ts) */
+
+/* Screen transitions (shared/screenMotion.ts): deeper screens slide in from
+   the right over a dimmed last screen; back slides them off again. */
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 380ms;
+  animation-timing-function: var(--ease-ios);
+}
+
+:root[data-screen-motion='forward']::view-transition-old(root) {
+  animation-name: screen-under;
+}
+
+:root[data-screen-motion='forward']::view-transition-new(root) {
+  animation-name: screen-in;
+  mix-blend-mode: normal;
+  box-shadow: -12px 0 32px rgba(0, 0, 0, 0.6);
+}
+
+:root[data-screen-motion='back']::view-transition-old(root) {
+  z-index: 1;
+  animation-name: screen-out;
+  mix-blend-mode: normal;
+  box-shadow: -12px 0 32px rgba(0, 0, 0, 0.6);
+}
+
+:root[data-screen-motion='back']::view-transition-new(root) {
+  animation-name: screen-from-under;
+}
+
+:root[data-screen-motion='fade']::view-transition-old(root),
+:root[data-screen-motion='fade']::view-transition-new(root) {
+  animation-duration: 180ms;
+}
+
+:root[data-screen-motion='none']::view-transition-old(root),
+:root[data-screen-motion='none']::view-transition-new(root) {
+  animation: none;
+}
+
+@keyframes screen-in {
+  from {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes screen-under {
+  to {
+    transform: translateX(-28%);
+    filter: brightness(0.55);
+  }
+}
+
+@keyframes screen-out {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes screen-from-under {
+  from {
+    transform: translateX(-28%);
+    filter: brightness(0.55);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none;
+  }
+}
+
+/* Folding away (shared/Collapse.tsx). */
+.collapse {
+  overflow: hidden;
+}
+
+/* A card with nothing to say on this phone takes no room, not even a gap. */
+.collapse:empty {
+  display: none;
+}
+
+/* A message that turns up, such as an error, fades in rather than blinking on. */
+.error,
+.notice {
+  animation: appear 200ms var(--ease-out);
+}
+
+@keyframes appear {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .error,
+  .notice,
+  .card-menu,
+  .set-check.ticked path,
+  .round-icon.celebrate path {
+    animation: none;
+  }
+}
+

@@ -1,3 +1,4 @@
+import { m } from 'motion/react'
 import { type TouchEvent, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
@@ -166,9 +167,22 @@ export function PhotoViewer({
   }
 
   return createPortal(
-    <div className="photo-viewer" role="dialog" aria-modal="true" aria-label="Фото">
-      <div
+    <m.div
+      className="photo-viewer"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Фото"
+      // Fades in over the page with the photo settling to size; fades out on close.
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.2 }}
+    >
+      <m.div
         className="photo-viewer-stage"
+        initial={{ scale: 0.94 }}
+        animate={{ scale: 1 }}
+        exit={{ scale: 0.94 }}
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
@@ -182,7 +196,7 @@ export function PhotoViewer({
           draggable={false}
           style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})` }}
         />
-      </div>
+      </m.div>
       <button type="button" className="photo-viewer-close" aria-label="Закрити" onClick={onClose}>
         <CloseIcon size={20} />
       </button>
@@ -211,7 +225,7 @@ export function PhotoViewer({
           </button>
         </>
       )}
-    </div>,
+    </m.div>,
     document.body,
   )
 }

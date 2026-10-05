@@ -1,3 +1,4 @@
+import { m } from 'motion/react'
 import { type FormEvent, useState } from 'react'
 import { Link, useParams } from 'react-router'
 
@@ -7,6 +8,7 @@ import { plural } from '../shared/format'
 import { CheckIcon } from '../shared/icons'
 import { Screen } from '../shared/Screen'
 import { successFeedback } from '../shared/haptics'
+import { SPRING } from '../shared/motion'
 import { useNoSwipeToClose } from './gestures'
 import { finishWorkout, useOutboxStatus } from './outbox'
 import { EFFORT_TEXT, progress, useMyWorkout } from './workouts'
@@ -37,21 +39,46 @@ export function FinishPage() {
 
   if (sent || workout.data.status === 'done') {
     const queued = waiting > 0 && failing
+    // Just finished: a small moment. Opened again later, simply the result.
+    const rise = (delay: number) =>
+      sent
+        ? {
+            initial: { opacity: 0, y: 10 },
+            animate: { opacity: 1, y: 0 },
+            transition: { ...SPRING, delay },
+          }
+        : {}
     return (
       <Screen>
         <div className="finish-done">
-          <span className="round-icon done big">
+          <m.span
+            className={sent ? 'round-icon done big celebrate' : 'round-icon done big'}
+            initial={sent ? { scale: 0 } : false}
+            animate={{ scale: 1 }}
+            transition={{ type: 'spring', stiffness: 380, damping: 13, delay: 0.05 }}
+          >
+            {sent && (
+              <m.span
+                className="finish-ring"
+                aria-hidden="true"
+                initial={{ scale: 1, opacity: 0.7 }}
+                animate={{ scale: 2.4, opacity: 0 }}
+                transition={{ duration: 0.9, ease: 'easeOut', delay: 0.2 }}
+              />
+            )}
             <CheckIcon size={28} />
-          </span>
-          <h1>{queued ? 'Звіт збережено' : 'Звіт надіслано Даші'}</h1>
-          <p className="muted">
+          </m.span>
+          <m.h1 {...rise(0.15)}>{queued ? 'Звіт збережено' : 'Звіт надіслано Даші'}</m.h1>
+          <m.p className="muted" {...rise(0.22)}>
             {queued
               ? 'Немає зв’язку, тож звіт надішлеться сам, щойно телефон підключиться.'
               : 'Вона подивиться результати й напише, якщо щось треба змінити.'}
-          </p>
-          <Link className="button primary block" to="/app">
-            На головну
-          </Link>
+          </m.p>
+          <m.div className="finish-action" {...rise(0.3)}>
+            <Link className="button primary block" to="/app">
+              На головну
+            </Link>
+          </m.div>
         </div>
       </Screen>
     )

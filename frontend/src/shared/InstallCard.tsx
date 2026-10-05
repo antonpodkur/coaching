@@ -3,6 +3,7 @@ import { useState } from 'react'
 
 import { type AppSession, SESSION_KEY } from '../app/session'
 import { telegramWebApp } from '../app/telegram'
+import { Collapse } from './Collapse'
 
 const DISMISSED_KEY = 'install_card_dismissed'
 
@@ -21,7 +22,7 @@ function readDismissed(): boolean {
  * using the installed app on any phone; "Не зараз" hides it on this one.
  *
  * Everything it needs is known when the page draws, so it never pops in late
- * and pushes the page under a finger.
+ * and pushes the page under a finger. Put off, it folds away.
  */
 export function InstallCard() {
   const queryClient = useQueryClient()
@@ -31,8 +32,6 @@ export function InstallCard() {
   const installed =
     session?.role === 'coach' ? session.coach.app_installed : session?.client.app_installed
   const phone = webApp?.platform === 'ios' || webApp?.platform.startsWith('android')
-
-  if (!webApp || !phone || installed || dismissed) return null
 
   const dismiss = () => {
     try {
@@ -44,23 +43,25 @@ export function InstallCard() {
   }
 
   return (
-    <div className="prompt-card">
-      <strong>Застосунок на екрані телефону</strong>
-      <p className="muted small">
-        Відкривається одним дотиком, без Telegram, і працює навіть без зв’язку в залі.
-      </p>
-      <div className="prompt-actions">
-        <button
-          type="button"
-          className="button primary small"
-          onClick={() => webApp.openLink(new URL('/install', window.location.origin).href)}
-        >
-          Встановити
-        </button>
-        <button type="button" className="link-button" onClick={dismiss}>
-          Не зараз
-        </button>
+    <Collapse show={!!webApp && !!phone && !installed && !dismissed}>
+      <div className="prompt-card">
+        <strong>Застосунок на екрані телефону</strong>
+        <p className="muted small">
+          Відкривається одним дотиком, без Telegram, і працює навіть без зв’язку в залі.
+        </p>
+        <div className="prompt-actions">
+          <button
+            type="button"
+            className="button primary small"
+            onClick={() => webApp?.openLink(new URL('/install', window.location.origin).href)}
+          >
+            Встановити
+          </button>
+          <button type="button" className="link-button" onClick={dismiss}>
+            Не зараз
+          </button>
+        </div>
       </div>
-    </div>
+    </Collapse>
   )
 }

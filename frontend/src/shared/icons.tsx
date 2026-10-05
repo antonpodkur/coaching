@@ -119,7 +119,8 @@ export function CloseIcon({ size = 16 }: { size?: number }) {
 export function CheckIcon({ size = 16 }: { size?: number }) {
   return (
     <Icon size={size}>
-      <path d="M5 12.5l4.5 4.5L19 7" strokeWidth={2.6} />
+      {/* Length 1, so a check can draw itself (see `.set-check.ticked`). */}
+      <path d="M5 12.5l4.5 4.5L19 7" strokeWidth={2.6} pathLength={1} />
     </Icon>
   )
 }

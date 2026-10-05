@@ -62,9 +62,8 @@ export function ClientApp({
 
 function OfflineNote() {
   const { waiting, failing } = useOutboxStatus()
-  if (waiting === 0 || !failing) return null
   return (
-    <BottomNote className="offline-note">
+    <BottomNote show={waiting > 0 && failing} className="offline-note">
       Немає зв’язку. Зміни збережено на телефоні й надішлються самі.
     </BottomNote>
   )

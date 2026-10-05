@@ -1,8 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { type PanInfo, m, useDragControls } from 'motion/react'
 import { useEffect, useRef, useState } from 'react'
 
 import { ApiError, api, unwrap } from '../../api/client'
 import { CameraIcon, CloseIcon, PlusIcon, SearchIcon } from '../../shared/icons'
+import { EASE_IOS } from '../../shared/motion'
 import { GroupChip } from '../GroupPicker'
 import { EXERCISES_KEY, isUnauthorized, useCoach } from '../context'
 import { type Exercise, measureNote } from '../library'
@@ -14,11 +16,22 @@ interface Props {
   onClose: () => void
 }
 
+/** Pulled down this far, or flicked down this fast (px/s), the sheet closes. */
+const CLOSE_DISTANCE = 120
+const CLOSE_SPEED = 600
+/** The page behind, as `.sheet-backdrop` dims it. */
+const BACKDROP_DIM = 'rgba(8, 8, 8, 0.72)'
+const BACKDROP_CLEAR = 'rgba(8, 8, 8, 0)'
+
 /**
  * The library as a bottom sheet: search, filter by group, tap to add. A name
  * that is not in the library yet can be added on the spot, to the library
  * (its video can come later) or to this workout only. That choice sits above
  * the list, where the keyboard cannot cover it.
+ *
+ * It slides up over a darkening page and closes with ✕, a tap outside, or
+ * pulled down by its top, as sheets do on an iPhone. Put it in an
+ * `AnimatePresence` so it can slide away.
  */
 export function LibrarySheet({ used, onPick, onClose }: Props) {
   const { onUnauthorized } = useCoach()
@@ -26,6 +39,7 @@ export function LibrarySheet({ used, onPick, onClose }: Props) {
   const [query, setQuery] = useState('')
   const [group, setGroup] = useState<string | null>(null)
   const dialog = useRef<HTMLDivElement>(null)
+  const drag = useDragControls()
 
   const library = useQuery({
     queryKey: EXERCISES_KEY,
@@ -70,22 +84,52 @@ export function LibrarySheet({ used, onPick, onClose }: Props) {
   const exact = all.some((exercise) => exercise.name.toLocaleLowerCase('uk') === needle)
   const taken = create.error instanceof ApiError && create.error.code === 'name_taken'
 
+  const release = (_: unknown, { offset, velocity }: PanInfo) => {
+    if (offset.y > CLOSE_DISTANCE || velocity.y > CLOSE_SPEED) onClose()
+  }
+
   return (
-    <div className="sheet-backdrop" onClick={onClose}>
-      <div
+    <m.div
+      className="sheet-backdrop"
+      onClick={onClose}
+      // The dimming fades, not the backdrop: the sheet on it stays solid.
+      initial={{ backgroundColor: BACKDROP_CLEAR }}
+      animate={{ backgroundColor: BACKDROP_DIM }}
+      exit={{ backgroundColor: BACKDROP_CLEAR }}
+      transition={{ duration: 0.25 }}
+    >
+      <m.div
         ref={dialog}
         className="sheet"
         role="dialog"
         aria-modal="true"
         aria-labelledby="library-sheet-title"
         onClick={(event) => event.stopPropagation()}
+        initial={{ y: '100%' }}
+        animate={{ y: 0 }}
+        exit={{ y: '100%' }}
+        transition={{ duration: 0.36, ease: EASE_IOS }}
+        drag="y"
+        dragControls={drag}
+        dragListener={false}
+        dragConstraints={{ top: 0, bottom: 0 }}
+        dragElastic={{ top: 0.04, bottom: 0.9 }}
+        onDragEnd={release}
       >
-        <span className="sheet-handle" aria-hidden="true" />
-        <div className="sheet-head">
-          <h2 id="library-sheet-title">Додати вправу</h2>
-          <button type="button" className="icon-button filled" aria-label="Закрити" onClick={onClose}>
-            <CloseIcon />
-          </button>
+        {/* The top is what pulls it down; the list below scrolls as usual. */}
+        <div className="sheet-grip" onPointerDown={(event) => drag.start(event)}>
+          <span className="sheet-handle" aria-hidden="true" />
+          <div className="sheet-head">
+            <h2 id="library-sheet-title">Додати вправу</h2>
+            <button
+              type="button"
+              className="icon-button filled"
+              aria-label="Закрити"
+              onClick={onClose}
+            >
+              <CloseIcon />
+            </button>
+          </div>
         </div>
         <label className="search">
           <SearchIcon />
@@ -166,8 +210,7 @@ export function LibrarySheet({ used, onPick, onClose }: Props) {
             </li>
           ))}
         </ul>
-
-      </div>
-    </div>
+      </m.div>
+    </m.div>
   )
 }

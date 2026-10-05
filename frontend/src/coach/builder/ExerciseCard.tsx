@@ -1,6 +1,8 @@
-import { useState } from 'react'
+import { AnimatePresence, m } from 'motion/react'
+import { type Ref, useState } from 'react'
 
 import { CameraIcon, MoreIcon, PlusIcon } from '../../shared/icons'
+import { POP } from '../../shared/motion'
 import { type DraftExercise, setLabel } from './draft'
 
 interface Props {
@@ -16,7 +18,19 @@ interface Props {
   /** Only for an exercise added to this workout alone. */
   onAddToLibrary?: () => void
   onRemove: () => void
+  /** For the builder's list, to glide the card into place as others come and go. */
+  ref?: Ref<HTMLLIElement>
 }
+
+/** A set chip pops in when added and shrinks away when removed. */
+const CHIP = {
+  layout: true,
+  initial: { opacity: 0, scale: 0.6 },
+  animate: { opacity: 1, scale: 1 },
+  exit: { opacity: 0, scale: 0.6, transition: { duration: 0.15 } },
+  whileTap: { scale: 0.92 },
+  transition: POP,
+} as const
 
 /**
  * One exercise in the builder: its sets as chips, Dasha's comment for the
@@ -34,6 +48,7 @@ export function ExerciseCard({
   onNote,
   onAddToLibrary,
   onRemove,
+  ref,
 }: Props) {
   const [menuOpen, setMenuOpen] = useState(false)
   // A new comment stays open while she types, even before it has any text.
@@ -44,7 +59,14 @@ export function ExerciseCard({
   }
 
   return (
-    <li className={selectedSet === null ? 'builder-card' : 'builder-card active'}>
+    <m.li
+      ref={ref}
+      className={selectedSet === null ? 'builder-card' : 'builder-card active'}
+      layout="position"
+      initial={{ opacity: 0, scale: 0.96 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.96 }}
+    >
       <div className="builder-card-head">
         <span className="builder-number">{index + 1}</span>
         {exercise.thumbnail_url ? (
@@ -75,28 +97,37 @@ export function ExerciseCard({
       </div>
 
       <div className="set-chips">
-        {exercise.sets.map((set, setIndex) => (
-          <button
-            key={set.id}
+        <AnimatePresence initial={false} mode="popLayout">
+          {exercise.sets.map((set, setIndex) => (
+            <m.button
+              key={set.id}
+              type="button"
+              className="set-chip"
+              aria-pressed={selectedSet === setIndex}
+              aria-label={`${exercise.name}, підхід ${setIndex + 1}: ${setLabel(set, exercise.measure)}`}
+              onClick={() => onSelectSet(setIndex)}
+              {...CHIP}
+            >
+              <span className="set-chip-number">{setIndex + 1}</span>
+              {setLabel(set, exercise.measure)}
+            </m.button>
+          ))}
+          <m.button
+            key="add"
             type="button"
-            className="set-chip"
-            aria-pressed={selectedSet === setIndex}
-            aria-label={`${exercise.name}, підхід ${setIndex + 1}: ${setLabel(set, exercise.measure)}`}
-            onClick={() => onSelectSet(setIndex)}
+            className="set-chip add"
+            aria-label={`Додати підхід: ${exercise.name}`}
+            onClick={onAddSet}
+            {...CHIP}
           >
-            <span className="set-chip-number">{setIndex + 1}</span>
-            {setLabel(set, exercise.measure)}
-          </button>
-        ))}
-        <button
-          type="button"
-          className="set-chip add"
-          aria-label={`Додати підхід: ${exercise.name}`}
-          onClick={onAddSet}
-        >
-          <PlusIcon />
-        </button>
-        {exercise.per_side_label && <span className="tag tag-warn">{exercise.per_side_label}</span>}
+            <PlusIcon />
+          </m.button>
+          {exercise.per_side_label && (
+            <m.span key="side" className="tag tag-warn" {...CHIP} whileTap={undefined}>
+              {exercise.per_side_label}
+            </m.span>
+          )}
+        </AnimatePresence>
       </div>
       {exercise.sets.length === 0 && (
         <p className="error small">Додай хоча б один підхід.</p>
@@ -145,6 +176,6 @@ export function ExerciseCard({
           </button>
         </div>
       )}
-    </li>
+    </m.li>
   )
 }

@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { AnimatePresence, m } from 'motion/react'
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 
@@ -6,6 +7,7 @@ import { ApiError, api, unwrap } from '../../api/client'
 import { BackLink } from '../../shared/BackLink'
 import { plural } from '../../shared/format'
 import { CheckIcon, PlusIcon } from '../../shared/icons'
+import { EASE_IOS } from '../../shared/motion'
 import { useBackTarget } from '../backTarget'
 import { EXERCISES_KEY, WORKOUTS_KEY, isUnauthorized, useCoach } from '../context'
 import { alertMessage, confirmAction } from '../../shared/dialogs'
@@ -247,29 +249,32 @@ function Builder({ workout, onReload }: { workout: Workout; onReload: () => void
       )}
 
       <ol className="builder-list">
-        {draft.exercises.map((exercise, index) => (
-          <ExerciseCard
-            key={exercise.id}
-            exercise={exercise}
-            index={index}
-            count={draft.exercises.length}
-            selectedSet={editing?.exercise === exercise.id ? editing.set : null}
-            onSelectSet={(set) => setSelection({ exercise: exercise.id, set })}
-            onAddSet={() => {
-              changeExercise(exercise.id, (row) => ({
-                ...row,
-                sets: [...row.sets, newSet(row.measure, row.sets.at(-1))],
-              }))
-              setSelection({ exercise: exercise.id, set: exercise.sets.length })
-            }}
-            onMove={(delta) => moveExercise(index, delta)}
-            onNote={(note) => changeExercise(exercise.id, (row) => ({ ...row, note }))}
-            onAddToLibrary={
-              exercise.in_library ? undefined : () => toLibrary.mutate(exercise.exercise_id)
-            }
-            onRemove={() => void removeExercise(exercise)}
-          />
-        ))}
+        {/* New cards come in, removed ones go, and the rest glide into place. */}
+        <AnimatePresence initial={false} mode="popLayout">
+          {draft.exercises.map((exercise, index) => (
+            <ExerciseCard
+              key={exercise.id}
+              exercise={exercise}
+              index={index}
+              count={draft.exercises.length}
+              selectedSet={editing?.exercise === exercise.id ? editing.set : null}
+              onSelectSet={(set) => setSelection({ exercise: exercise.id, set })}
+              onAddSet={() => {
+                changeExercise(exercise.id, (row) => ({
+                  ...row,
+                  sets: [...row.sets, newSet(row.measure, row.sets.at(-1))],
+                }))
+                setSelection({ exercise: exercise.id, set: exercise.sets.length })
+              }}
+              onMove={(delta) => moveExercise(index, delta)}
+              onNote={(note) => changeExercise(exercise.id, (row) => ({ ...row, note }))}
+              onAddToLibrary={
+                exercise.in_library ? undefined : () => toLibrary.mutate(exercise.exercise_id)
+              }
+              onRemove={() => void removeExercise(exercise)}
+            />
+          ))}
+        </AnimatePresence>
       </ol>
 
       <div className="builder-footer">
@@ -287,60 +292,75 @@ function Builder({ workout, onReload }: { workout: Workout; onReload: () => void
         </button>
       </div>
 
-      {editing && selectedExercise && editingSet ? (
-        <SetEditor
-          key={editingSet.id}
-          exercise={selectedExercise}
-          set={editingSet}
-          setIndex={editing.set}
-          sideLabel={perSideLabel(groupOf(selectedExercise.exercise_id))}
-          onChange={(set) =>
-            changeExercise(selectedExercise.id, (row) => ({
-              ...row,
-              sets: row.sets.map((current) => (current.id === set.id ? set : current)),
-            }))
-          }
-          onToggleSide={() =>
-            changeExercise(selectedExercise.id, (row) => ({
-              ...row,
-              per_side_label:
-                row.per_side_label === null ? perSideLabel(groupOf(row.exercise_id)) : null,
-            }))
-          }
-          onCopyToAll={() =>
-            changeExercise(selectedExercise.id, (row) => ({
-              ...row,
-              sets: row.sets.map((set) => ({ ...editingSet, id: set.id })),
-            }))
-          }
-          onRemove={() => {
-            changeExercise(selectedExercise.id, (row) => ({
-              ...row,
-              sets: row.sets.filter((_, index) => index !== editing.set),
-            }))
-            setSelection(null)
-          }}
-          onDone={() => setSelection(null)}
-        />
-      ) : (
-        <div className="builder-add">
-          <button type="button" className="button block" onClick={() => setSheetOpen(true)}>
-            <PlusIcon />
-            Вправа з бібліотеки
-          </button>
-        </div>
-      )}
+      {/* The bottom bar: "add exercise", or the set editor sliding up over it. */}
+      <AnimatePresence initial={false}>
+        {editing && selectedExercise && editingSet ? (
+          <m.div key="editor" className="builder-bottom" {...BOTTOM_PANEL}>
+            <SetEditor
+              key={editingSet.id}
+              exercise={selectedExercise}
+              set={editingSet}
+              setIndex={editing.set}
+              sideLabel={perSideLabel(groupOf(selectedExercise.exercise_id))}
+              onChange={(set) =>
+                changeExercise(selectedExercise.id, (row) => ({
+                  ...row,
+                  sets: row.sets.map((current) => (current.id === set.id ? set : current)),
+                }))
+              }
+              onToggleSide={() =>
+                changeExercise(selectedExercise.id, (row) => ({
+                  ...row,
+                  per_side_label:
+                    row.per_side_label === null ? perSideLabel(groupOf(row.exercise_id)) : null,
+                }))
+              }
+              onCopyToAll={() =>
+                changeExercise(selectedExercise.id, (row) => ({
+                  ...row,
+                  sets: row.sets.map((set) => ({ ...editingSet, id: set.id })),
+                }))
+              }
+              onRemove={() => {
+                changeExercise(selectedExercise.id, (row) => ({
+                  ...row,
+                  sets: row.sets.filter((_, index) => index !== editing.set),
+                }))
+                setSelection(null)
+              }}
+              onDone={() => setSelection(null)}
+            />
+          </m.div>
+        ) : (
+          <m.div key="add" className="builder-bottom builder-add" {...BOTTOM_PANEL}>
+            <button type="button" className="button block" onClick={() => setSheetOpen(true)}>
+              <PlusIcon />
+              Вправа з бібліотеки
+            </button>
+          </m.div>
+        )}
+      </AnimatePresence>
 
-      {sheetOpen && (
-        <LibrarySheet
-          used={new Set(draft.exercises.map((exercise) => exercise.exercise_id))}
-          onPick={addExercise}
-          onClose={() => setSheetOpen(false)}
-        />
-      )}
+      <AnimatePresence>
+        {sheetOpen && (
+          <LibrarySheet
+            used={new Set(draft.exercises.map((exercise) => exercise.exercise_id))}
+            onPick={addExercise}
+            onClose={() => setSheetOpen(false)}
+          />
+        )}
+      </AnimatePresence>
     </section>
   )
 }
+
+/** The bottom bar slides up into place and back down out of the way. */
+const BOTTOM_PANEL = {
+  initial: { y: '100%' },
+  animate: { y: 0 },
+  exit: { y: '100%' },
+  transition: { duration: 0.3, ease: EASE_IOS },
+} as const
 
 function SaveIndicator({ status, onReload }: { status: SaveStatus; onReload: () => void }) {
   switch (status) {

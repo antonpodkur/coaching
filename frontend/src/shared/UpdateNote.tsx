@@ -7,9 +7,8 @@ import { applyUpdate, useUpdateReady } from './appUpdate'
  */
 export function UpdateNote() {
   const ready = useUpdateReady()
-  if (!ready) return null
   return (
-    <BottomNote className="update-note">
+    <BottomNote show={ready} className="update-note">
       <span>Є нова версія застосунку.</span>
       <button type="button" className="button small primary" onClick={applyUpdate}>
         Оновити

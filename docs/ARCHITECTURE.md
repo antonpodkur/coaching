@@ -70,8 +70,13 @@ Chosen for low cost with no servers to maintain. Prices were checked on the prov
 - **Libraries:**
   - React Router for the two areas and their screens.
   - TanStack Query for server state. The client's workouts are also kept in `localStorage`, so an opened workout survives losing signal (see "Offline set logging").
-  - `dnd-kit` for reordering exercises in the builder.
+  - Motion for animation (see "Motion" below). The builder moves exercises with each card's ⋯ menu (Вище / Нижче), not by dragging.
   - `hls.js` where the browser cannot play HLS natively (Android WebView). iOS plays it natively. Bunny's MP4 fallback covers any WebView where HLS misbehaves.
+- **Motion:** small, quick movement so the app answers every touch, never decoration.
+  - **Screens** change as on an iPhone: a deeper screen slides in from the right over the last one, back slides it away again, and Dasha's tabs fade. The browser's view transitions play it from pictures of both screens (`shared/screenMotion.ts`), turned on for every navigation in one place. Back arrows say they go back; otherwise the depth of the address decides. A new screen opens at the top, and going back finds a screen scrolled where it was left. Phones without view transitions just switch.
+  - **Touches:** everything tappable gives a little under the finger (CSS), and colours fade instead of snapping.
+  - **Within a screen**, Motion (`motion`, MIT): a ✓ pops and draws itself, bottom notes slide in and out, dismissed cards fold away, the library sheet slides up and can be pulled down, the builder's cards and set chips glide into place, and finishing a workout gets a small moment. Its engine loads in its own file after the first screen draws.
+  - **Rules:** only how big something looks and how see-through it is change, so nothing moves under a finger (a card folding away after a tap is the exception), and nothing that is already on screen when a page opens animates. Phones set to reduce motion get fades only.
 - **Telegram:** `telegram-web-app.js`, loaded in `index.html` before the app so it can read the launch parameters from the URL. It provides `initData`, `start_param`, theme colours, the back button, haptics and `openTelegramLink`. Outside Telegram it does nothing. A copy is served with the app (`public/`, refreshed with `pnpm update:telegram`), and so are the fonts, so a weak connection can't hold the page up.
 - **One Mini App, two roles:** the sign-in response says whether Dasha or a client opened `/app`, and the app mounts her workspace or the client's screens. Nothing in the URL decides the role.
 - **Coach screens are phone-first:** pages above a bottom tab bar; sub-pages go back with Telegram's own back button. Outside Telegram the same components show an in-page back link, and on a wide screen the tabs move to the top. The builder's phone design (set chips with a −/+ editor, the library as a bottom sheet) is in the prototype.

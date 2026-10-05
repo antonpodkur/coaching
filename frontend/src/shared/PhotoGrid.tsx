@@ -1,3 +1,4 @@
+import { AnimatePresence } from 'motion/react'
 import { useState } from 'react'
 
 import { PhotoViewer } from './PhotoViewer'
@@ -46,9 +47,11 @@ export function PhotoGrid({
           <li key={`pending-${index}`} className="photo-tile pending" aria-label="Фото завантажується" />
         ))}
       </ul>
-      {open !== null && (
-        <PhotoViewer photos={photos} start={open} onClose={() => setOpen(null)} />
-      )}
+      <AnimatePresence>
+        {open !== null && (
+          <PhotoViewer photos={photos} start={open} onClose={() => setOpen(null)} />
+        )}
+      </AnimatePresence>
     </>
   )
 }

@@ -12,6 +12,7 @@ import {
   PlateIcon,
   ScaleIcon,
 } from '../shared/icons'
+import { Collapse } from '../shared/Collapse'
 import { InstallCard } from '../shared/InstallCard'
 import { PushCard } from '../shared/PushCard'
 import { Screen } from '../shared/Screen'
@@ -62,11 +63,13 @@ export function HomePage({ client }: { client: Schemas['ClientProfile'] }) {
       </header>
 
       {/* One ask at a time: messages first (they bring the reminders), then the questionnaire. */}
-      {!botAllowed ? (
+      <Collapse show={!botAllowed}>
         <BotMessagesCard onAllowed={() => setBotAllowed(true)} />
-      ) : !client.questionnaire_started && !questionnaireLater ? (
+      </Collapse>
+      <Collapse show={botAllowed && !client.questionnaire_started && !questionnaireLater}>
         <QuestionnaireCard onDismiss={() => setQuestionnaireLater(true)} />
-      ) : (
+      </Collapse>
+      {botAllowed && (client.questionnaire_started || questionnaireLater) && (
         <>
           {/* Inside Telegram the first offers the installed app; outside, the second its notifications. */}
           <InstallCard />

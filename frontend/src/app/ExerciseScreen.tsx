@@ -1,4 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
+import { m } from 'motion/react'
 import { type ChangeEvent, useState } from 'react'
 import { Link, useParams } from 'react-router'
 
@@ -22,6 +23,7 @@ import {
 import { CameraIcon, CheckIcon, ChevronIcon } from '../shared/icons'
 import { Screen } from '../shared/Screen'
 import { tapFeedback } from '../shared/haptics'
+import { POP } from '../shared/motion'
 import { useNoSwipeToClose } from './gestures'
 import { logSet } from './outbox'
 import { VideoSendCards } from './VideoSendCards'
@@ -259,6 +261,8 @@ function SetRow({ workoutId, set, number, measure, unit, showKg }: SetRowProps) 
   const [repsText, setRepsText] = useState(
     startReps == null ? '' : timed ? formatInUnit(startReps, unit) : String(startReps),
   )
+  // Ticked here and now, not already when the screen opened: the check draws itself.
+  const [justTicked, setJustTicked] = useState(false)
   const readCount = timed ? (text: string) => parseInUnit(text, unit) : readReps
   const kg = readKg(kgText)
   const reps = readCount(repsText)
@@ -277,6 +281,7 @@ function SetRow({ workoutId, set, number, measure, unit, showKg }: SetRowProps) 
   const toggle = () => {
     if (!valid) return
     tapFeedback(set.completed ? 'soft' : 'light')
+    setJustTicked(!set.completed)
     send(!set.completed)
   }
 
@@ -317,16 +322,19 @@ function SetRow({ workoutId, set, number, measure, unit, showKg }: SetRowProps) 
         value={repsText}
         onChange={(event) => editReps(event.target.value)}
       />
-      <button
+      <m.button
         type="button"
-        className="set-check"
+        className={justTicked && set.completed ? 'set-check ticked' : 'set-check'}
         aria-pressed={set.completed}
         aria-label={set.completed ? `Підхід ${number} виконано` : `Підхід ${number}: зроблено`}
         disabled={!valid}
         onClick={toggle}
+        // Gives under the finger and pops back past full size.
+        whileTap={valid ? { scale: 0.84 } : undefined}
+        transition={POP}
       >
         <CheckIcon size={18} />
-      </button>
+      </m.button>
     </div>
   )
 }
