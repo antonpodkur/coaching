@@ -76,6 +76,8 @@ use crate::state::AppState;
         coach::exercises::update,
         coach::exercises::start_video_upload,
         coach::exercises::finish_video_upload,
+        coach::exercises::add_photo,
+        coach::exercises::delete_photo,
         coach::import::parse,
         coach::workouts::list,
         coach::workouts::create,
@@ -152,8 +154,7 @@ pub fn router(state: AppState) -> Router {
         )
         .route(
             "/me/gym/photos",
-            post(questionnaire::add_photo)
-                .layer(DefaultBodyLimit::max(crate::questionnaire::MAX_PHOTO_BYTES)),
+            post(questionnaire::add_photo).layer(DefaultBodyLimit::max(crate::photos::MAX_BYTES)),
         )
         .route("/me/gym/videos", post(questionnaire::start_video))
         .route(
@@ -224,6 +225,15 @@ pub fn router(state: AppState) -> Router {
         .route(
             "/coach/exercises/{id}/video-uploaded",
             post(coach::exercises::finish_video_upload),
+        )
+        .route(
+            "/coach/exercises/{id}/photos",
+            post(coach::exercises::add_photo)
+                .layer(DefaultBodyLimit::max(crate::photos::MAX_BYTES)),
+        )
+        .route(
+            "/coach/exercise-photos/{id}",
+            delete(coach::exercises::delete_photo),
         )
         .route("/coach/import/parse", post(coach::import::parse))
         .route("/telegram/webhook", post(telegram::webhook))

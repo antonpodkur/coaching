@@ -4,8 +4,10 @@ import { useNavigate, useParams } from 'react-router'
 
 import { ApiError, type Schemas, api, unwrap } from '../api/client'
 import { BackLink } from '../shared/BackLink'
+import { PhotoGrid } from '../shared/PhotoGrid'
 import { VideoPlayer } from '../shared/VideoPlayer'
-import { UploadIcon } from '../shared/icons'
+import { jpegBody, shrinkPhoto } from '../shared/photos'
+import { PhotoIcon, UploadIcon } from '../shared/icons'
 import { GroupPicker } from './GroupPicker'
 import { MeasurePicker } from './MeasurePicker'
 import { UploadCard } from './UploadCard'
@@ -57,6 +59,7 @@ export function ExercisePage() {
       {/* Remount the form when another exercise opens, so it starts from that one. */}
       <ExerciseForm key={exercise.data.id} exercise={exercise.data} />
       <VideoSection exercise={exercise.data} />
+      <PhotosSection exercise={exercise.data} />
       <ArchiveButton exercise={exercise.data} />
     </section>
   )
@@ -68,17 +71,19 @@ function ExerciseForm({ exercise }: { exercise: Exercise }) {
   const [name, setName] = useState(exercise.name)
   const [group, setGroup] = useState(exercise.muscle_group ?? null)
   const [measure, setMeasure] = useState(exercise.measure)
+  const [description, setDescription] = useState(exercise.description ?? '')
   const changed =
     name.trim() !== exercise.name ||
     group !== (exercise.muscle_group ?? null) ||
-    measure !== exercise.measure
+    measure !== exercise.measure ||
+    description.trim() !== (exercise.description ?? '')
 
   const save = useMutation({
     mutationFn: async () =>
       unwrap(
         await api.PATCH('/coach/exercises/{id}', {
           params: { path: { id: exercise.id } },
-          body: { name, muscle_group: group ?? '', measure },
+          body: { name, muscle_group: group ?? '', measure, description },
         }),
       ),
     onSuccess: (saved) => {
@@ -116,6 +121,16 @@ function ExerciseForm({ exercise }: { exercise: Exercise }) {
         <span>Як рахувати</span>
         <MeasurePicker value={measure} onChange={setMeasure} />
       </div>
+      <label className="field">
+        <span>Опис для клієнта</span>
+        <textarea
+          rows={3}
+          maxLength={1000}
+          placeholder="Наприклад: широка рукоятка, хват зверху, сидіння на 4-ту позначку"
+          value={description}
+          onChange={(event) => setDescription(event.target.value)}
+        />
+      </label>
       {/* Always in place, so it is there to find; it wakes up once something changes. */}
       <button
         type="submit"
@@ -191,6 +206,80 @@ function VideoSection({ exercise }: { exercise: Exercise }) {
         Порада: на iPhone у Параметрах → Камера → Формати обери «Найсумісніший». Такі відео
         завантажуються швидше.
       </p>
+    </section>
+  )
+}
+
+/** Photos per exercise, as many as clients need to recognise the setup. */
+const MAX_PHOTOS = 5
+
+function photoFailure(err: unknown): string {
+  if (err instanceof ApiError && err.code === 'too_many_photos') return `До ${MAX_PHOTOS} фото на вправу.`
+  if (err instanceof ApiError && err.code === 'photos_not_configured') return 'Фото ще не налаштовані.'
+  return 'Не вдалося додати фото. Спробуй ще раз.'
+}
+
+/** Photos clients see under the video: the machine, the handle, the starting position. */
+function PhotosSection({ exercise }: { exercise: Exercise }) {
+  const { onUnauthorized } = useCoach()
+  const queryClient = useQueryClient()
+  const [uploading, setUploading] = useState(0)
+  const [error, setError] = useState<string | null>(null)
+  const key = [...EXERCISES_KEY, exercise.id]
+  const slots = MAX_PHOTOS - exercise.photos.length - uploading
+
+  const add = async (event: ChangeEvent<HTMLInputElement>) => {
+    const files = [...(event.target.files ?? [])].slice(0, Math.max(0, slots))
+    event.target.value = ''
+    if (files.length === 0) return
+    setError(null)
+    setUploading((count) => count + files.length)
+    for (const file of files) {
+      try {
+        const jpeg = await shrinkPhoto(file)
+        const photo = unwrap(
+          await api.POST('/coach/exercises/{id}/photos', {
+            params: { path: { id: exercise.id } },
+            ...jpegBody(jpeg),
+          }),
+        )
+        queryClient.setQueryData<Exercise>(key, (current) =>
+          current ? { ...current, photos: [...current.photos, photo] } : current,
+        )
+      } catch (err) {
+        if (isUnauthorized(err)) onUnauthorized()
+        setError(photoFailure(err))
+      } finally {
+        setUploading((count) => count - 1)
+      }
+    }
+  }
+
+  const remove = async (photoId: string) => {
+    if (!(await confirmAction('Видалити це фото? Клієнти його більше не побачать.'))) return
+    await api
+      .DELETE('/coach/exercise-photos/{id}', { params: { path: { id: photoId } } })
+      .catch(() => undefined)
+    void queryClient.invalidateQueries({ queryKey: key })
+  }
+
+  return (
+    <section className="stack" aria-labelledby="photos-title">
+      <h2 id="photos-title" className="section-title">
+        Фото
+      </h2>
+      <p className="muted small">
+        Тренажер, рукоятка, стартова позиція — клієнт побачить їх під відео.
+      </p>
+      <PhotoGrid photos={exercise.photos} pending={uploading} onDelete={(id) => void remove(id)} />
+      {slots > 0 && (
+        <label className="button block file-button">
+          <PhotoIcon />
+          Додати фото
+          <input type="file" accept="image/*" multiple onChange={(event) => void add(event)} />
+        </label>
+      )}
+      {error && <p className="error">{error}</p>}
     </section>
   )
 }

@@ -193,6 +193,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/coach/exercise-photos/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Deletes a photo of an exercise, on Bunny too. */
+        delete: operations["delete_exercise_photo"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/coach/exercises": {
         parameters: {
             query?: never;
@@ -234,8 +251,28 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /** Renames, regroups or archives an exercise, or moves one into the library. */
+        /** Renames, regroups, describes or archives an exercise, or moves one into the library. */
         patch: operations["update_exercise"];
+        trace?: never;
+    };
+    "/coach/exercises/{id}/photos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Adds a photo to the exercise: a JPEG shrunk on the phone, as the body.
+         *     Up to five.
+         */
+        post: operations["add_exercise_photo"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/coach/exercises/{id}/video-upload": {
@@ -812,6 +849,8 @@ export interface components {
             paid_until?: string | null;
         };
         ClientExercise: {
+            /** @description How to do it, from the library: the handle, the machine, the setup. */
+            description?: string | null;
             /** Format: uuid */
             id: string;
             /** @description Completed sets from the last earlier workout with this exercise. */
@@ -821,6 +860,8 @@ export interface components {
             name: string;
             note?: string | null;
             per_side_label?: string | null;
+            /** @description Photos of it from the library, e.g. the machine or the handle. */
+            photos: components["schemas"]["ExercisePhoto"][];
             sets: components["schemas"]["ClientSet"][];
             video?: components["schemas"]["ClientVideo"] | null;
             /** @description Videos the client sent Dasha of how they did it, oldest first. */
@@ -978,6 +1019,8 @@ export interface components {
         Exercise: {
             /** @description Other spellings, used to match imported Telegram plans. */
             aliases: string[];
+            /** @description How to do it, in Dasha's words: the handle, the machine, the setup. */
+            description?: string | null;
             /** Format: uuid */
             id: string;
             /** @description `false` for an exercise added to one workout only; the library leaves it out. */
@@ -986,6 +1029,8 @@ export interface components {
             /** @description Free text; the app offers a fixed set (Спина, Ноги, …). */
             muscle_group?: string | null;
             name: string;
+            /** @description The machine, the handle, the starting position; oldest first. */
+            photos: components["schemas"]["ExercisePhoto"][];
             upload?: components["schemas"]["VideoUpload"] | null;
             video?: components["schemas"]["ExerciseVideo"] | null;
         };
@@ -993,12 +1038,20 @@ export interface components {
         ExerciseChanges: {
             /** @description Hides it from the library. Old workouts keep showing it. */
             archived?: boolean | null;
+            /** @description An empty string clears it. */
+            description?: string | null;
             /** @description `true` moves an exercise added to one workout into the library. */
             in_library?: boolean | null;
             measure?: components["schemas"]["Measure"] | null;
             /** @description An empty string clears the group. */
             muscle_group?: string | null;
             name?: string | null;
+        };
+        ExercisePhoto: {
+            /** Format: uuid */
+            id: string;
+            /** @description Signed for a few hours. */
+            url: string;
         };
         ExerciseVideo: {
             /** @description HLS playlist. iOS plays it natively; elsewhere the app uses hls.js. */
@@ -1210,7 +1263,7 @@ export interface components {
         };
         /**
          * Format: binary
-         * @description A photo file's bytes as the request body. Only describes the body in the
+         * @description A photo file's bytes as a request body. Only describes the body in the
          *     API, so the field is never read.
          */
         PhotoFile: string;
@@ -1974,6 +2027,42 @@ export interface operations {
             };
         };
     };
+    delete_exercise_photo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Exercise photo id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     list_exercises: {
         parameters: {
             query?: never;
@@ -2112,7 +2201,7 @@ export interface operations {
                     "application/json": components["schemas"]["Exercise"];
                 };
             };
-            /** @description `invalid_name` or `invalid_group` */
+            /** @description `invalid_name`, `invalid_group` or `description_too_long` */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -2139,6 +2228,75 @@ export interface operations {
             };
             /** @description `name_taken`, or `measure_in_use`: it has sets in reps and cannot switch to seconds, or back */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    add_exercise_photo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Exercise id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "image/jpeg": components["schemas"]["PhotoFile"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExercisePhoto"];
+                };
+            };
+            /** @description `invalid_photo`: not a JPEG, or too big */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description `too_many_photos` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description `photos_not_configured` */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

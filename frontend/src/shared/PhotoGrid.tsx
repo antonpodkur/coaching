@@ -4,16 +4,19 @@ import { PhotoViewer } from './PhotoViewer'
 import { CloseIcon } from './icons'
 
 /**
- * Photos as square tiles, three to a row; a tap opens them full screen.
- * `pending` adds placeholder tiles for photos still on their way.
+ * Photos as square tiles, three to a row, or as a row of small thumbnails
+ * (`strip`) where room is short; a tap opens them full screen. `pending` adds
+ * placeholder tiles for photos still on their way.
  */
 export function PhotoGrid({
   photos,
   pending = 0,
+  strip = false,
   onDelete,
 }: {
   photos: { id: string; url: string }[]
   pending?: number
+  strip?: boolean
   onDelete?: (id: string) => void
 }) {
   const [open, setOpen] = useState<number | null>(null)
@@ -21,7 +24,7 @@ export function PhotoGrid({
 
   return (
     <>
-      <ul className="photo-grid">
+      <ul className={strip ? 'photo-grid strip' : 'photo-grid'}>
         {photos.map((photo, index) => (
           <li key={photo.id} className="photo-tile">
             <button type="button" onClick={() => setOpen(index)} aria-label={`Фото ${index + 1}`}>

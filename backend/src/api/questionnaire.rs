@@ -6,7 +6,6 @@ use axum::{
     extract::{Path, State},
     http::StatusCode,
 };
-use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::{
@@ -14,17 +13,11 @@ use crate::{
     auth::{CurrentClient, CurrentCoach},
     error::{AppError, AppResult, ErrorBody},
     form_videos::{self, Viewer},
+    photos::PhotoFile,
     questionnaire::{self, Answers, GymPhoto, Questionnaire},
     state::AppState,
     video::TUS_ENDPOINT,
 };
-
-/// A photo file's bytes as the request body. Only describes the body in the
-/// API, so the field is never read.
-#[derive(ToSchema)]
-#[schema(value_type = String, format = Binary)]
-#[allow(dead_code)]
-pub struct PhotoFile(Vec<u8>);
 
 /// The client's own questionnaire.
 #[utoipa::path(

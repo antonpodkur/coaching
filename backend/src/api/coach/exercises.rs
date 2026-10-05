@@ -1,5 +1,6 @@
 use axum::{
     Json,
+    body::Bytes,
     extract::{Path, State},
     http::StatusCode,
 };
@@ -11,12 +12,15 @@ use uuid::Uuid;
 use crate::{
     auth::CurrentCoach,
     error::{AppError, AppResult, ErrorBody},
+    exercise_photos::{self, ExercisePhoto},
+    photos::PhotoFile,
     state::AppState,
     video::{self, UploadStatus},
 };
 
 const MAX_NAME_CHARS: usize = 120;
 const MAX_GROUP_CHARS: usize = 40;
+const MAX_DESCRIPTION_CHARS: usize = 1_000;
 
 /// How an exercise's sets are counted. Seconds share the reps fields, so for
 /// `time` a set's `reps_*` and `actual_reps` are seconds.
@@ -50,6 +54,10 @@ pub struct Exercise {
     pub upload: Option<VideoUpload>,
     /// `false` for an exercise added to one workout only; the library leaves it out.
     pub in_library: bool,
+    /// How to do it, in Dasha's words: the handle, the machine, the setup.
+    pub description: Option<String>,
+    /// The machine, the handle, the starting position; oldest first.
+    pub photos: Vec<ExercisePhoto>,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -78,10 +86,11 @@ pub(crate) struct ExerciseRow {
     pub upload_status: Option<UploadStatus>,
     pub upload_started_at: Option<DateTime<Utc>>,
     pub in_library: bool,
+    pub description: Option<String>,
 }
 
 impl ExerciseRow {
-    fn into_exercise(self, state: &AppState) -> Exercise {
+    fn into_exercise(self, state: &AppState, photos: Vec<ExercisePhoto>) -> Exercise {
         // Without Bunny settings there are no URLs to hand out, so no video.
         let video = self
             .video_uid
@@ -104,6 +113,8 @@ impl ExerciseRow {
             video,
             upload,
             in_library: self.in_library,
+            description: self.description,
+            photos,
         }
     }
 }
@@ -133,6 +144,8 @@ pub struct ExerciseChanges {
     pub archived: Option<bool>,
     /// `true` moves an exercise added to one workout into the library.
     pub in_library: Option<bool>,
+    /// An empty string clears it.
+    pub description: Option<String>,
 }
 
 /// The coach's library, alphabetical. Archived exercises and ones added to a
@@ -157,7 +170,7 @@ pub async fn list(
         ExerciseRow,
         r#"SELECT id, name, measure AS "measure: Measure", muscle_group, aliases, video_uid,
                   video_length_secs, upload_status AS "upload_status: UploadStatus",
-                  upload_started_at, in_library
+                  upload_started_at, in_library, description
            FROM exercises
            WHERE coach_id = $1 AND archived_at IS NULL AND in_library
            ORDER BY lower(name)"#,
@@ -165,9 +178,14 @@ pub async fn list(
     )
     .fetch_all(&state.db)
     .await?;
+    let ids: Vec<Uuid> = rows.iter().map(|row| row.id).collect();
+    let mut photos = exercise_photos::for_exercises(&state, &ids).await?;
     Ok(Json(
         rows.into_iter()
-            .map(|row| row.into_exercise(&state))
+            .map(|row| {
+                let photos = photos.remove(&row.id).unwrap_or_default();
+                row.into_exercise(&state, photos)
+            })
             .collect(),
     ))
 }
@@ -243,7 +261,7 @@ pub async fn get(
     Ok(Json(exercise))
 }
 
-/// Renames, regroups or archives an exercise, or moves one into the library.
+/// Renames, regroups, describes or archives an exercise, or moves one into the library.
 #[utoipa::path(
     patch,
     operation_id = "update_exercise",
@@ -254,7 +272,7 @@ pub async fn get(
     request_body = ExerciseChanges,
     responses(
         (status = 200, body = Exercise),
-        (status = 400, body = ErrorBody, description = "`invalid_name` or `invalid_group`"),
+        (status = 400, body = ErrorBody, description = "`invalid_name`, `invalid_group` or `description_too_long`"),
         (status = 401, body = ErrorBody),
         (status = 404, body = ErrorBody),
         (status = 409, body = ErrorBody, description = "`name_taken`, or `measure_in_use`: it has sets in reps and cannot switch to seconds, or back"),
@@ -269,6 +287,15 @@ pub async fn update(
     let name = changes.name.as_deref().map(clean_name).transpose()?;
     let set_group = changes.muscle_group.is_some();
     let group = clean_group(changes.muscle_group.as_deref())?;
+    let set_description = changes.description.is_some();
+    let description = changes
+        .description
+        .as_deref()
+        .map(str::trim)
+        .filter(|text| !text.is_empty());
+    if description.is_some_and(|text| text.chars().count() > MAX_DESCRIPTION_CHARS) {
+        return Err(AppError::BadRequest("description_too_long"));
+    }
     if let Some(measure) = changes.measure {
         check_measure_change(&state, coach_id, id, measure).await?;
     }
@@ -278,6 +305,7 @@ pub async fn update(
              muscle_group = CASE WHEN $4 THEN $5 ELSE muscle_group END,
              measure = COALESCE($7, measure),
              in_library = COALESCE($8, in_library),
+             description = CASE WHEN $9 THEN $10 ELSE description END,
              archived_at = CASE
                  WHEN $6::boolean IS NULL THEN archived_at
                  WHEN $6 THEN COALESCE(archived_at, now())
@@ -293,6 +321,8 @@ pub async fn update(
         changes.archived,
         changes.measure as Option<Measure>,
         changes.in_library,
+        set_description,
+        description,
     )
     .fetch_optional(&state.db)
     .await
@@ -336,7 +366,7 @@ pub(crate) async fn fetch(state: &AppState, coach_id: Uuid, id: Uuid) -> AppResu
         ExerciseRow,
         r#"SELECT id, name, measure AS "measure: Measure", muscle_group, aliases, video_uid,
                   video_length_secs, upload_status AS "upload_status: UploadStatus",
-                  upload_started_at, in_library
+                  upload_started_at, in_library, description
            FROM exercises
            WHERE id = $1 AND coach_id = $2"#,
         id,
@@ -345,7 +375,11 @@ pub(crate) async fn fetch(state: &AppState, coach_id: Uuid, id: Uuid) -> AppResu
     .fetch_optional(&state.db)
     .await?
     .ok_or(AppError::NotFound)?;
-    Ok(row.into_exercise(state))
+    let photos = exercise_photos::for_exercises(state, &[id])
+        .await?
+        .remove(&id)
+        .unwrap_or_default();
+    Ok(row.into_exercise(state, photos))
 }
 
 fn clean_name(name: &str) -> AppResult<String> {
@@ -441,4 +475,56 @@ pub async fn finish_video_upload(
 ) -> AppResult<Json<Exercise>> {
     video::finish_upload(&state, coach_id, id).await?;
     Ok(Json(fetch(&state, coach_id, id).await?))
+}
+
+/// Adds a photo to the exercise: a JPEG shrunk on the phone, as the body.
+/// Up to five.
+#[utoipa::path(
+    post,
+    operation_id = "add_exercise_photo",
+    path = "/coach/exercises/{id}/photos",
+    tag = "coach",
+    security(("bearer" = [])),
+    params(("id" = Uuid, Path, description = "Exercise id")),
+    request_body(content = PhotoFile, content_type = "image/jpeg"),
+    responses(
+        (status = 201, body = ExercisePhoto),
+        (status = 400, body = ErrorBody, description = "`invalid_photo`: not a JPEG, or too big"),
+        (status = 401, body = ErrorBody),
+        (status = 404, body = ErrorBody),
+        (status = 409, body = ErrorBody, description = "`too_many_photos`"),
+        (status = 503, body = ErrorBody, description = "`photos_not_configured`"),
+    )
+)]
+pub async fn add_photo(
+    State(state): State<AppState>,
+    CurrentCoach(coach_id): CurrentCoach,
+    Path(id): Path<Uuid>,
+    jpeg: Bytes,
+) -> AppResult<(StatusCode, Json<ExercisePhoto>)> {
+    let photo = exercise_photos::add(&state, coach_id, id, jpeg.to_vec()).await?;
+    Ok((StatusCode::CREATED, Json(photo)))
+}
+
+/// Deletes a photo of an exercise, on Bunny too.
+#[utoipa::path(
+    delete,
+    operation_id = "delete_exercise_photo",
+    path = "/coach/exercise-photos/{id}",
+    tag = "coach",
+    security(("bearer" = [])),
+    params(("id" = Uuid, Path, description = "Exercise photo id")),
+    responses(
+        (status = 204),
+        (status = 401, body = ErrorBody),
+        (status = 404, body = ErrorBody),
+    )
+)]
+pub async fn delete_photo(
+    State(state): State<AppState>,
+    CurrentCoach(coach_id): CurrentCoach,
+    Path(id): Path<Uuid>,
+) -> AppResult<StatusCode> {
+    exercise_photos::delete(&state, coach_id, id).await?;
+    Ok(StatusCode::NO_CONTENT)
 }

@@ -16,15 +16,13 @@ use crate::{
     cdn_token,
     error::{AppError, AppResult},
     form_videos::{self, FormVideoStatus, UPLOAD_TTL, Viewer},
+    photos,
     state::AppState,
-    storage::StorageClient,
     video::{Encoding, UploadGrant},
 };
 
 pub const MAX_PHOTOS: i64 = 10;
 pub const MAX_VIDEOS: i64 = 3;
-/// A photo shrunk on the phone is a few hundred KB; this leaves plenty of room.
-pub const MAX_PHOTO_BYTES: usize = 4 * 1024 * 1024;
 /// At most this many encodings are checked with Bunny per jobs round.
 const REFRESH_LIMIT: i64 = 10;
 /// Clients are at least this old.
@@ -84,13 +82,6 @@ pub struct Answers {
     pub birth_year: Option<i32>,
     pub sex: Option<Sex>,
     pub height_cm: Option<i32>,
-}
-
-fn storage(state: &AppState) -> AppResult<&StorageClient> {
-    state
-        .storage
-        .as_ref()
-        .ok_or(AppError::Unavailable("photos_not_configured"))
 }
 
 /// A client's questionnaire with fresh links.
@@ -195,11 +186,8 @@ fn gym_dir(client_id: Uuid) -> String {
 
 /// Stores a photo of the client's gym: a JPEG the phone already shrank.
 pub async fn add_photo(state: &AppState, client_id: Uuid, jpeg: Vec<u8>) -> AppResult<GymPhoto> {
-    let storage = storage(state)?;
-    // A JPEG starts with FF D8 FF; anything else is refused before it is stored.
-    if jpeg.len() > MAX_PHOTO_BYTES || !jpeg.starts_with(&[0xFF, 0xD8, 0xFF]) {
-        return Err(AppError::BadRequest("invalid_photo"));
-    }
+    let storage = photos::storage(state)?;
+    photos::check(&jpeg)?;
     let count = media_count(state, client_id, MediaKind::Photo).await?;
     if count >= MAX_PHOTOS {
         return Err(AppError::Conflict("too_many_photos"));

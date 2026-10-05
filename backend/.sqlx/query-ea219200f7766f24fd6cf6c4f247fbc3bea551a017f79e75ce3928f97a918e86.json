@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, name, measure AS \"measure: Measure\", muscle_group, aliases, video_uid,\n                  video_length_secs, upload_status AS \"upload_status: UploadStatus\",\n                  upload_started_at, in_library\n           FROM exercises\n           WHERE coach_id = $1 AND archived_at IS NULL AND in_library\n           ORDER BY lower(name)",
+  "query": "SELECT id, name, measure AS \"measure: Measure\", muscle_group, aliases, video_uid,\n                  video_length_secs, upload_status AS \"upload_status: UploadStatus\",\n                  upload_started_at, in_library, description\n           FROM exercises\n           WHERE coach_id = $1 AND archived_at IS NULL AND in_library\n           ORDER BY lower(name)",
   "describe": {
     "columns": [
       {
@@ -134,6 +134,17 @@
             "name": "in_library"
           }
         }
+      },
+      {
+        "ordinal": 10,
+        "name": "description",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "exercises",
+            "name": "description"
+          }
+        }
       }
     ],
     "parameters": {
@@ -151,8 +162,9 @@
       true,
       true,
       true,
-      false
+      false,
+      true
     ]
   },
-  "hash": "97ea0ff92d621873a932c5e400180cff647c4570259e797d9c84753713ea3b16"
+  "hash": "ea219200f7766f24fd6cf6c4f247fbc3bea551a017f79e75ce3928f97a918e86"
 }

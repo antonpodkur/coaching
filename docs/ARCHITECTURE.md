@@ -180,7 +180,9 @@ nutrition_targets id, client_id, protein_g, fat_g, carbs_g, note NULL, created_a
 exercises         id, coach_id, name, measure (weight | bodyweight | time), muscle_group, aliases TEXT[],
                   video_uid NULL, video_length_secs NULL,
                   upload_video_uid UNIQUE NULL, upload_status (uploading|processing|failed) NULL,
-                  upload_started_at NULL, in_library (false = added to one workout only), archived_at
+                  upload_started_at NULL, in_library (false = added to one workout only),
+                  description NULL, archived_at
+exercise_photos   id, exercise_id, path UNIQUE, created_at          -- up to 5 per exercise
 workouts          id, coach_id, client_id NULL,            -- NULL client = template
                   date DATE NULL, title, status (draft|published|done),
                   source (builder|copy|template|import), copied_from_id NULL,
@@ -211,6 +213,7 @@ coach_logins      id, code_hash UNIQUE, poll_secret_hash UNIQUE, display_code, c
 - **"Missed"** is not stored. It is a published workout whose date has passed without being marked done.
 - **Dates:** `workouts.date` is a calendar date in the client's timezone, not a timestamp. Reminders use `clients.timezone` via `chrono-tz`, and Dasha's summary uses `coaches.timezone`. The Mini App sends the phone's timezone whenever it differs from the stored one, for clients and for Dasha.
 - **Exercises are archived, never deleted,** because old workouts refer to them.
+- **An exercise's details** are Dasha's, in the library: a description (the handle, the machine, the setup) and up to 5 photos. They are kept in the photo storage zone under `exercises/<id>/` and signed like clients' photos. Clients see them in every workout with that exercise, under her video: the text, and a row of thumbnails that open full screen. A variant that changes the numbers (a wide or narrow handle) is a separate exercise, so "Минулого разу" never mixes them.
 - **Clients' technique videos** (`form_videos`) sit under a workout exercise, at most 3 per exercise in a workout.
   - **Storage:** a separate Bunny library whose CDN has token authentication on. The backend signs a directory token per video (`bcdn_token=HS256-…&token_path=/<guid>/`), which covers the playlist, segments and thumbnail, and expires on the hour 6 to 7 hours out.
   - **Encoding:** followed like exercise videos. That's the library's own webhook (`/webhooks/client-videos`), the phone's "uploaded", and a check in every jobs round. A ready video sends Dasha one bot message.
@@ -265,12 +268,14 @@ Coach (`role = coach`):
 | POST | `/coach/clients/{id}/invite` | New invite link |
 | GET | `/coach/clients/{id}/questionnaire` | The client's questionnaire, with signed links to their gym photos and videos |
 | GET | `/coach/clients/{id}/weight` | The client's weigh-ins, oldest first |
+| POST | `/coach/exercises/{id}/photos` | A photo of the exercise as the JPEG body. Up to 5. |
+| DELETE | `/coach/exercise-photos/{id}` | Deletes an exercise photo, on Bunny too |
 | GET, POST | `/coach/clients/{id}/nutrition` | The client's nutrition targets, newest first; POST sets a new one and the bot tells the client |
 | GET | `/coach/workouts?from&to&client_id` | Every active client's workouts in a date range (at most 62 days) plus undated drafts, with the client's name: the workouts tab |
 | GET | `/coach/clients/{id}/workouts` | Her workouts for this client: undated drafts first, then newest date first, with done and differing set counts and the report's effort and seen state |
 | GET | `/coach/workouts/{id}/results` | Every set's target next to what the client logged, `differs` per set, and the report |
 | POST | `/coach/workouts/{id}/report/seen` | Marks the report seen, so it stops showing as new |
-| GET/POST/PATCH | `/coach/exercises`, `/coach/exercises/{id}` | Library |
+| GET/POST/PATCH | `/coach/exercises`, `/coach/exercises/{id}` | Library; PATCH also sets the description |
 | POST | `/coach/exercises/{id}/video-upload` | Creates the Bunny video and returns a tus upload ticket (endpoint, IDs, expiry, signature) |
 | POST | `/coach/exercises/{id}/video-uploaded` | The phone finished uploading; Bunny encodes next |
 | POST | `/coach/workouts` | New: blank, or `copy_from` (dated a week after the original unless `date` is given); `template_id` later |

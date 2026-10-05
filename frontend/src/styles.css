@@ -2296,6 +2296,21 @@ button.save-status {
   gap: 6px;
 }
 
+/* A row of small thumbnails, scrolling sideways if there are many. */
+.photo-grid.strip {
+  grid-template-columns: none;
+  grid-auto-flow: column;
+  grid-auto-columns: 72px;
+  overflow-x: auto;
+}
+
+.exercise-description {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.45;
+  white-space: pre-line;
+}
+
 .photo-tile {
   position: relative;
   aspect-ratio: 1;

@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM exercise_photos p USING exercises e\n         WHERE p.id = $1 AND e.id = p.exercise_id AND e.coach_id = $2\n         RETURNING p.path",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "path",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "exercise_photos",
+            "name": "path"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "906c4e8ec50f8eb36e1dbface782dfc0f7542905da3b7edd3ebad482fbf14795"
+}

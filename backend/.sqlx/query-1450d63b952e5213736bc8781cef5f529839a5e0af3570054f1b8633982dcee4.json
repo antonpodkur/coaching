@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT we.id, we.exercise_id, e.name, e.measure AS \"measure: Measure\", e.video_uid,\n                  e.video_length_secs, we.per_side_label, we.note\n           FROM workout_exercises we\n           JOIN exercises e ON e.id = we.exercise_id\n           WHERE we.workout_id = $1\n           ORDER BY we.position",
+  "query": "SELECT we.id, we.exercise_id, e.name, e.measure AS \"measure: Measure\", e.video_uid,\n                  e.video_length_secs, e.description, we.per_side_label, we.note\n           FROM workout_exercises we\n           JOIN exercises e ON e.id = we.exercise_id\n           WHERE we.workout_id = $1\n           ORDER BY we.position",
   "describe": {
     "columns": [
       {
@@ -82,6 +82,17 @@
       },
       {
         "ordinal": 6,
+        "name": "description",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "exercises",
+            "name": "description"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
         "name": "per_side_label",
         "type_info": "Text",
         "origin": {
@@ -92,7 +103,7 @@
         }
       },
       {
-        "ordinal": 7,
+        "ordinal": 8,
         "name": "note",
         "type_info": "Text",
         "origin": {
@@ -116,8 +127,9 @@
       true,
       true,
       true,
+      true,
       true
     ]
   },
-  "hash": "e50f7f52b67019e01a40cae620c86f441ebcb14f13cabec1d6c0d2d9d0c79afb"
+  "hash": "1450d63b952e5213736bc8781cef5f529839a5e0af3570054f1b8633982dcee4"
 }

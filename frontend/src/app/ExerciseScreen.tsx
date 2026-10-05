@@ -5,6 +5,7 @@ import { Link, useParams } from 'react-router'
 import { type Schemas, api } from '../api/client'
 import { BackLink } from '../shared/BackLink'
 import { FormVideoTile } from '../shared/FormVideoTile'
+import { PhotoGrid } from '../shared/PhotoGrid'
 import { VideoPlayer } from '../shared/VideoPlayer'
 import { confirmAction } from '../shared/dialogs'
 import {
@@ -83,6 +84,10 @@ export function ExerciseScreen() {
           {exercise.per_side_label && ` · ${exercise.per_side_label}`}
         </p>
       </header>
+
+      {exercise.description && <p className="exercise-description">{exercise.description}</p>}
+      {/* Workouts cached on the phone before photos existed have no list. */}
+      <PhotoGrid photos={exercise.photos ?? []} strip />
 
       {exercise.note && (
         <div className="notice pink coach-note">

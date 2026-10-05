@@ -17,6 +17,7 @@ use crate::{
     api::coach::{exercises::Measure, workouts::WorkoutStatus},
     auth::CurrentClient,
     error::{AppError, AppResult, ErrorBody},
+    exercise_photos::{self, ExercisePhoto},
     form_videos::{self, FormVideo, Viewer},
     history::{self, PastSet},
     notify,
@@ -64,6 +65,10 @@ pub struct ClientExercise {
     pub per_side_label: Option<String>,
     pub note: Option<String>,
     pub video: Option<ClientVideo>,
+    /// How to do it, from the library: the handle, the machine, the setup.
+    pub description: Option<String>,
+    /// Photos of it from the library, e.g. the machine or the handle.
+    pub photos: Vec<ExercisePhoto>,
     pub sets: Vec<ClientSet>,
     /// Completed sets from the last earlier workout with this exercise.
     pub last_time: Vec<PastSet>,
@@ -257,7 +262,7 @@ pub async fn get(
 
     let rows = sqlx::query!(
         r#"SELECT we.id, we.exercise_id, e.name, e.measure AS "measure: Measure", e.video_uid,
-                  e.video_length_secs, we.per_side_label, we.note
+                  e.video_length_secs, e.description, we.per_side_label, we.note
            FROM workout_exercises we
            JOIN exercises e ON e.id = we.exercise_id
            WHERE we.workout_id = $1
@@ -270,6 +275,7 @@ pub async fn get(
     let mut last_time =
         history::last_time(&state.db, client_id, id, Some(workout.date), &exercise_ids).await?;
     let mut videos = form_videos::for_workout(&state, id, Viewer::Client).await?;
+    let photos = exercise_photos::for_exercises(&state, &exercise_ids).await?;
 
     let exercises = rows
         .into_iter()
@@ -282,6 +288,9 @@ pub async fn get(
                     thumbnail_url: stream.thumbnail_url(&uid),
                     length_secs: row.video_length_secs,
                 }),
+            // An exercise can be in a workout twice, so its photos are copied, not taken.
+            photos: photos.get(&row.exercise_id).cloned().unwrap_or_default(),
+            description: row.description,
             sets: sets_by_row.remove(&row.id).unwrap_or_default(),
             last_time: last_time.remove(&row.exercise_id).unwrap_or_default(),
             videos: videos.remove(&row.id).unwrap_or_default(),

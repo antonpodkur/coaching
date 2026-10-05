@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO exercise_photos (id, exercise_id, path) VALUES ($1, $2, $3)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "677f1a7d4cb8ad198b02affbdb6ffc82ed2d5e9cf7e7aca42b4efaea0f38a720"
+}
