@@ -6,6 +6,7 @@ pub mod coach;
 pub mod form_videos;
 pub mod health;
 pub mod nutrition;
+pub mod push;
 pub mod questionnaire;
 pub mod stream;
 pub mod telegram;
@@ -42,6 +43,9 @@ use crate::state::AppState;
         auth::bot_login_poll,
         auth::refresh,
         auth::installed,
+        push::key,
+        push::subscribe,
+        push::unsubscribe,
         client::me,
         client::set_timezone,
         client::allow_bot,
@@ -96,6 +100,7 @@ use crate::state::AppState;
         (name = "auth", description = "Telegram sign-in for clients and the coach"),
         (name = "client", description = "The Mini App"),
         (name = "coach", description = "Dasha's workspace"),
+        (name = "push", description = "Notifications from the installed app (web push)"),
     )
 )]
 struct ApiDoc;
@@ -142,6 +147,11 @@ pub fn router(state: AppState) -> Router {
         .route("/auth/bot-login/poll", post(auth::bot_login_poll))
         .route("/auth/refresh", post(auth::refresh))
         .route("/auth/installed", post(auth::installed))
+        .route("/push/key", get(push::key))
+        .route(
+            "/push/subscription",
+            put(push::subscribe).delete(push::unsubscribe),
+        )
         .route("/me", get(client::me))
         .route("/me/timezone", put(client::set_timezone))
         .route("/me/bot-allowed", post(client::allow_bot))

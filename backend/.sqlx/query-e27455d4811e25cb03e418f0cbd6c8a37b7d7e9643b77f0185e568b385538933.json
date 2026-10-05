@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM push_subscriptions\n         WHERE endpoint = $1\n           AND CASE WHEN $2 THEN coach_id = $3 ELSE client_id = $3 END",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Bool",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "e27455d4811e25cb03e418f0cbd6c8a37b7d7e9643b77f0185e568b385538933"
+}

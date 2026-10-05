@@ -16,6 +16,7 @@ import { UpdateNote } from './shared/UpdateNote'
 import { registerServiceWorker } from './shared/appUpdate'
 import { placeCaretOnFocus } from './shared/fieldFocus'
 import { listenForInstallPrompt } from './shared/installPrompt'
+import { listenForNotifications } from './shared/push'
 import './styles.css'
 
 const queryClient = new QueryClient({
@@ -42,6 +43,7 @@ const router = createBrowserRouter([
 placeCaretOnFocus()
 registerServiceWorker()
 listenForInstallPrompt()
+listenForNotifications((url) => void router.navigate(url))
 
 const root = document.getElementById('root')
 if (!root) throw new Error('index.html has no #root element')

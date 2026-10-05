@@ -111,7 +111,11 @@ The installed app, its stored data, its sign-in and its push subscriptions all b
    - **The install page, `/install`** (`InstallPage.tsx`): steps for the phone at hand. iPhone: Share → «На початковий екран» → «Додати», with the English names too, and "open in Safari" for other browsers and for Telegram's own browser. Android: Chrome's own "Встановити" when Chrome offers it (`installPrompt.ts`), and the ⋮ menu steps. A computer: open this page on the phone. An installed app that opens on this address goes to `/app`.
    - **The card in the Telegram version** (`InstallCard.tsx`) replaces Telegram's home-screen card, on the client's home screen and Dasha's client list, on phones only. "Встановити" opens `/install` in the phone's browser (`openLink`).
    - **Once installed, never offered again:** the installed app tells the backend (`POST /auth/installed`, `app_installed_at` on clients and coaches), so the card disappears on every phone. That is also the first record of who uses the installed app.
-4. **Web push:** subscriptions, short texts, the badge, and Dasha's notifications.
+4. **Web push.** Built:
+   - **Backend:** `src/push.rs` and `api/push.rs` (the key, subscribe, unsubscribe), the `push_subscriptions` table, and `notify.rs` pushing every kind next to the bot's message, once per row (`pushed_at`). The key comes from `cargo run --bin vapid-key` and goes into Render (DEPLOY.md, 5d).
+   - **Frontend:** the "Сповіщення на телефоні" card (`PushCard.tsx`) outside Telegram, on the client's home and Dasha's client list. The subscription is kept up to date each time the app opens and removed on signing out (`shared/push.ts`).
+   - **Service worker:** shows each push, opens its screen on a tap (inside the open app without reloading), and puts the number waiting on the app's icon, which clears when the app is open.
+   - **Both channels for now.** A per-person choice between the bot and push is a ticket for later.
 
 ## To check on real phones
 
@@ -126,3 +130,6 @@ The installed app, its stored data, its sign-in and its push subscriptions all b
 - Swipe back from the left edge on an installed iPhone app.
 - "Встановити" on the card inside Telegram: does `/install` open in Safari / Chrome, or in Telegram's own browser? Follow the steps through to the icon, and check the card is gone in Telegram afterwards.
 - Chrome's own install dialog on Android from the "Встановити" button on `/install`.
+- Push on an installed iPhone app: "Увімкнути" asks for permission; a new workout, a reminder and a nutrition change arrive with the right text; a tap opens the right screen; the number on the icon goes away once the app is open.
+- Push for Dasha: a finished workout and a technique video open the report; the evening summary opens her client list.
+- Push on Android, both in the installed app and in Chrome.

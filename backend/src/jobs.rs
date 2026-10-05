@@ -109,8 +109,9 @@ async fn queue_reminders(state: &AppState, now: DateTime<Utc>) -> sqlx::Result<(
              SELECT $2::timestamptz AT TIME ZONE COALESCE(tz.name, $3) AS local_now
          ) client_time
          WHERE w.status = 'published'
-           AND c.telegram_id IS NOT NULL AND c.bot_allowed_at IS NOT NULL
-           AND c.archived_at IS NULL
+           AND c.telegram_id IS NOT NULL AND c.archived_at IS NULL
+           AND (c.bot_allowed_at IS NOT NULL
+                OR EXISTS (SELECT 1 FROM push_subscriptions p WHERE p.client_id = c.id))
            AND w.date = client_time.local_now::date
            AND client_time.local_now::time BETWEEN $4 AND $5
            AND w.published_at < $2 - make_interval(hours => $6)

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT w.date AS \"date!\", c.telegram_id IS NOT NULL AND c.bot_allowed_at IS NOT NULL\n                  AS \"reachable!\"\n           FROM workouts w JOIN clients c ON c.id = w.client_id\n           WHERE w.id = $1 AND w.date IS NOT NULL",
+  "query": "SELECT w.date AS \"date!\",\n                  c.telegram_id IS NOT NULL\n                  AND (c.bot_allowed_at IS NOT NULL\n                       OR EXISTS (SELECT 1 FROM push_subscriptions p WHERE p.client_id = c.id))\n                  AS \"reachable!\"\n           FROM workouts w JOIN clients c ON c.id = w.client_id\n           WHERE w.id = $1 AND w.date IS NOT NULL",
   "describe": {
     "columns": [
       {
@@ -31,5 +31,5 @@
       null
     ]
   },
-  "hash": "3ab846787abd671d0f0f7bd01fb94ac8a80fde26188f4946dfbcb740f32cf00e"
+  "hash": "529844a623d576d6e4aae31e6cdcc572176ced8cf0b47fba923116ada41c775a"
 }

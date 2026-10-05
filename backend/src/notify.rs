@@ -1,10 +1,13 @@
-//! Messages the bot sends on its own, not in reply to someone.
+//! Notifications sent on their own, not in reply to someone: the bot's
+//! messages, and the same as web pushes to the installed app (see `push`).
 //!
-//! Every message is first a row in `notifications`, unique per kind, subject
-//! and date, so repeating a step never sends twice. The row is sent right away;
-//! if Telegram fails, the background jobs retry it (see `jobs`). The text is
-//! built when sending, from the data as it is then: a retried reminder for a
-//! workout that has since been finished is skipped instead of sent.
+//! Every notification is first a row in `notifications`, unique per kind,
+//! subject and date, so repeating a step never sends twice. The row is sent
+//! right away; if Telegram fails, the background jobs retry it (see `jobs`).
+//! The push goes out once, on the first try, and a retry does not repeat it.
+//! The text is built when sending, from the data as it is then: a retried
+//! reminder for a workout that has since been finished is skipped instead of
+//! sent.
 
 use chrono::{DateTime, Datelike, NaiveDate, Utc};
 use uuid::Uuid;
@@ -12,6 +15,7 @@ use uuid::Uuid;
 use crate::{
     api::workouts::Effort,
     nutrition,
+    push::{self, PushMessage, Recipient},
     state::AppState,
     telegram::{Button, OutgoingMessage},
 };
@@ -94,6 +98,15 @@ impl Kind {
     }
 }
 
+/// One notification, for each way of reaching its recipient.
+struct Notice {
+    recipient: Recipient,
+    /// The bot's message; `None` when the bot may not write to them.
+    telegram: Option<OutgoingMessage>,
+    /// What the installed app shows, on every phone that allowed it.
+    push: PushMessage,
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum Delivery {
     Sent,
@@ -129,11 +142,11 @@ pub async fn queue(
 /// leaves the row for the jobs to retry and returns the error.
 pub async fn deliver(state: &AppState, id: Uuid, now: DateTime<Utc>) -> anyhow::Result<Delivery> {
     let claimed = sqlx::query!(
-        "UPDATE notifications SET attempts = attempts + 1, last_attempt_at = $2
-         WHERE id = $1 AND sent_at IS NULL
-           AND (last_attempt_at IS NULL
-                OR last_attempt_at < $2::timestamptz - make_interval(secs => $3))
-         RETURNING kind, entity_id, local_date",
+        r#"UPDATE notifications SET attempts = attempts + 1, last_attempt_at = $2
+           WHERE id = $1 AND sent_at IS NULL
+             AND (last_attempt_at IS NULL
+                  OR last_attempt_at < $2::timestamptz - make_interval(secs => $3))
+           RETURNING kind, entity_id, local_date, pushed_at IS NOT NULL AS "pushed!""#,
         id,
         now,
         LEASE_SECS as f64,
@@ -144,7 +157,7 @@ pub async fn deliver(state: &AppState, id: Uuid, now: DateTime<Utc>) -> anyhow::
         return Ok(Delivery::NotDue);
     };
 
-    let message = match Kind::parse(&row.kind) {
+    let notice = match Kind::parse(&row.kind) {
         Some(Kind::WorkoutPublished) => published(state, row.entity_id).await?,
         Some(Kind::WorkoutReminder) => reminder(state, row.entity_id).await?,
         Some(Kind::WorkoutFinished) => finished(state, row.entity_id).await?,
@@ -153,7 +166,7 @@ pub async fn deliver(state: &AppState, id: Uuid, now: DateTime<Utc>) -> anyhow::
         Some(Kind::NutritionChanged) => nutrition(state, row.entity_id).await?,
         None => None,
     };
-    let Some(message) = message else {
+    let Some(notice) = notice else {
         sqlx::query!(
             "UPDATE notifications SET sent_at = $2, skipped = true WHERE id = $1",
             id,
@@ -164,7 +177,21 @@ pub async fn deliver(state: &AppState, id: Uuid, now: DateTime<Utc>) -> anyhow::
         return Ok(Delivery::Skipped);
     };
 
-    state.telegram.send_message(message).await?;
+    // Best effort and only once: a retry for the bot's sake must not buzz
+    // the phone again.
+    if !row.pushed {
+        push::notify(state, notice.recipient, &notice.push).await;
+        sqlx::query!(
+            "UPDATE notifications SET pushed_at = $2 WHERE id = $1",
+            id,
+            now,
+        )
+        .execute(&state.db)
+        .await?;
+    }
+    if let Some(message) = notice.telegram {
+        state.telegram.send_message(message).await?;
+    }
     sqlx::query!(
         "UPDATE notifications SET sent_at = $2 WHERE id = $1",
         id,
@@ -176,11 +203,15 @@ pub async fn deliver(state: &AppState, id: Uuid, now: DateTime<Utc>) -> anyhow::
 }
 
 /// Queues the "new workout" message and sends it. Returns `false` if the client
-/// has not joined yet, or has not let the bot write to them, so there is no one
-/// to tell. A failed send is retried by the jobs, so it still counts as told.
+/// has not joined yet, or neither the bot nor the installed app can reach them,
+/// so there is no one to tell. A failed send is retried by the jobs, so it
+/// still counts as told.
 pub async fn workout_published(state: &AppState, workout_id: Uuid) -> anyhow::Result<bool> {
     let workout = sqlx::query!(
-        r#"SELECT w.date AS "date!", c.telegram_id IS NOT NULL AND c.bot_allowed_at IS NOT NULL
+        r#"SELECT w.date AS "date!",
+                  c.telegram_id IS NOT NULL
+                  AND (c.bot_allowed_at IS NOT NULL
+                       OR EXISTS (SELECT 1 FROM push_subscriptions p WHERE p.client_id = c.id))
                   AS "reachable!"
            FROM workouts w JOIN clients c ON c.id = w.client_id
            WHERE w.id = $1 AND w.date IS NOT NULL"#,
@@ -212,12 +243,14 @@ pub async fn workout_finished(state: &AppState, workout_id: Uuid) -> anyhow::Res
 }
 
 /// Queues the client's message about a new nutrition target and sends it.
-/// Returns `false` if the client cannot get bot messages; they still see the
-/// target in the app.
+/// Returns `false` if neither the bot nor the installed app can reach them;
+/// they still see the target in the app.
 pub async fn nutrition_changed(state: &AppState, target_id: Uuid) -> anyhow::Result<bool> {
     let reachable = sqlx::query_scalar!(
-        r#"SELECT c.telegram_id IS NOT NULL AND c.bot_allowed_at IS NOT NULL
-                  AND c.archived_at IS NULL AS "reachable!"
+        r#"SELECT c.telegram_id IS NOT NULL AND c.archived_at IS NULL
+                  AND (c.bot_allowed_at IS NOT NULL
+                       OR EXISTS (SELECT 1 FROM push_subscriptions p WHERE p.client_id = c.id))
+                  AS "reachable!"
            FROM nutrition_targets t JOIN clients c ON c.id = t.client_id
            WHERE t.id = $1"#,
         target_id,
@@ -247,13 +280,23 @@ async fn send_or_leave_for_retry(state: &AppState, id: Uuid) {
     }
 }
 
+/// `«Спина»`, or `fallback` for a workout without a title.
+fn quoted_title(title: &str, fallback: &str) -> String {
+    if title.is_empty() {
+        fallback.to_owned()
+    } else {
+        format!("«{title}»")
+    }
+}
+
 /// "Нове тренування від Даші", while the workout is visible and the client linked.
-async fn published(state: &AppState, workout_id: Uuid) -> anyhow::Result<Option<OutgoingMessage>> {
+async fn published(state: &AppState, workout_id: Uuid) -> anyhow::Result<Option<Notice>> {
     let Some(workout) = sqlx::query!(
-        r#"SELECT w.title, w.date AS "date!", c.telegram_id AS "telegram_id!"
+        r#"SELECT w.title, w.date AS "date!", c.id AS client_id, c.telegram_id AS "telegram_id!",
+                  c.bot_allowed_at IS NOT NULL AS "bot_allowed!"
            FROM workouts w JOIN clients c ON c.id = w.client_id
            WHERE w.id = $1 AND w.date IS NOT NULL AND c.telegram_id IS NOT NULL
-             AND c.bot_allowed_at IS NOT NULL AND w.status IN ('published', 'done')"#,
+             AND w.status IN ('published', 'done')"#,
         workout_id,
     )
     .fetch_optional(&state.db)
@@ -267,21 +310,28 @@ async fn published(state: &AppState, workout_id: Uuid) -> anyhow::Result<Option<
     } else {
         format!("Нове тренування від Даші: «{}», {when}.", workout.title)
     };
-    Ok(Some(open_workout(
-        state,
-        workout.telegram_id,
-        text,
-        workout_id,
-    )))
+    let body = if workout.title.is_empty() {
+        format!("На {when}")
+    } else {
+        format!("«{}», {when}", workout.title)
+    };
+    Ok(Some(Notice {
+        recipient: Recipient::Client(workout.client_id),
+        telegram: workout
+            .bot_allowed
+            .then(|| open_workout(state, workout.telegram_id, text, workout_id)),
+        push: workout_push("Нове тренування", body, workout_id),
+    }))
 }
 
 /// The workout-day reminder, unless the workout is finished or gone by now.
-async fn reminder(state: &AppState, workout_id: Uuid) -> anyhow::Result<Option<OutgoingMessage>> {
+async fn reminder(state: &AppState, workout_id: Uuid) -> anyhow::Result<Option<Notice>> {
     let Some(workout) = sqlx::query!(
-        r#"SELECT w.title, c.telegram_id AS "telegram_id!"
+        r#"SELECT w.title, c.id AS client_id, c.telegram_id AS "telegram_id!",
+                  c.bot_allowed_at IS NOT NULL AS "bot_allowed!"
            FROM workouts w JOIN clients c ON c.id = w.client_id
            WHERE w.id = $1 AND w.status = 'published' AND c.telegram_id IS NOT NULL
-             AND c.bot_allowed_at IS NOT NULL AND c.archived_at IS NULL"#,
+             AND c.archived_at IS NULL"#,
         workout_id,
     )
     .fetch_optional(&state.db)
@@ -294,20 +344,22 @@ async fn reminder(state: &AppState, workout_id: Uuid) -> anyhow::Result<Option<O
     } else {
         format!("Нагадування: сьогодні тренування «{}».", workout.title)
     };
-    Ok(Some(open_workout(
-        state,
-        workout.telegram_id,
-        text,
-        workout_id,
-    )))
+    let body = quoted_title(&workout.title, "Воно вже чекає в застосунку.");
+    Ok(Some(Notice {
+        recipient: Recipient::Client(workout.client_id),
+        telegram: workout
+            .bot_allowed
+            .then(|| open_workout(state, workout.telegram_id, text, workout_id)),
+        push: workout_push("Сьогодні тренування", body, workout_id),
+    }))
 }
 
 /// Tells Dasha a client finished a workout: how much was done, how it felt,
 /// and the comment.
-async fn finished(state: &AppState, workout_id: Uuid) -> anyhow::Result<Option<OutgoingMessage>> {
+async fn finished(state: &AppState, workout_id: Uuid) -> anyhow::Result<Option<Notice>> {
     let Some(workout) = sqlx::query!(
         r#"SELECT w.title, w.date AS "date!", c.id AS client_id, c.name AS client_name,
-                  co.telegram_id AS coach_telegram_id,
+                  co.id AS coach_id, co.telegram_id AS coach_telegram_id,
                   r.effort AS "effort: Effort", r.comment,
                   (SELECT count(*) FROM workout_sets s
                    JOIN workout_exercises we ON we.id = s.workout_exercise_id
@@ -331,11 +383,7 @@ async fn finished(state: &AppState, workout_id: Uuid) -> anyhow::Result<Option<O
         return Ok(None);
     };
 
-    let title = if workout.title.is_empty() {
-        "тренування".to_owned()
-    } else {
-        format!("«{}»", workout.title)
-    };
+    let title = quoted_title(&workout.title, "тренування");
     let mut summary = format!("{} з {} підходів", workout.done, workout.sets);
     if workout.different > 0 {
         summary.push_str(&format!(" · {} інакше, ніж у плані", workout.different));
@@ -345,15 +393,15 @@ async fn finished(state: &AppState, workout_id: Uuid) -> anyhow::Result<Option<O
         Effort::Ok => " · нормально",
         Effort::Hard => " · важко",
     });
+    let when = short_date(workout.date);
     let mut text = format!(
-        "{}: звіт про {title}, {}.\n{summary}",
-        workout.client_name,
-        short_date(workout.date)
+        "{}: звіт про {title}, {when}.\n{summary}",
+        workout.client_name
     );
     if !workout.comment.is_empty() {
         text.push_str(&format!("\n\n«{}»", workout.comment));
     }
-    Ok(Some(
+    let telegram =
         OutgoingMessage::text(workout.coach_telegram_id, text).with_row(vec![Button::WebApp {
             text: "Відкрити клієнта".to_owned(),
             url: format!(
@@ -361,8 +409,17 @@ async fn finished(state: &AppState, workout_id: Uuid) -> anyhow::Result<Option<O
                 state.config.mini_app_url(),
                 workout.client_id
             ),
-        }]),
-    ))
+        }]);
+    Ok(Some(Notice {
+        recipient: Recipient::Coach(workout.coach_id),
+        telegram: Some(telegram),
+        push: PushMessage {
+            title: format!("{}: звіт", workout.client_name),
+            body: format!("{title}, {when} · {summary}"),
+            url: format!("/app/workouts/{workout_id}/report"),
+            tag: format!("report-{workout_id}"),
+        },
+    }))
 }
 
 /// Dasha's evening summary for `date`: today's workouts nobody opened, and
@@ -371,7 +428,7 @@ async fn daily_summary(
     state: &AppState,
     coach_id: Uuid,
     date: NaiveDate,
-) -> anyhow::Result<Option<OutgoingMessage>> {
+) -> anyhow::Result<Option<Notice>> {
     let Some(coach_chat) =
         sqlx::query_scalar!("SELECT telegram_id FROM coaches WHERE id = $1", coach_id,)
             .fetch_optional(&state.db)
@@ -405,6 +462,7 @@ async fn daily_summary(
     }
 
     let mut text = format!("Підсумок дня, {}.", short_date(date));
+    let mut counts = Vec::new();
     if !unopened.is_empty() {
         text.push_str("\n\nНе відкрили сьогоднішнє тренування:");
         for row in &unopened {
@@ -414,6 +472,7 @@ async fn daily_summary(
                 text.push_str(&format!("\n• {} — «{}»", row.name, row.title));
             }
         }
+        counts.push(format!("не відкрили тренування: {}", unopened.len()));
     }
     if !renewals.is_empty() {
         text.push_str("\n\nЗакінчується оплата:");
@@ -424,21 +483,30 @@ async fn daily_summary(
                 day_month(row.paid_until)
             ));
         }
+        counts.push(format!("закінчується оплата: {}", renewals.len()));
     }
-    Ok(Some(OutgoingMessage::text(coach_chat, text).with_row(
-        vec![Button::WebApp {
-            text: "Відкрити кабінет".to_owned(),
-            url: state.config.mini_app_url(),
-        }],
-    )))
+    let telegram = OutgoingMessage::text(coach_chat, text).with_row(vec![Button::WebApp {
+        text: "Відкрити кабінет".to_owned(),
+        url: state.config.mini_app_url(),
+    }]);
+    Ok(Some(Notice {
+        recipient: Recipient::Coach(coach_id),
+        telegram: Some(telegram),
+        push: PushMessage {
+            title: "Підсумок дня".to_owned(),
+            body: capitalized(&counts.join(" · ")),
+            url: "/app".to_owned(),
+            tag: format!("daily-{date}"),
+        },
+    }))
 }
 
 /// "Максим К.: нове відео техніки — «Присідання».", with a button to the report,
 /// unless Dasha has already watched it.
-async fn form_video(state: &AppState, id: Uuid) -> anyhow::Result<Option<OutgoingMessage>> {
+async fn form_video(state: &AppState, id: Uuid) -> anyhow::Result<Option<Notice>> {
     let Some(video) = sqlx::query!(
         "SELECT c.name AS client_name, e.name AS exercise_name, w.id AS workout_id,
-                co.telegram_id AS coach_telegram_id
+                co.id AS coach_id, co.telegram_id AS coach_telegram_id
          FROM form_videos v
          JOIN workout_exercises we ON we.id = v.workout_exercise_id
          JOIN workouts w ON w.id = we.workout_id
@@ -457,28 +525,34 @@ async fn form_video(state: &AppState, id: Uuid) -> anyhow::Result<Option<Outgoin
         "{}: нове відео техніки — «{}».",
         video.client_name, video.exercise_name
     );
-    Ok(Some(
+    let report = format!("workouts/{}/report", video.workout_id);
+    let telegram =
         OutgoingMessage::text(video.coach_telegram_id, text).with_row(vec![Button::WebApp {
             text: "Переглянути".to_owned(),
-            url: format!(
-                "{}/workouts/{}/report",
-                state.config.mini_app_url(),
-                video.workout_id
-            ),
-        }]),
-    ))
+            url: format!("{}/{report}", state.config.mini_app_url()),
+        }]);
+    Ok(Some(Notice {
+        recipient: Recipient::Coach(video.coach_id),
+        telegram: Some(telegram),
+        push: PushMessage {
+            title: format!("{}: відео техніки", video.client_name),
+            body: format!("«{}»", video.exercise_name),
+            url: format!("/app/{report}"),
+            tag: format!("video-{id}"),
+        },
+    }))
 }
 
 /// The client's new nutrition target, unless Dasha has replaced it since.
-async fn nutrition(state: &AppState, target_id: Uuid) -> anyhow::Result<Option<OutgoingMessage>> {
+async fn nutrition(state: &AppState, target_id: Uuid) -> anyhow::Result<Option<Notice>> {
     let Some(target) = sqlx::query!(
-        r#"SELECT t.protein_g, t.fat_g, t.carbs_g, t.note, c.telegram_id AS "telegram_id!",
+        r#"SELECT t.protein_g, t.fat_g, t.carbs_g, t.note, c.id AS client_id,
+                  c.telegram_id AS "telegram_id!", c.bot_allowed_at IS NOT NULL AS "bot_allowed!",
                   EXISTS (SELECT 1 FROM nutrition_targets p
                           WHERE p.client_id = t.client_id AND p.created_at < t.created_at)
                   AS "changed!"
            FROM nutrition_targets t JOIN clients c ON c.id = t.client_id
-           WHERE t.id = $1 AND c.telegram_id IS NOT NULL AND c.bot_allowed_at IS NOT NULL
-             AND c.archived_at IS NULL
+           WHERE t.id = $1 AND c.telegram_id IS NOT NULL AND c.archived_at IS NULL
              AND NOT EXISTS (SELECT 1 FROM nutrition_targets n
                              WHERE n.client_id = t.client_id AND n.created_at > t.created_at)"#,
         target_id,
@@ -501,12 +575,30 @@ async fn nutrition(state: &AppState, target_id: Uuid) -> anyhow::Result<Option<O
     if let Some(note) = target.note {
         text.push_str(&format!("\n\n«{note}»"));
     }
-    Ok(Some(
+    let telegram = target.bot_allowed.then(|| {
         OutgoingMessage::text(target.telegram_id, text).with_row(vec![Button::WebApp {
             text: "Відкрити".to_owned(),
             url: format!("{}/nutrition", state.config.mini_app_url()),
-        }]),
-    ))
+        }])
+    });
+    Ok(Some(Notice {
+        recipient: Recipient::Client(target.client_id),
+        telegram,
+        push: PushMessage {
+            title: if target.changed {
+                "Оновлена норма харчування".to_owned()
+            } else {
+                "Нова норма харчування".to_owned()
+            },
+            body: format!(
+                "Білки {} г · жири {} г · вуглеводи {} г · близько {kcal} ккал",
+                target.protein_g, target.fat_g, target.carbs_g,
+            ),
+            url: "/app/nutrition".to_owned(),
+            // Only the latest target matters.
+            tag: "nutrition".to_owned(),
+        },
+    }))
 }
 
 /// A message with a button that opens the Mini App on the workout.
@@ -515,6 +607,26 @@ fn open_workout(state: &AppState, chat_id: i64, text: String, workout_id: Uuid) 
         text: "Відкрити тренування".to_owned(),
         url: format!("{}/workouts/{workout_id}", state.config.mini_app_url()),
     }])
+}
+
+/// A push about a workout, opening it. The reminder replaces the "new
+/// workout" push for the same workout.
+fn workout_push(title: &str, body: String, workout_id: Uuid) -> PushMessage {
+    PushMessage {
+        title: title.to_owned(),
+        body,
+        url: format!("/app/workouts/{workout_id}"),
+        tag: format!("workout-{workout_id}"),
+    }
+}
+
+/// `не відкрили…` → `Не відкрили…`.
+fn capitalized(text: &str) -> String {
+    let mut chars = text.chars();
+    match chars.next() {
+        Some(first) => first.to_uppercase().chain(chars).collect(),
+        None => String::new(),
+    }
 }
 
 #[cfg(test)]

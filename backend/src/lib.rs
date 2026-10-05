@@ -18,6 +18,7 @@ pub mod jobs;
 pub mod notify;
 pub mod nutrition;
 pub mod photos;
+pub mod push;
 pub mod questionnaire;
 pub mod state;
 pub mod storage;

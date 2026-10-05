@@ -268,6 +268,8 @@ Coach (`role = coach`):
 | POST | `/auth/bot-login/poll` | `{poll_secret}` → `pending`, `cancelled`, `refused`, `expired`, or `approved` with the coach's or client's session (once) |
 | POST | `/auth/refresh` | A new token for the same person and lifetime, with their profile; 401 once they are archived |
 | POST | `/auth/installed` | The signed-in person uses the app installed on a home screen; the Telegram version stops offering it |
+| GET | `/push/key` | The public key browsers subscribe with; 503 `push_not_configured` without one |
+| PUT, DELETE | `/push/subscription` | This browser gets the signed-in person's notifications, or stops getting them |
 | GET/POST/PATCH | `/coach/clients`, `/coach/clients/{id}` | List (with each client's unseen reports; `?archived=true` for the archive); add (returns the first invite link); edit (name, `paid_until`, archive or restore) |
 | PUT | `/coach/me/timezone` | From Dasha's phone; her evening summary follows it |
 | POST | `/coach/clients/{id}/invite` | New invite link |
@@ -312,7 +314,7 @@ Gyms often have no signal, so logging must never block on the network:
 
 ## Notifications
 
-All messages come from the bot and are written in Ukrainian. Each one is first a row in `notifications`, unique per kind, subject and date, so restarts and repeated steps never send twice.
+All messages come from the bot and are written in Ukrainian. The same notifications also reach the app installed on a phone as web pushes, for everyone who allowed them there (see "Web push" below). Each one is first a row in `notifications`, unique per kind, subject and date, so restarts and repeated steps never send twice.
 
 - **Sent at once, retried later.** A request (publish, finish) queues its row and sends it right away. If Telegram fails, the row stays unsent and the background round retries it every 10 minutes, up to 8 attempts, for a day.
 - **Built when sent.** The text comes from the data at sending time. A reminder for a workout finished or deleted meanwhile is skipped (`skipped`), not sent.
@@ -325,6 +327,14 @@ All messages come from the bot and are written in Ukrainian. Each one is first a
 | Workout finished | Dasha | "Максим К.: звіт про «Спина», вт, 6 жовтня. 18 з 20 підходів · 2 інакше, ніж у плані · важко" and the comment, with a button opening that client in her workspace |
 | Dasha sets a nutrition target | Client | "Даша склала тобі норму харчування на день:" (or "оновила твою норму…") with the grams of each and "Разом близько 1650 ккал.", her note, and a button opening the targets. Skipped if a newer target replaced it before sending. |
 | 20:00–22:00 in Dasha's timezone, daily | Dasha | One summary: today's published workouts nobody opened (opening a workout sets `opened_at`), and clients whose `paid_until` is within 3 days. No message on a quiet day. |
+
+### Web push
+
+- **Who:** anyone using the installed app (or a browser outside Telegram) who tapped "Увімкнути" on the "Сповіщення на телефоні" card. An iPhone only allows it once the app is installed. Each browser is a row in `push_subscriptions`, belonging to a client or to Dasha. Signing in as someone else on that phone moves it to them; signing out removes it.
+- **What:** a short title and line for each kind, without the coach's name. A tap opens the screen it is about: the workout, the report, nutrition, or Dasha's client list. The app's icon shows how many are waiting.
+- **How:** `src/push.rs` encrypts each message for that browser alone (RFC 8291) and signs it with the VAPID key (RFC 8292, `VAPID_PRIVATE_KEY`). Only browsers' push services are accepted as addresses, so the server never posts to one someone made up.
+- **Once, best effort:** a row is pushed on its first delivery and marked `pushed_at`. Retries for the bot do not push again. A failed push is logged, not retried, and a browser the push service reports gone is forgotten.
+- **Reach:** a client counts as reachable, for reminders and for "client notified", through the bot or through the installed app.
 
 ## Video pipeline
 

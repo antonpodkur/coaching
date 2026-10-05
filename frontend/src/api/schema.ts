@@ -764,6 +764,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/push/key": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The key a browser needs to subscribe to web push. */
+        get: operations["key"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/push/subscription": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * This phone gets the signed-in person's notifications from now on, also if
+         *     it got someone else's before.
+         */
+        put: operations["subscribe"];
+        post?: never;
+        /**
+         * This phone stops getting the signed-in person's notifications: they
+         *     signed out here, or turned notifications off.
+         */
+        delete: operations["unsubscribe"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/sets/{id}/result": {
         parameters: {
             query?: never;
@@ -1264,6 +1305,11 @@ export interface components {
             muscle_group?: string | null;
             name: string;
         };
+        /** @description A browser's push subscription, as `PushSubscription.toJSON()` gives it. */
+        NewSubscription: {
+            endpoint: string;
+            keys: components["schemas"]["SubscriptionKeys"];
+        };
         NewTarget: {
             /** Format: int32 */
             carbs_g: number;
@@ -1310,6 +1356,9 @@ export interface components {
             /** Format: date-time */
             set_at: string;
         };
+        OldSubscription: {
+            endpoint: string;
+        };
         /** @description A logged set from an earlier workout. */
         PastSet: {
             /**
@@ -1333,6 +1382,10 @@ export interface components {
              */
             client_notified: boolean;
             workout: components["schemas"]["Workout"];
+        };
+        PushKey: {
+            /** @description For `pushManager.subscribe({ applicationServerKey })`, URL-safe base64. */
+            public_key: string;
         };
         Questionnaire: {
             /** Format: int32 */
@@ -1426,6 +1479,10 @@ export interface components {
         };
         /** @enum {string} */
         Sex: "female" | "male";
+        SubscriptionKeys: {
+            auth: string;
+            p256dh: string;
+        };
         /** @enum {string} */
         UploadStatus: "uploading" | "processing" | "failed";
         /** @description What the phone needs to upload one video straight to Bunny with tus. */
@@ -3512,6 +3569,101 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ClientWorkoutSummary"][];
                 };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    key: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PushKey"];
+                };
+            };
+            /** @description `push_not_configured` */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    subscribe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NewSubscription"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `invalid_subscription`: not a browser's push service, or not its keys */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    unsubscribe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OldSubscription"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             401: {
                 headers: {

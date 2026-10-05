@@ -122,6 +122,16 @@ Clients add photos of their gym to the questionnaire. Photos need no encoding, s
 
 Without these the questionnaire still works, but "Додати фото" answers that photos are not set up. An unsigned link to the pull zone answering 403 is expected.
 
+## 5d. Notifications from the installed app (web push)
+
+The app installed on a phone shows its own notifications, signed with a key pair only the backend holds. The bot's messages keep coming as well.
+
+1. On your computer, in `backend/`, run `cargo run --bin vapid-key`. It prints `VAPID_PRIVATE_KEY=…` and the public key.
+2. In Render, set `VAPID_PRIVATE_KEY` to the printed value. Don't put it anywhere else: not in the repo, not in chat. Browsers get the public key from `GET /push/key`.
+3. After the deploy, `https://<backend>/push/key` returns `{"public_key":"…"}`. Without the key it answers 503, and the app's "Увімкнути" card says it could not turn them on.
+
+Keep the key. A new one stops every phone's notifications until the app is opened again, which subscribes it anew.
+
 ## 6. Bunny webhook
 
 On the library's API page in Bunny, set the webhook URL to `https://<Render address>/webhooks/stream`. With it, a video shows as ready as soon as Bunny finishes encoding. Without it, the app checks with Bunny whenever Dasha opens the exercise.

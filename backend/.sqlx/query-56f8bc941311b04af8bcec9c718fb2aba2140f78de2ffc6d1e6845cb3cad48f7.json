@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT w.title, w.date AS \"date!\", c.id AS client_id, c.name AS client_name,\n                  co.telegram_id AS coach_telegram_id,\n                  r.effort AS \"effort: Effort\", r.comment,\n                  (SELECT count(*) FROM workout_sets s\n                   JOIN workout_exercises we ON we.id = s.workout_exercise_id\n                   WHERE we.workout_id = w.id) AS \"sets!\",\n                  (SELECT count(*) FROM workout_sets s\n                   JOIN workout_exercises we ON we.id = s.workout_exercise_id\n                   WHERE we.workout_id = w.id AND s.completed_at IS NOT NULL) AS \"done!\",\n                  (SELECT count(*) FROM workout_sets s\n                   JOIN workout_exercises we ON we.id = s.workout_exercise_id\n                   WHERE we.workout_id = w.id AND set_differs(s)) AS \"different!\"\n           FROM workouts w\n           JOIN clients c ON c.id = w.client_id\n           JOIN coaches co ON co.id = w.coach_id\n           JOIN workout_reports r ON r.workout_id = w.id\n           WHERE w.id = $1 AND w.date IS NOT NULL",
+  "query": "SELECT w.title, w.date AS \"date!\", c.id AS client_id, c.name AS client_name,\n                  co.id AS coach_id, co.telegram_id AS coach_telegram_id,\n                  r.effort AS \"effort: Effort\", r.comment,\n                  (SELECT count(*) FROM workout_sets s\n                   JOIN workout_exercises we ON we.id = s.workout_exercise_id\n                   WHERE we.workout_id = w.id) AS \"sets!\",\n                  (SELECT count(*) FROM workout_sets s\n                   JOIN workout_exercises we ON we.id = s.workout_exercise_id\n                   WHERE we.workout_id = w.id AND s.completed_at IS NOT NULL) AS \"done!\",\n                  (SELECT count(*) FROM workout_sets s\n                   JOIN workout_exercises we ON we.id = s.workout_exercise_id\n                   WHERE we.workout_id = w.id AND set_differs(s)) AS \"different!\"\n           FROM workouts w\n           JOIN clients c ON c.id = w.client_id\n           JOIN coaches co ON co.id = w.coach_id\n           JOIN workout_reports r ON r.workout_id = w.id\n           WHERE w.id = $1 AND w.date IS NOT NULL",
   "describe": {
     "columns": [
       {
@@ -49,6 +49,17 @@
       },
       {
         "ordinal": 4,
+        "name": "coach_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "coaches",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
         "name": "coach_telegram_id",
         "type_info": "Int8",
         "origin": {
@@ -59,7 +70,7 @@
         }
       },
       {
-        "ordinal": 5,
+        "ordinal": 6,
         "name": "effort: Effort",
         "type_info": {
           "Custom": {
@@ -81,7 +92,7 @@
         }
       },
       {
-        "ordinal": 6,
+        "ordinal": 7,
         "name": "comment",
         "type_info": "Text",
         "origin": {
@@ -92,19 +103,19 @@
         }
       },
       {
-        "ordinal": 7,
+        "ordinal": 8,
         "name": "sets!",
         "type_info": "Int8",
         "origin": "Expression"
       },
       {
-        "ordinal": 8,
+        "ordinal": 9,
         "name": "done!",
         "type_info": "Int8",
         "origin": "Expression"
       },
       {
-        "ordinal": 9,
+        "ordinal": 10,
         "name": "different!",
         "type_info": "Int8",
         "origin": "Expression"
@@ -123,10 +134,11 @@
       false,
       false,
       false,
+      false,
       null,
       null,
       null
     ]
   },
-  "hash": "cc200d5bc706517b2831d938822bdd6f0b1bcdd2c2a9d352aeb5146d39691c12"
+  "hash": "56f8bc941311b04af8bcec9c718fb2aba2140f78de2ffc6d1e6845cb3cad48f7"
 }

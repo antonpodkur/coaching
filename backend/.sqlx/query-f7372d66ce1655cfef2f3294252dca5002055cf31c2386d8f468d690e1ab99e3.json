@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT w.title, w.date AS \"date!\", c.telegram_id AS \"telegram_id!\"\n           FROM workouts w JOIN clients c ON c.id = w.client_id\n           WHERE w.id = $1 AND w.date IS NOT NULL AND c.telegram_id IS NOT NULL\n             AND c.bot_allowed_at IS NOT NULL AND w.status IN ('published', 'done')",
+  "query": "SELECT w.title, c.id AS client_id, c.telegram_id AS \"telegram_id!\",\n                  c.bot_allowed_at IS NOT NULL AS \"bot_allowed!\"\n           FROM workouts w JOIN clients c ON c.id = w.client_id\n           WHERE w.id = $1 AND w.status = 'published' AND c.telegram_id IS NOT NULL\n             AND c.archived_at IS NULL",
   "describe": {
     "columns": [
       {
@@ -16,12 +16,12 @@
       },
       {
         "ordinal": 1,
-        "name": "date!",
-        "type_info": "Date",
+        "name": "client_id",
+        "type_info": "Uuid",
         "origin": {
           "Table": {
-            "table": "workouts",
-            "name": "date"
+            "table": "clients",
+            "name": "id"
           }
         }
       },
@@ -35,6 +35,12 @@
             "name": "telegram_id"
           }
         }
+      },
+      {
+        "ordinal": 3,
+        "name": "bot_allowed!",
+        "type_info": "Bool",
+        "origin": "Expression"
       }
     ],
     "parameters": {
@@ -44,9 +50,10 @@
     },
     "nullable": [
       false,
+      false,
       true,
-      true
+      null
     ]
   },
-  "hash": "69b6378484317f093a2947d7d7561579a33a80c7059b80dae69beabc3470dcbd"
+  "hash": "f7372d66ce1655cfef2f3294252dca5002055cf31c2386d8f468d690e1ab99e3"
 }

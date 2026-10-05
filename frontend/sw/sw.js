@@ -10,6 +10,10 @@
  * A new version downloads in the background and waits. The app offers
  * "Оновити", which sends 'activate' (src/shared/appUpdate.ts); otherwise it
  * takes over once every window of the app has closed.
+ *
+ * It also shows the app's notifications (web push, see backend/src/push.rs):
+ * a tap opens the notification's screen, and the app's icon shows how many
+ * are waiting.
  */
 
 const worker = /** @type {ServiceWorkerGlobalScope} */ (/** @type {unknown} */ (self))
@@ -43,6 +47,69 @@ worker.addEventListener('fetch', (event) => {
     event.respondWith(fromCache(url.pathname, request))
   }
 })
+
+worker.addEventListener('push', (event) => {
+  event.waitUntil(showPush(event.data))
+})
+
+worker.addEventListener('notificationclick', (event) => {
+  event.notification.close()
+  const url = event.notification.data?.url
+  event.waitUntil(openScreen(typeof url === 'string' ? url : '/app').then(showCount))
+})
+
+/**
+ * What the server sent: `{ title, body, url, tag }` (backend/src/push.rs).
+ * @param {PushMessageData | null} data
+ * @returns {{ title?: string, body?: string, url?: string, tag?: string }}
+ */
+function readPush(data) {
+  try {
+    return data?.json() ?? {}
+  } catch {
+    return { body: data?.text() }
+  }
+}
+
+/** @param {PushMessageData | null} data */
+async function showPush(data) {
+  const message = readPush(data)
+  await worker.registration.showNotification(message.title ?? 'Тренування', {
+    body: message.body,
+    tag: message.tag,
+    icon: '/icon-192.png',
+    data: { url: message.url ?? '/app' },
+  })
+  await showCount()
+}
+
+/**
+ * The app's window goes to the screen if it is open (the page routes it
+ * without reloading); otherwise the app opens on it.
+ * @param {string} url
+ */
+async function openScreen(url) {
+  const windows = await worker.clients.matchAll({ type: 'window', includeUncontrolled: true })
+  const open = windows[0]
+  if (open) {
+    open.postMessage({ type: 'open', url })
+    try {
+      await open.focus()
+      return
+    } catch {
+      // Some phones refuse to bring it forward; open it instead.
+    }
+  }
+  await worker.clients.openWindow(url)
+}
+
+/** The number on the app's icon: notifications still waiting on the phone. */
+async function showCount() {
+  const waiting = await worker.registration.getNotifications()
+  const badge = worker.navigator
+  if (waiting.length > 0) await badge.setAppBadge?.(waiting.length).catch(() => undefined)
+  else await badge.clearAppBadge?.().catch(() => undefined)
+}
 
 async function keepFiles() {
   const cache = await caches.open(CACHE)

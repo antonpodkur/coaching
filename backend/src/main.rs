@@ -1,7 +1,7 @@
 use anyhow::Context;
 use coaching_backend::{
-    bot, config::Config, state::AppState, storage::StorageClient, telegram::TelegramClient,
-    video::StreamClient,
+    bot, config::Config, push::PushClient, state::AppState, storage::StorageClient,
+    telegram::TelegramClient, video::StreamClient,
 };
 use sqlx::postgres::PgPoolOptions;
 use tracing_subscriber::EnvFilter;
@@ -58,11 +58,22 @@ async fn main() -> anyhow::Result<()> {
         tracing::warn!("photo storage is not configured; clients cannot add photos");
     }
 
+    // Push services may write to the site's address about problems.
+    let push = config
+        .vapid_private_key
+        .as_deref()
+        .map(|key| PushClient::live(key, config.frontend_url.clone()))
+        .transpose()?;
+    if push.is_none() {
+        tracing::warn!("web push is not configured; the installed app gets no notifications");
+    }
+
     let addr = config.bind_addr;
     let state = AppState::new(db, config, telegram)
         .with_video(video)
         .with_client_videos(client_videos)
-        .with_storage(storage);
+        .with_storage(storage)
+        .with_push(push);
     // Reminders, Dasha's summary and retries run inside this process.
     tokio::spawn(coaching_backend::jobs::run(state.clone()));
     let app = coaching_backend::router(state);

@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO notifications (kind, entity_id, local_date, created_at)\n         SELECT $1, w.id, w.date, $2\n         FROM workouts w\n         JOIN clients c ON c.id = w.client_id\n         LEFT JOIN pg_timezone_names tz ON tz.name = c.timezone\n         CROSS JOIN LATERAL (\n             SELECT $2::timestamptz AT TIME ZONE COALESCE(tz.name, $3) AS local_now\n         ) client_time\n         WHERE w.status = 'published'\n           AND c.telegram_id IS NOT NULL AND c.archived_at IS NULL\n           AND (c.bot_allowed_at IS NOT NULL\n                OR EXISTS (SELECT 1 FROM push_subscriptions p WHERE p.client_id = c.id))\n           AND w.date = client_time.local_now::date\n           AND client_time.local_now::time BETWEEN $4 AND $5\n           AND w.published_at < $2 - make_interval(hours => $6)\n         ON CONFLICT (kind, entity_id, local_date) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Timestamptz",
+        "Text",
+        "Time",
+        "Time",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "18e65acc17642c0b1b210bbf20f4e2104971b0bff5cd819b95220d5b6c688817"
+}

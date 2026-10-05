@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE notifications SET last_attempt_at = now() - interval '1 hour' WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "578f361c80bcfba34d051ee2af8ea13630a044cbf8e0c43512054054855357f5"
+}

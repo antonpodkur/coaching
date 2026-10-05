@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT c.telegram_id IS NOT NULL AND c.archived_at IS NULL\n                  AND (c.bot_allowed_at IS NOT NULL\n                       OR EXISTS (SELECT 1 FROM push_subscriptions p WHERE p.client_id = c.id))\n                  AS \"reachable!\"\n           FROM nutrition_targets t JOIN clients c ON c.id = t.client_id\n           WHERE t.id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "reachable!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "a34c5bdfa2f381800e5aecf4c3f589fc720d7759d7e20bbd5f5861467f4c23ab"
+}

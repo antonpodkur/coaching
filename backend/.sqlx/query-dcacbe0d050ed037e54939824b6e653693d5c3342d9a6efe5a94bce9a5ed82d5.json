@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO nutrition_targets (client_id, protein_g, fat_g, carbs_g)\n         VALUES ($1, 120, 60, 250) RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "nutrition_targets",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "dcacbe0d050ed037e54939824b6e653693d5c3342d9a6efe5a94bce9a5ed82d5"
+}

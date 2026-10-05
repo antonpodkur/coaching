@@ -79,6 +79,9 @@ services:
         sync: false
       - key: BUNNY_STORAGE_TOKEN_KEY
         sync: false
+      # Signs the installed app's notifications (web push); see docs/DEPLOY.md, 5d.
+      - key: VAPID_PRIVATE_KEY
+        sync: false
     # The Telegram webhook needs no setting: the backend registers
     # $RENDER_EXTERNAL_URL/telegram/webhook on startup.
 

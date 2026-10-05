@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT t.protein_g, t.fat_g, t.carbs_g, t.note, c.telegram_id AS \"telegram_id!\",\n                  EXISTS (SELECT 1 FROM nutrition_targets p\n                          WHERE p.client_id = t.client_id AND p.created_at < t.created_at)\n                  AS \"changed!\"\n           FROM nutrition_targets t JOIN clients c ON c.id = t.client_id\n           WHERE t.id = $1 AND c.telegram_id IS NOT NULL AND c.bot_allowed_at IS NOT NULL\n             AND c.archived_at IS NULL\n             AND NOT EXISTS (SELECT 1 FROM nutrition_targets n\n                             WHERE n.client_id = t.client_id AND n.created_at > t.created_at)",
+  "query": "SELECT t.protein_g, t.fat_g, t.carbs_g, t.note, c.id AS client_id,\n                  c.telegram_id AS \"telegram_id!\", c.bot_allowed_at IS NOT NULL AS \"bot_allowed!\",\n                  EXISTS (SELECT 1 FROM nutrition_targets p\n                          WHERE p.client_id = t.client_id AND p.created_at < t.created_at)\n                  AS \"changed!\"\n           FROM nutrition_targets t JOIN clients c ON c.id = t.client_id\n           WHERE t.id = $1 AND c.telegram_id IS NOT NULL AND c.archived_at IS NULL\n             AND NOT EXISTS (SELECT 1 FROM nutrition_targets n\n                             WHERE n.client_id = t.client_id AND n.created_at > t.created_at)",
   "describe": {
     "columns": [
       {
@@ -49,6 +49,17 @@
       },
       {
         "ordinal": 4,
+        "name": "client_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "clients",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
         "name": "telegram_id!",
         "type_info": "Int8",
         "origin": {
@@ -59,7 +70,13 @@
         }
       },
       {
-        "ordinal": 5,
+        "ordinal": 6,
+        "name": "bot_allowed!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 7,
         "name": "changed!",
         "type_info": "Bool",
         "origin": "Expression"
@@ -75,9 +92,11 @@
       false,
       false,
       true,
+      false,
       true,
+      null,
       null
     ]
   },
-  "hash": "4f91f434436f8d4da3248601545e0e2880b3181ff77e1315c529505031c31b81"
+  "hash": "ccb684f7d345ec94c2fa3056bf18c449e395aa690991dabb289d9bbc1cd5077f"
 }

@@ -34,6 +34,9 @@ pub struct Config {
     /// A private Bunny Storage zone for photos (clients' gyms), served only
     /// through signed links. Without it photos cannot be added.
     pub storage: Option<StorageSettings>,
+    /// The VAPID key that signs web pushes (`cargo run --bin vapid-key`).
+    /// Without it the installed app gets no notifications of its own.
+    pub vapid_private_key: Option<String>,
 }
 
 impl Config {
@@ -114,6 +117,7 @@ impl Config {
             bunny,
             client_videos,
             storage,
+            vapid_private_key: optional_var("VAPID_PRIVATE_KEY"),
         })
     }
 

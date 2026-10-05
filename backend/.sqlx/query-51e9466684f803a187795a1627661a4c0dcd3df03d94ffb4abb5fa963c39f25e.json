@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO workouts (coach_id, client_id, title, date, status, published_at)\n         SELECT coach_id, id, $2, current_date, 'published', now() FROM clients WHERE id = $1\n         RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "workouts",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "51e9466684f803a187795a1627661a4c0dcd3df03d94ffb4abb5fa963c39f25e"
+}

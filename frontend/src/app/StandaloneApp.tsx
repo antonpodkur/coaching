@@ -6,6 +6,7 @@ import { ApiError, api, setSessionToken, unwrap } from '../api/client'
 import { CoachWorkspace } from '../coach/CoachWorkspace'
 import { Screen } from '../shared/Screen'
 import { installedOnIphone } from '../shared/device'
+import { stopPush, syncPush } from '../shared/push'
 import { ClientApp } from './ClientApp'
 import { SignIn } from './SignIn'
 import { installSwipeBack } from './gestures'
@@ -27,6 +28,7 @@ function keep(session: AppSession) {
   saveSession(session)
   void syncTimezone(session)
   noteInstalled(session)
+  void syncPush()
 }
 
 /**
@@ -88,6 +90,8 @@ export function StandaloneApp() {
   )
 
   const signOut = useCallback(() => {
+    const token = savedSession()?.token
+    if (token) void stopPush(token)
     setSessionToken(null)
     saveSession(null)
     setSignedOut(true)

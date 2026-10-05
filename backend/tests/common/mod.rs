@@ -41,6 +41,7 @@ pub fn test_config() -> Config {
         bunny: None,
         client_videos: None,
         storage: None,
+        vapid_private_key: None,
     }
 }
 

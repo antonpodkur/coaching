@@ -12,6 +12,7 @@ import {
   ScaleIcon,
 } from '../shared/icons'
 import { InstallCard } from '../shared/InstallCard'
+import { PushCard } from '../shared/PushCard'
 import { Screen } from '../shared/Screen'
 import { nutritionSummary } from '../shared/nutrition'
 import { weightSummary } from '../shared/weight'
@@ -61,7 +62,11 @@ export function HomePage({ client }: { client: Schemas['ClientProfile'] }) {
       ) : !client.questionnaire_started && !questionnaireLater ? (
         <QuestionnaireCard onDismiss={() => setQuestionnaireLater(true)} />
       ) : (
-        <InstallCard />
+        <>
+          {/* Inside Telegram the first offers the installed app; outside, the second its notifications. */}
+          <InstallCard />
+          <PushCard />
+        </>
       )}
 
       <WeekStrip workouts={all} today={today} />
