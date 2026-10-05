@@ -279,3 +279,31 @@ async fn sessions_renew_for_as_long_again_until_archived(db: PgPool) {
     let (status, _) = call(&app, "POST", "/auth/refresh", None, None).await;
     assert_eq!(status, StatusCode::UNAUTHORIZED);
 }
+
+#[sqlx::test]
+async fn the_installed_app_is_remembered_for_everyone(db: PgPool) {
+    let coach_id = seed_coach(&db, 555_000_222).await;
+    let client_id = seed_client(&db, coach_id, 777_000_111).await;
+    let state = test_state(db);
+    let app = coaching_backend::router(state.clone());
+    let client = state
+        .jwt
+        .issue(Role::Client, client_id, BROWSER_TOKEN_TTL)
+        .unwrap();
+    let coach = coach_token(&state, coach_id);
+
+    let (_, me) = call(&app, "GET", "/me", Some(&client), None).await;
+    assert_eq!(me["app_installed"], false, "the Telegram version offers it");
+
+    for token in [&client, &client, &coach] {
+        let (status, _) = call(&app, "POST", "/auth/installed", Some(token), None).await;
+        assert_eq!(status, StatusCode::NO_CONTENT);
+    }
+    let (_, session) = call(&app, "POST", "/auth/refresh", Some(&client), None).await;
+    assert_eq!(session["client"]["app_installed"], true);
+    let (_, session) = call(&app, "POST", "/auth/refresh", Some(&coach), None).await;
+    assert_eq!(session["coach"]["app_installed"], true);
+
+    let (status, _) = call(&app, "POST", "/auth/installed", None, None).await;
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+}

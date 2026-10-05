@@ -1,4 +1,4 @@
-use axum::{Json, extract::State};
+use axum::{Json, extract::State, http::StatusCode};
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
@@ -36,6 +36,9 @@ pub struct ClientProfile {
     /// They answered something in the questionnaire or added a gym photo or
     /// video; until then the app offers it.
     pub questionnaire_started: bool,
+    /// They use the app installed on a phone's home screen, so the Telegram
+    /// version stops offering it.
+    pub app_installed: bool,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -44,6 +47,8 @@ pub struct CoachProfile {
     pub name: String,
     /// IANA timezone of Dasha's phone; her evening summary follows it.
     pub timezone: String,
+    /// She uses the app installed on a phone's home screen.
+    pub app_installed: bool,
 }
 
 /// Who signed in decides which screens they get.
@@ -61,7 +66,8 @@ pub enum AppSession {
 async fn coach_by_telegram(db: &PgPool, telegram_id: i64) -> sqlx::Result<Option<CoachProfile>> {
     sqlx::query_as!(
         CoachProfile,
-        "SELECT id, name, timezone FROM coaches WHERE telegram_id = $1",
+        r#"SELECT id, name, timezone, app_installed_at IS NOT NULL AS "app_installed!"
+           FROM coaches WHERE telegram_id = $1"#,
         telegram_id,
     )
     .fetch_optional(db)
@@ -71,7 +77,8 @@ async fn coach_by_telegram(db: &PgPool, telegram_id: i64) -> sqlx::Result<Option
 async fn coach_by_id(db: &PgPool, coach_id: Uuid) -> sqlx::Result<Option<CoachProfile>> {
     sqlx::query_as!(
         CoachProfile,
-        "SELECT id, name, timezone FROM coaches WHERE id = $1",
+        r#"SELECT id, name, timezone, app_installed_at IS NOT NULL AS "app_installed!"
+           FROM coaches WHERE id = $1"#,
         coach_id,
     )
     .fetch_optional(db)
@@ -95,7 +102,8 @@ pub async fn client_profile(db: &PgPool, client_id: Uuid) -> sqlx::Result<Option
         r#"SELECT id, name, timezone, bot_allowed_at IS NOT NULL AS "bot_allowed!",
                   (birth_year IS NOT NULL OR sex IS NOT NULL OR height_cm IS NOT NULL
                    OR EXISTS (SELECT 1 FROM gym_media m WHERE m.client_id = clients.id))
-                  AS "questionnaire_started!"
+                  AS "questionnaire_started!",
+                  app_installed_at IS NOT NULL AS "app_installed!"
            FROM clients WHERE id = $1 AND archived_at IS NULL"#,
         client_id,
     )
@@ -319,4 +327,43 @@ pub async fn refresh(
         }
     };
     Ok(Json(session))
+}
+
+/// The app runs installed on a phone's home screen, for whoever is signed in.
+/// The Telegram version then stops offering to install it.
+#[utoipa::path(
+    post,
+    path = "/auth/installed",
+    tag = "auth",
+    security(("bearer" = [])),
+    responses(
+        (status = 204),
+        (status = 401, body = ErrorBody),
+    )
+)]
+pub async fn installed(
+    State(state): State<AppState>,
+    CurrentSession(claims): CurrentSession,
+) -> AppResult<StatusCode> {
+    match claims.role {
+        Role::Coach => {
+            sqlx::query!(
+                "UPDATE coaches SET app_installed_at = now()
+                 WHERE id = $1 AND app_installed_at IS NULL",
+                claims.sub,
+            )
+            .execute(&state.db)
+            .await?;
+        }
+        Role::Client => {
+            sqlx::query!(
+                "UPDATE clients SET app_installed_at = now()
+                 WHERE id = $1 AND app_installed_at IS NULL",
+                claims.sub,
+            )
+            .execute(&state.db)
+            .await?;
+        }
+    }
+    Ok(StatusCode::NO_CONTENT)
 }

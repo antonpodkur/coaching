@@ -196,6 +196,62 @@ a.button {
   margin-top: 12px;
 }
 
+/* Putting the app on a phone's home screen (InstallPage) */
+
+.install-head {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* The icon's dark square, outlined so it reads as an app icon on the dark page. */
+.install-icon {
+  border-radius: 16px;
+  border: 1px solid var(--line-strong);
+}
+
+.install-note {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.install-steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.install-steps li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  line-height: 1.45;
+}
+
+.install-steps .icon,
+.install-step-mark {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 1px;
+  color: var(--pink);
+}
+
+.install-step-mark {
+  display: inline-flex;
+  justify-content: center;
+  font-weight: 800;
+}
+
 /* Coach workspace */
 
 .wordmark {

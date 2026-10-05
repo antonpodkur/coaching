@@ -2,8 +2,6 @@
  * The parts of Telegram's Mini App SDK (loaded in index.html) that the app uses.
  * Reference: https://core.telegram.org/bots/webapps
  */
-export type HomeScreenStatus = 'unsupported' | 'unknown' | 'added' | 'missed'
-
 export interface TelegramWebApp {
   /** Signed launch data; the backend verifies it. Empty outside Telegram. */
   initData: string
@@ -19,6 +17,8 @@ export interface TelegramWebApp {
   ready(): void
   /** Opens a t.me link inside Telegram; the Mini App stays open. */
   openTelegramLink(url: string): void
+  /** Opens a link in the phone's browser; the Mini App stays open. */
+  openLink(url: string): void
   /** Makes Telegram ask before the app is closed, e.g. during an upload. */
   enableClosingConfirmation(): void
   disableClosingConfirmation(): void
@@ -29,11 +29,6 @@ export interface TelegramWebApp {
   requestWriteAccess(callback: (granted: boolean) => void): void
   /** Shares a message card the bot prepared (Bot API 8.0). */
   shareMessage(messageId: string, callback?: (sent: boolean) => void): void
-  /** Offers an icon on the phone's home screen (Bot API 8.0). */
-  addToHomeScreen(): void
-  checkHomeScreenStatus(callback: (status: HomeScreenStatus) => void): void
-  onEvent(event: 'homeScreenAdded', handler: () => void): void
-  offEvent(event: 'homeScreenAdded', handler: () => void): void
   /** Swipe down to close or minimize the app (Bot API 7.7). */
   disableVerticalSwipes(): void
   enableVerticalSwipes(): void

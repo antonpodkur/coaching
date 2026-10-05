@@ -3,7 +3,6 @@ import { useCallback, useEffect, useState } from 'react'
 
 import { ApiError, api, setSessionToken, unwrap } from '../api/client'
 import { CoachWorkspace } from '../coach/CoachWorkspace'
-import { checkHomeScreen } from '../shared/homeScreen'
 import { Screen } from '../shared/Screen'
 import { ClientApp } from './ClientApp'
 import { installSwipeBack } from './gestures'
@@ -63,7 +62,6 @@ export function MiniApp() {
     webApp?.expand()
     webApp?.setHeaderColor('#121212')
     webApp?.setBackgroundColor('#121212')
-    checkHomeScreen()
   }, [])
   // On Android the system back gesture already presses Telegram's back arrow.
   useEffect(() => (webApp?.platform === 'ios' ? installSwipeBack() : undefined), [])

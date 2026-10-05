@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE coaches SET app_installed_at = now()\n                 WHERE id = $1 AND app_installed_at IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "42c76dc5ecddb208cc55c57167b1b0533720c4b4e36ad5a1b64260bf27dba5bb"
+}

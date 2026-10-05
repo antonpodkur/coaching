@@ -11,7 +11,7 @@ import {
   PlateIcon,
   ScaleIcon,
 } from '../shared/icons'
-import { HomeScreenCard } from '../shared/HomeScreenCard'
+import { InstallCard } from '../shared/InstallCard'
 import { Screen } from '../shared/Screen'
 import { nutritionSummary } from '../shared/nutrition'
 import { weightSummary } from '../shared/weight'
@@ -61,7 +61,7 @@ export function HomePage({ client }: { client: Schemas['ClientProfile'] }) {
       ) : !client.questionnaire_started && !questionnaireLater ? (
         <QuestionnaireCard onDismiss={() => setQuestionnaireLater(true)} />
       ) : (
-        <HomeScreenCard />
+        <InstallCard />
       )}
 
       <WeekStrip workouts={all} today={today} />

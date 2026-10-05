@@ -20,7 +20,7 @@ Dasha's online coaching app. She builds workouts from her exercise library and p
   - The webhook checks Telegram's secret header. On startup the bot's menu button is pointed at the Mini App.
   - Dasha adds a client and sends the single-use invite (valid 7 days) as a card with an "Відкрити" button. The client taps it and is in the app straight away, joined, with no Start in the bot.
   - The bot tells Dasha, and messages the client only once they allow it. Then it sends a pinned welcome: what the chat is for, the app button, and "Написати Даші".
-  - The app offers an icon on the phone's home screen. During a workout it can't be swiped closed, and Telegram asks before closing while logged sets are unsent.
+  - The app offers to install itself on the phone's home screen, with steps for iPhone and Android at `/install`. During a workout it can't be swiped closed, and Telegram asks before closing while logged sets are unsent.
 - **Client:** `GET /me`, and `PUT /me/timezone` so reminders can use local time.
 - **Coach:** `GET/POST /coach/clients`, `POST /coach/clients/{id}/invite`, and `POST /coach/import/parse`, which reads an old Telegram plan and matches it against the library.
 - **Editing clients:** Dasha renames a client, sets the date they have paid until (with a "+1 місяць" shortcut), and archives or restores them. The list and the client page flag a payment that has ended or ends within 3 days. An archived client is signed out at once, gets no bot messages, and can join a fresh profile later. Her phone sets her own timezone, so the evening summary follows her.

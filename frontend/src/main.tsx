@@ -8,12 +8,14 @@ import '@fontsource-variable/manrope'
 import '@fontsource/unbounded/latin-600.css'
 import '@fontsource/unbounded/cyrillic-600.css'
 
+import { InstallPage } from './app/InstallPage'
 import { MiniApp } from './app/MiniApp'
 import { StandaloneApp } from './app/StandaloneApp'
 import { telegramWebApp } from './app/telegram'
 import { UpdateNote } from './shared/UpdateNote'
 import { registerServiceWorker } from './shared/appUpdate'
 import { placeCaretOnFocus } from './shared/fieldFocus'
+import { listenForInstallPrompt } from './shared/installPrompt'
 import './styles.css'
 
 const queryClient = new QueryClient({
@@ -25,6 +27,8 @@ const queryClient = new QueryClient({
 const router = createBrowserRouter([
   { path: '/', loader: () => redirect('/app') },
   { path: '/app/*', element: telegramWebApp() ? <MiniApp /> : <StandaloneApp /> },
+  // How to put the app on a phone's home screen.
+  { path: '/install', element: <InstallPage /> },
   // Dasha's old browser address: `/coach/…` is `/app/…` now.
   {
     path: '/coach/*',
@@ -37,6 +41,7 @@ const router = createBrowserRouter([
 
 placeCaretOnFocus()
 registerServiceWorker()
+listenForInstallPrompt()
 
 const root = document.getElementById('root')
 if (!root) throw new Error('index.html has no #root element')

@@ -107,7 +107,10 @@ The installed app, its stored data, its sign-in and its push subscriptions all b
    - **Bot sign-in for everyone:** the coach or a client who joined; anyone else is refused at once. A client the bot could not write to yet gets the pinned welcome when they press Start. On a phone the button opens Telegram directly (`tg://`), on a computer `t.me`.
    - **Signing out:** Dasha's header has "Вийти"; a client has "Вийти з акаунта" at the bottom of their profile (the questionnaire).
    - **Replacements:** swipe back on an installed iPhone app, vibration on Android for a ticked set and a sent report (`shared/haptics.ts`), and the phone's share sheet for an invite.
-3. **Getting people to install:** the install page and the card in the Telegram version.
+3. **Getting people to install.** Built:
+   - **The install page, `/install`** (`InstallPage.tsx`): steps for the phone at hand. iPhone: Share → «На початковий екран» → «Додати», with the English names too, and "open in Safari" for other browsers and for Telegram's own browser. Android: Chrome's own "Встановити" when Chrome offers it (`installPrompt.ts`), and the ⋮ menu steps. A computer: open this page on the phone. An installed app that opens on this address goes to `/app`.
+   - **The card in the Telegram version** (`InstallCard.tsx`) replaces Telegram's home-screen card, on the client's home screen and Dasha's client list, on phones only. "Встановити" opens `/install` in the phone's browser (`openLink`).
+   - **Once installed, never offered again:** the installed app tells the backend (`POST /auth/installed`, `app_installed_at` on clients and coaches), so the card disappears on every phone. That is also the first record of who uses the installed app.
 4. **Web push:** subscriptions, short texts, the badge, and Dasha's notifications.
 
 ## To check on real phones
@@ -121,3 +124,5 @@ The installed app, its stored data, its sign-in and its push subscriptions all b
 - Inside Telegram on Android, the second launch with no signal (the first one installs the service worker).
 - The sign-in on an installed iPhone app: "Відкрити Telegram" (iPhone asks whether to open Telegram), Start and Confirm in the bot, then back to the app, which should be signed in a moment later.
 - Swipe back from the left edge on an installed iPhone app.
+- "Встановити" on the card inside Telegram: does `/install` open in Safari / Chrome, or in Telegram's own browser? Follow the steps through to the icon, and check the card is gone in Telegram afterwards.
+- Chrome's own install dialog on Android from the "Встановити" button on `/install`.

@@ -4,7 +4,7 @@ import { Link } from 'react-router'
 
 import { api, unwrap } from '../api/client'
 import { formatDay, formatToday, initials } from '../shared/format'
-import { HomeScreenCard } from '../shared/HomeScreenCard'
+import { InstallCard } from '../shared/InstallCard'
 import { PlusIcon, SearchIcon } from '../shared/icons'
 import { InviteCard, type ShownInvite } from './InviteCard'
 import { ARCHIVED_KEY, type Client, payment } from './clients'
@@ -69,7 +69,7 @@ export function ClientsPage() {
       </header>
 
       {invite && <InviteCard invite={invite} onClose={() => setInvite(null)} />}
-      {!invite && <HomeScreenCard />}
+      {!invite && <InstallCard />}
       {reinvite.isError && !isUnauthorized(reinvite.error) && (
         <p className="error">Не вдалося створити посилання. Спробуй ще раз.</p>
       )}

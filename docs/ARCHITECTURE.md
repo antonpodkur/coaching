@@ -134,7 +134,7 @@ Older `?start=inv_<code>` links still work through the bot's `/start` handler, w
 **The chat is the inbox, the app is where training happens.**
 - Every bot message carries one button into the right screen.
 - Anything a client types gets a one-line pointer to the app and to Dasha.
-- The app offers an icon on the phone's home screen (`addToHomeScreen`).
+- On a phone, the app offers to install itself on the home screen ("Встанови застосунок"): it opens the install page, `/install`, in the phone's browser. Hidden for anyone who already uses the installed app (`app_installed`), on every phone.
 - During a workout, a swipe down does not close the app (`disableVerticalSwipes`).
 - Telegram asks before closing while logged sets are still waiting to send.
 
@@ -267,6 +267,7 @@ Coach (`role = coach`):
 | POST | `/auth/bot-login` | New login code, bot links (`t.me` and `tg://`) and display code |
 | POST | `/auth/bot-login/poll` | `{poll_secret}` → `pending`, `cancelled`, `refused`, `expired`, or `approved` with the coach's or client's session (once) |
 | POST | `/auth/refresh` | A new token for the same person and lifetime, with their profile; 401 once they are archived |
+| POST | `/auth/installed` | The signed-in person uses the app installed on a home screen; the Telegram version stops offering it |
 | GET/POST/PATCH | `/coach/clients`, `/coach/clients/{id}` | List (with each client's unseen reports; `?archived=true` for the archive); add (returns the first invite link); edit (name, `paid_until`, archive or restore) |
 | PUT | `/coach/me/timezone` | From Dasha's phone; her evening summary follows it |
 | POST | `/coach/clients/{id}/invite` | New invite link |

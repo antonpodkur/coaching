@@ -1,0 +1,73 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, name, timezone, bot_allowed_at IS NOT NULL AS \"bot_allowed!\",\n                  (birth_year IS NOT NULL OR sex IS NOT NULL OR height_cm IS NOT NULL\n                   OR EXISTS (SELECT 1 FROM gym_media m WHERE m.client_id = clients.id))\n                  AS \"questionnaire_started!\",\n                  app_installed_at IS NOT NULL AS \"app_installed!\"\n           FROM clients WHERE id = $1 AND archived_at IS NULL",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "clients",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "clients",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "timezone",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "clients",
+            "name": "timezone"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "bot_allowed!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "questionnaire_started!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "app_installed!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "a0e8093d256b15e30cfb6ae4952fd37275a953f067cd3c4dfcfd4d4ebe3c074e"
+}

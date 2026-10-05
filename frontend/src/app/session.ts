@@ -1,4 +1,5 @@
 import { type Schemas, api } from '../api/client'
+import { installedApp } from '../shared/device'
 
 export type AppSession = Schemas['AppSession']
 
@@ -107,4 +108,13 @@ function sameZone(stored: string | null | undefined, phone: string) {
     // A phone too old to know the current name.
     return false
   }
+}
+
+/**
+ * Tells the backend, once, that this person uses the installed app, so the
+ * Telegram version stops offering it on every phone.
+ */
+export function noteInstalled(session: AppSession) {
+  const known = session.role === 'coach' ? session.coach.app_installed : session.client.app_installed
+  if (!known && installedApp()) void api.POST('/auth/installed').catch(() => undefined)
 }

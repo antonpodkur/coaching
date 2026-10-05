@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE clients SET app_installed_at = now()\n                 WHERE id = $1 AND app_installed_at IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "98852727c309ad0c645adb9ae96986e00f597104911635cc9cd37c31c5c21a70"
+}

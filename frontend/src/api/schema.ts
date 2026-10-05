@@ -41,6 +41,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/installed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * The app runs installed on a phone's home screen, for whoever is signed in.
+         *     The Telegram version then stops offering to install it.
+         */
+        post: operations["installed"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/refresh": {
         parameters: {
             query?: never;
@@ -913,6 +933,11 @@ export interface components {
         };
         ClientProfile: {
             /**
+             * @description They use the app installed on a phone's home screen, so the Telegram
+             *     version stops offering it.
+             */
+            app_installed: boolean;
+            /**
              * @description The bot may message them. Joining through an app link skips the bot's
              *     Start, so until they allow it the app asks (`requestWriteAccess`).
              */
@@ -1035,6 +1060,8 @@ export interface components {
             unseen_reports: number;
         };
         CoachProfile: {
+            /** @description She uses the app installed on a phone's home screen. */
+            app_installed: boolean;
             /** Format: uuid */
             id: string;
             name: string;
@@ -1614,6 +1641,31 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BotLoginPoll"];
+                };
+            };
+        };
+    };
+    installed: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
         };

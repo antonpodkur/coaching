@@ -12,6 +12,7 @@ import { installSwipeBack } from './gestures'
 import {
   type AppSession,
   SESSION_KEY,
+  noteInstalled,
   oldCoachToken,
   saveSession,
   savedSession,
@@ -25,6 +26,7 @@ function keep(session: AppSession) {
   setSessionToken(session.token)
   saveSession(session)
   void syncTimezone(session)
+  noteInstalled(session)
 }
 
 /**

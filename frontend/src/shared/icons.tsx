@@ -192,3 +192,31 @@ export function PlateIcon({ size = 16 }: { size?: number }) {
     </Icon>
   )
 }
+
+/** iPhone's "Поділитися": an arrow out of a box. */
+export function ShareIcon({ size = 18 }: { size?: number }) {
+  return (
+    <Icon size={size}>
+      <path d="M12 3v12M8 7l4-4 4 4M7 11H5v10h14V11h-2" />
+    </Icon>
+  )
+}
+
+/** iPhone's "На початковий екран": a plus in a box. */
+export function AddBoxIcon({ size = 18 }: { size?: number }) {
+  return (
+    <Icon size={size}>
+      <rect x="4" y="4" width="16" height="16" rx="4" />
+      <path d="M12 8v8M8 12h8" />
+    </Icon>
+  )
+}
+
+/** Chrome's menu on Android: three dots, one above another. */
+export function MenuDotsIcon({ size = 18 }: { size?: number }) {
+  return (
+    <Icon size={size}>
+      <path d="M12 5h.01M12 12h.01M12 19h.01" strokeWidth={3} />
+    </Icon>
+  )
+}
