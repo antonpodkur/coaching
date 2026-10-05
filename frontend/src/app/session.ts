@@ -85,10 +85,26 @@ export function oldCoachToken(): string | null {
 export async function syncTimezone(session: AppSession) {
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
   if (!timezone) return
-  if (session.role === 'client' && session.client.timezone !== timezone) {
+  if (session.role === 'client' && !sameZone(session.client.timezone, timezone)) {
     await api.PUT('/me/timezone', { body: { timezone } }).catch(() => undefined)
   }
-  if (session.role === 'coach' && session.coach.timezone !== timezone) {
+  if (session.role === 'coach' && !sameZone(session.coach.timezone, timezone)) {
     await api.PUT('/coach/me/timezone', { body: { timezone } }).catch(() => undefined)
+  }
+}
+
+/**
+ * The backend stores current names (Europe/Kyiv) where Chrome still reports
+ * old ones (Europe/Kiev). Intl gives the stored name back in the phone's
+ * spelling, so the same zone is not sent again on every sign-in.
+ */
+function sameZone(stored: string | null | undefined, phone: string) {
+  if (stored === phone) return true
+  if (!stored) return false
+  try {
+    return new Intl.DateTimeFormat('en', { timeZone: stored }).resolvedOptions().timeZone === phone
+  } catch {
+    // A phone too old to know the current name.
+    return false
   }
 }

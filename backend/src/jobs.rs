@@ -28,7 +28,9 @@ const ANNOUNCED_HOURS: i32 = 12;
 /// Dasha's summary goes out from 20:00 in her timezone.
 const SUMMARY_FROM: NaiveTime = NaiveTime::from_hms_opt(20, 0, 0).unwrap();
 const SUMMARY_UNTIL: NaiveTime = NaiveTime::from_hms_opt(22, 0, 0).unwrap();
-/// Clients without a timezone yet are assumed to be in Ukraine.
+/// Clients without a timezone yet are assumed to be in Ukraine. So is anyone
+/// whose stored timezone Postgres does not know, rather than stopping the
+/// whole round with an error.
 const DEFAULT_TIMEZONE: &str = "Europe/Kyiv";
 
 /// A failed message is tried again after this long, up to `MAX_ATTEMPTS`
@@ -66,12 +68,33 @@ pub async fn tick(state: &AppState, now: DateTime<Utc>) -> anyhow::Result<()> {
 }
 
 async fn round(state: &AppState, now: DateTime<Utc>) -> anyhow::Result<()> {
+    warn_unknown_timezones(state).await?;
     queue_reminders(state, now).await?;
     queue_summaries(state, now).await?;
     // Clients' videos that finished encoding without a webhook; tells Dasha.
     form_videos::refresh_processing(state, now).await?;
     questionnaire::refresh_processing(state).await?;
     send_due(state, now).await
+}
+
+/// The API stores only names Postgres knows, but a Postgres upgrade can drop
+/// old ones. Their owners get `DEFAULT_TIMEZONE` until the names are fixed.
+async fn warn_unknown_timezones(state: &AppState) -> sqlx::Result<()> {
+    let unknown = sqlx::query_scalar!(
+        r#"SELECT timezone AS "timezone!" FROM clients WHERE timezone IS NOT NULL
+           UNION SELECT timezone FROM coaches
+           EXCEPT SELECT name FROM pg_timezone_names"#
+    )
+    .fetch_all(&state.db)
+    .await?;
+    if !unknown.is_empty() {
+        tracing::warn!(
+            ?unknown,
+            instead = DEFAULT_TIMEZONE,
+            "Postgres does not know these stored timezones"
+        );
+    }
+    Ok(())
 }
 
 /// One reminder per published workout, on its date, in the client's morning.
@@ -81,8 +104,9 @@ async fn queue_reminders(state: &AppState, now: DateTime<Utc>) -> sqlx::Result<(
          SELECT $1, w.id, w.date, $2
          FROM workouts w
          JOIN clients c ON c.id = w.client_id
+         LEFT JOIN pg_timezone_names tz ON tz.name = c.timezone
          CROSS JOIN LATERAL (
-             SELECT $2::timestamptz AT TIME ZONE COALESCE(c.timezone, $3) AS local_now
+             SELECT $2::timestamptz AT TIME ZONE COALESCE(tz.name, $3) AS local_now
          ) client_time
          WHERE w.status = 'published'
            AND c.telegram_id IS NOT NULL AND c.bot_allowed_at IS NOT NULL
@@ -107,12 +131,17 @@ async fn queue_reminders(state: &AppState, now: DateTime<Utc>) -> sqlx::Result<(
 async fn queue_summaries(state: &AppState, now: DateTime<Utc>) -> sqlx::Result<()> {
     sqlx::query!(
         "INSERT INTO notifications (kind, entity_id, local_date, created_at)
-         SELECT $1, co.id, ($2::timestamptz AT TIME ZONE co.timezone)::date, $2
+         SELECT $1, co.id, coach_time.local_now::date, $2
          FROM coaches co
-         WHERE ($2::timestamptz AT TIME ZONE co.timezone)::time BETWEEN $3 AND $4
+         LEFT JOIN pg_timezone_names tz ON tz.name = co.timezone
+         CROSS JOIN LATERAL (
+             SELECT $2::timestamptz AT TIME ZONE COALESCE(tz.name, $3) AS local_now
+         ) coach_time
+         WHERE coach_time.local_now::time BETWEEN $4 AND $5
          ON CONFLICT (kind, entity_id, local_date) DO NOTHING",
         Kind::CoachDaily.as_str(),
         now,
+        DEFAULT_TIMEZONE,
         SUMMARY_FROM,
         SUMMARY_UNTIL,
     )

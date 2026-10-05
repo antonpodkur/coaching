@@ -363,7 +363,8 @@ export interface paths {
         get?: never;
         /**
          * Stores the timezone of Dasha's phone, so her evening summary arrives at 20:00
-         *     her time wherever she is.
+         *     her time wherever she is. An old name such as `Europe/Kiev` is stored under
+         *     its current one.
          */
         put: operations["set_coach_timezone"];
         post?: never;
@@ -679,7 +680,10 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** Stores the phone's timezone so reminders arrive at the client's local time. */
+        /**
+         * Stores the phone's timezone so reminders arrive at the client's local time.
+         *     An old name such as `Europe/Kiev` is stored under its current one.
+         */
         put: operations["set_timezone"];
         post?: never;
         delete?: never;

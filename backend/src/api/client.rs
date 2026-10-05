@@ -1,5 +1,6 @@
 use axum::{Json, extract::State, http::StatusCode};
 use serde::Deserialize;
+use sqlx::PgPool;
 use utoipa::ToSchema;
 
 use crate::{
@@ -8,6 +9,7 @@ use crate::{
     bot,
     error::{AppError, AppResult, ErrorBody},
     state::AppState,
+    timezone,
 };
 
 /// The signed-in client's profile.
@@ -63,6 +65,7 @@ pub struct SetTimezone {
 }
 
 /// Stores the phone's timezone so reminders arrive at the client's local time.
+/// An old name such as `Europe/Kiev` is stored under its current one.
 #[utoipa::path(
     put,
     path = "/me/timezone",
@@ -80,11 +83,11 @@ pub async fn set_timezone(
     CurrentClient(client_id): CurrentClient,
     Json(body): Json<SetTimezone>,
 ) -> AppResult<StatusCode> {
-    let timezone = body.parse()?;
+    let timezone = body.storable(&state.db).await?;
     sqlx::query!(
         "UPDATE clients SET timezone = $2 WHERE id = $1",
         client_id,
-        timezone.name(),
+        timezone,
     )
     .execute(&state.db)
     .await?;
@@ -92,10 +95,10 @@ pub async fn set_timezone(
 }
 
 impl SetTimezone {
-    /// Anything but an IANA name is refused, so `AT TIME ZONE` never fails on it.
-    pub(crate) fn parse(&self) -> AppResult<chrono_tz::Tz> {
-        self.timezone
-            .parse()
-            .map_err(|_| AppError::BadRequest("unknown_timezone"))
+    /// The name to store, or `unknown_timezone`; see [`timezone::storable`].
+    pub(crate) async fn storable(&self, db: &PgPool) -> AppResult<&'static str> {
+        timezone::storable(db, &self.timezone)
+            .await?
+            .ok_or(AppError::BadRequest("unknown_timezone"))
     }
 }

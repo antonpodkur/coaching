@@ -17,6 +17,7 @@ use uuid::Uuid;
 const COACH_TG: i64 = 555_000_222;
 const KYIV_TG: i64 = 777_000_111;
 const NEW_YORK_TG: i64 = 888_000_222;
+const UNKNOWN_TZ_TG: i64 = 999_000_333;
 /// The advisory lock key in `jobs.rs`.
 const JOBS_LOCK: i64 = 0x636f_6163_685f_6a6f;
 
@@ -250,6 +251,44 @@ async fn dasha_gets_an_evening_summary_only_when_there_is_something_to_say(db: P
     .await
     .unwrap();
     assert!(skipped);
+}
+
+#[sqlx::test]
+async fn a_timezone_postgres_does_not_know_stops_nobody(db: PgPool) {
+    let coach_id = seed_coach(&db, COACH_TG).await;
+    let kyiv = client_in(&db, coach_id, KYIV_TG, "Максим К.", "Europe/Kyiv").await;
+    // Stored before the API checked names with Postgres, like Europe/Kiev was.
+    let unknown = client_in(&db, coach_id, UNKNOWN_TZ_TG, "Олена К.", "Mars/Olympus").await;
+    sqlx::query("UPDATE coaches SET timezone = 'Mars/Olympus' WHERE id = $1")
+        .bind(coach_id)
+        .execute(&db)
+        .await
+        .unwrap();
+    let earlier = at("2026-10-04T12:00:00Z");
+    workout(&db, kyiv, "Спина", "2026-10-06", "published", earlier).await;
+    workout(&db, unknown, "Ноги", "2026-10-06", "published", earlier).await;
+    let state = test_state(db);
+
+    // 09:05 in Kyiv; the unknown timezone counts as Kyiv.
+    jobs::tick(&state, at("2026-10-06T06:05:00Z"))
+        .await
+        .unwrap();
+    assert_eq!(
+        texts(&state, KYIV_TG),
+        ["Нагадування: сьогодні тренування «Спина»."]
+    );
+    assert_eq!(
+        texts(&state, UNKNOWN_TZ_TG),
+        ["Нагадування: сьогодні тренування «Ноги»."]
+    );
+
+    // Dasha's summary at 20:05 Kyiv time.
+    jobs::tick(&state, at("2026-10-06T17:05:00Z"))
+        .await
+        .unwrap();
+    let summary = texts(&state, COACH_TG);
+    assert_eq!(summary.len(), 1);
+    assert!(summary[0].starts_with("Підсумок дня, вт, 6 жовтня."));
 }
 
 #[sqlx::test]

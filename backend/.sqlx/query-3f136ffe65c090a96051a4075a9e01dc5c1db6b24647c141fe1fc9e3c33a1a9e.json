@@ -1,0 +1,21 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT timezone AS \"timezone!\" FROM clients WHERE timezone IS NOT NULL\n           UNION SELECT timezone FROM coaches\n           EXCEPT SELECT name FROM pg_timezone_names",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "timezone!",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "3f136ffe65c090a96051a4075a9e01dc5c1db6b24647c141fe1fc9e3c33a1a9e"
+}

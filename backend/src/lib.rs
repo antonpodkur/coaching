@@ -22,6 +22,7 @@ pub mod questionnaire;
 pub mod state;
 pub mod storage;
 pub mod telegram;
+pub mod timezone;
 pub mod video;
 pub mod weight;
 

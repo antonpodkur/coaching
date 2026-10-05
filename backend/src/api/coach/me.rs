@@ -8,7 +8,8 @@ use crate::{
 };
 
 /// Stores the timezone of Dasha's phone, so her evening summary arrives at 20:00
-/// her time wherever she is.
+/// her time wherever she is. An old name such as `Europe/Kiev` is stored under
+/// its current one.
 #[utoipa::path(
     put,
     operation_id = "set_coach_timezone",
@@ -27,11 +28,11 @@ pub async fn set_timezone(
     CurrentCoach(coach_id): CurrentCoach,
     Json(body): Json<SetTimezone>,
 ) -> AppResult<StatusCode> {
-    let timezone = body.parse()?;
+    let timezone = body.storable(&state.db).await?;
     sqlx::query!(
         "UPDATE coaches SET timezone = $2 WHERE id = $1",
         coach_id,
-        timezone.name(),
+        timezone,
     )
     .execute(&state.db)
     .await?;
