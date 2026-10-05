@@ -15,6 +15,7 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::{
+    cdn_token,
     error::{AppError, AppResult},
     notify::{self, Kind},
     state::AppState,
@@ -24,10 +25,7 @@ use crate::{
 /// Per exercise in one workout, not counting failed uploads.
 pub const MAX_PER_EXERCISE: i64 = 3;
 /// How long an upload signature works; it has to outlast a slow upload.
-const UPLOAD_TTL: Duration = Duration::hours(24);
-/// Playback links last at least this long. They expire on the hour, so a list
-/// fetched twice within an hour gets the same links and the player does not reload.
-const LINK_HOURS: i64 = 6;
+pub(crate) const UPLOAD_TTL: Duration = Duration::hours(24);
 /// At most this many encodings are checked with Bunny per jobs round.
 const REFRESH_LIMIT: i64 = 10;
 
@@ -262,7 +260,7 @@ pub async fn for_workout(
     .fetch_all(&state.db)
     .await?;
 
-    let expires = link_expiry(Utc::now());
+    let expires = cdn_token::link_expiry(Utc::now());
     let mut by_exercise: HashMap<Uuid, Vec<FormVideo>> = HashMap::new();
     for row in rows {
         let links = state
@@ -289,24 +287,4 @@ pub async fn for_workout(
             });
     }
     Ok(by_exercise)
-}
-
-/// The top of the hour at least `LINK_HOURS` from now.
-fn link_expiry(now: DateTime<Utc>) -> i64 {
-    let hour = 60 * 60;
-    (now.timestamp() / hour + LINK_HOURS + 1) * hour
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn links_expire_on_the_hour_at_least_six_hours_out() {
-        let now: DateTime<Utc> = "2026-10-06T09:59:00Z".parse().unwrap();
-        let expires = DateTime::from_timestamp(link_expiry(now), 0).unwrap();
-        assert_eq!(expires.to_rfc3339(), "2026-10-06T16:00:00+00:00");
-        let later: DateTime<Utc> = "2026-10-06T09:01:00Z".parse().unwrap();
-        assert_eq!(link_expiry(later), link_expiry(now));
-    }
 }

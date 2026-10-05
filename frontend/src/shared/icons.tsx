@@ -155,3 +155,21 @@ export function EditIcon({ size = 18 }: { size?: number }) {
     </Icon>
   )
 }
+
+export function PersonIcon({ size = 20 }: { size?: number }) {
+  return (
+    <Icon size={size}>
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4.5 20c1.4-3.4 4.2-5 7.5-5s6.1 1.6 7.5 5" />
+    </Icon>
+  )
+}
+
+export function PhotoIcon({ size = 16 }: { size?: number }) {
+  return (
+    <Icon size={size}>
+      <path d="M4 8h3.2l1.8-2.5h6l1.8 2.5H20v11H4z" />
+      <circle cx="12" cy="13" r="3.5" />
+    </Icon>
+  )
+}

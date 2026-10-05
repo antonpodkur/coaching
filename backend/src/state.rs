@@ -2,7 +2,10 @@ use std::sync::Arc;
 
 use sqlx::PgPool;
 
-use crate::{auth::jwt::JwtKeys, config::Config, telegram::TelegramClient, video::StreamClient};
+use crate::{
+    auth::jwt::JwtKeys, config::Config, storage::StorageClient, telegram::TelegramClient,
+    video::StreamClient,
+};
 
 #[derive(Clone)]
 pub struct AppState {
@@ -14,6 +17,8 @@ pub struct AppState {
     pub video: Option<StreamClient>,
     /// The private library for clients' technique videos; `None` turns them off.
     pub client_videos: Option<StreamClient>,
+    /// The private photo storage; `None` turns photos off.
+    pub storage: Option<StorageClient>,
 }
 
 impl AppState {
@@ -26,6 +31,7 @@ impl AppState {
             telegram,
             video: None,
             client_videos: None,
+            storage: None,
         }
     }
 
@@ -36,6 +42,11 @@ impl AppState {
 
     pub fn with_client_videos(mut self, library: Option<StreamClient>) -> Self {
         self.client_videos = library;
+        self
+    }
+
+    pub fn with_storage(mut self, storage: Option<StorageClient>) -> Self {
+        self.storage = storage;
         self
     }
 }

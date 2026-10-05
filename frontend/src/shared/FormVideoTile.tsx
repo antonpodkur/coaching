@@ -5,9 +5,10 @@ import { VideoPlayer } from './VideoPlayer'
 import { formatClock } from './format'
 import { CloseIcon } from './icons'
 
-type FormVideo = Schemas['FormVideo']
+/** A client's video: of an exercise, or of their gym. */
+type ClientVideo = Pick<Schemas['FormVideo'], 'status' | 'hls_url' | 'thumbnail_url' | 'length_secs'>
 
-const STATE_TEXT: Record<FormVideo['status'], string> = {
+const STATE_TEXT: Record<ClientVideo['status'], string> = {
   uploading: 'Надсилання не завершилось',
   processing: 'Відео обробляється…',
   // Ready, but no link: the private library is not set up on this server.
@@ -16,7 +17,7 @@ const STATE_TEXT: Record<FormVideo['status'], string> = {
 }
 
 /**
- * A client's technique video: its thumbnail until tapped, then the player,
+ * A client's video (technique or gym): its thumbnail until tapped, then the player,
  * already playing. Both fill the same frame, so opening a video moves nothing
  * on the page. The links are signed and expire, so they are always fresh from
  * the server.
@@ -26,7 +27,7 @@ export function FormVideoTile({
   label,
   onDelete,
 }: {
-  video: FormVideo
+  video: ClientVideo
   label: string
   onDelete?: () => void
 }) {

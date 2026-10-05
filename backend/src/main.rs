@@ -1,6 +1,7 @@
 use anyhow::Context;
 use coaching_backend::{
-    bot, config::Config, state::AppState, telegram::TelegramClient, video::StreamClient,
+    bot, config::Config, state::AppState, storage::StorageClient, telegram::TelegramClient,
+    video::StreamClient,
 };
 use sqlx::postgres::PgPoolOptions;
 use tracing_subscriber::EnvFilter;
@@ -48,10 +49,20 @@ async fn main() -> anyhow::Result<()> {
         tracing::warn!("the client video library is not configured; clients cannot send videos");
     }
 
+    let storage = config
+        .storage
+        .clone()
+        .map(StorageClient::live)
+        .transpose()?;
+    if storage.is_none() {
+        tracing::warn!("photo storage is not configured; clients cannot add photos");
+    }
+
     let addr = config.bind_addr;
     let state = AppState::new(db, config, telegram)
         .with_video(video)
-        .with_client_videos(client_videos);
+        .with_client_videos(client_videos)
+        .with_storage(storage);
     // Reminders, Dasha's summary and retries run inside this process.
     tokio::spawn(coaching_backend::jobs::run(state.clone()));
     let app = coaching_backend::router(state);

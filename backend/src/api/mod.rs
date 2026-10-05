@@ -5,12 +5,14 @@ pub mod client;
 pub mod coach;
 pub mod form_videos;
 pub mod health;
+pub mod questionnaire;
 pub mod stream;
 pub mod telegram;
 pub mod workouts;
 
 use axum::{
     Router,
+    extract::DefaultBodyLimit,
     http::{
         Method,
         header::{AUTHORIZATION, CONTENT_TYPE, IF_MATCH},
@@ -46,6 +48,13 @@ use crate::state::AppState;
         form_videos::start,
         form_videos::finish,
         form_videos::delete,
+        questionnaire::get_mine,
+        questionnaire::save_answers,
+        questionnaire::add_photo,
+        questionnaire::start_video,
+        questionnaire::finish_video,
+        questionnaire::delete,
+        questionnaire::get_for_coach,
         coach::clients::list,
         coach::clients::create,
         coach::clients::get,
@@ -129,6 +138,21 @@ pub fn router(state: AppState) -> Router {
         .route("/form-videos/{id}/uploaded", post(form_videos::finish))
         .route("/form-videos/{id}", delete(form_videos::delete))
         .route(
+            "/me/questionnaire",
+            get(questionnaire::get_mine).put(questionnaire::save_answers),
+        )
+        .route(
+            "/me/gym/photos",
+            post(questionnaire::add_photo)
+                .layer(DefaultBodyLimit::max(crate::questionnaire::MAX_PHOTO_BYTES)),
+        )
+        .route("/me/gym/videos", post(questionnaire::start_video))
+        .route(
+            "/me/gym/videos/{id}/uploaded",
+            post(questionnaire::finish_video),
+        )
+        .route("/me/gym/{id}", delete(questionnaire::delete))
+        .route(
             "/coach/clients",
             get(coach::clients::list).post(coach::clients::create),
         )
@@ -137,6 +161,10 @@ pub fn router(state: AppState) -> Router {
             get(coach::clients::get).patch(coach::clients::update),
         )
         .route("/coach/clients/{id}/invite", post(coach::clients::reinvite))
+        .route(
+            "/coach/clients/{id}/questionnaire",
+            get(questionnaire::get_for_coach),
+        )
         .route("/coach/me/timezone", put(coach::me::set_timezone))
         .route(
             "/coach/clients/{id}/workouts",

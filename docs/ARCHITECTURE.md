@@ -171,7 +171,9 @@ This replaces the Telegram Login Widget, which Telegram now labels legacy. Teleg
 coaches           id, telegram_id UNIQUE, name, timezone (default Europe/Kyiv)
 clients           id, coach_id, name, telegram_id UNIQUE NULL, bot_allowed_at NULL, invite_code_hash UNIQUE NULL,
                   invite_expires_at, paid_until DATE NULL, timezone TEXT NULL,
+                  birth_year NULL, sex (female|male) NULL, height_cm NULL,   -- the questionnaire
                   created_at, archived_at
+gym_media         id, client_id, kind (photo|video), object_key UNIQUE, status, length_secs NULL, created_at
 exercises         id, coach_id, name, measure (weight | bodyweight | time), muscle_group, aliases TEXT[],
                   video_uid NULL, video_length_secs NULL,
                   upload_video_uid UNIQUE NULL, upload_status (uploading|processing|failed) NULL,
@@ -211,6 +213,10 @@ coach_logins      id, code_hash UNIQUE, poll_secret_hash UNIQUE, display_code, c
   - **Encoding:** followed like exercise videos. That's the library's own webhook (`/webhooks/client-videos`), the phone's "uploaded", and a check in every jobs round. A ready video sends Dasha one bot message.
   - **Seen:** opening the report marks its videos seen.
   - **Kept** until the exercise row or the client is deleted.
+- **The questionnaire** is the client's own: birth year, sex and height on `clients`, all optional, and photos and videos of their gym in `gym_media` (at most 10 photos and 3 videos).
+  - **Photos** are shrunk on the phone to 1600 px, which also drops the camera's metadata, and sent through the backend, which checks they are JPEGs. They sit in a private Bunny Storage zone under `clients/<id>/gym/`, and one signed directory token covers a client's photos.
+  - **Videos** take the technique videos' path: straight from the phone to the private client library, encoded there, and followed by the same webhook and jobs.
+  - **Dasha** sees a summary on the client page and the whole questionnaire one tap further. The client's home screen offers it until they answer anything ("Не зараз" hides the offer on that phone).
 - **Clients are archived, never deleted,** so Dasha keeps their history. An archived client is signed out on their next request (the client extractor checks `archived_at`), gets no bot messages, and cannot use an invite. If they come back and Dasha adds them as a new client, the archived profile gives up the Telegram account to the new one.
 - **`coach_id`** is on the top-level tables even though there is one coach. It costs nothing and keeps the door open.
 - **Invite and login codes are stored hashed.** Until it is used, a code in a link works like a password.
@@ -231,6 +237,11 @@ Client (`role = client`):
 | POST | `/workout-exercises/{id}/videos` | Starts a technique video for Dasha: a tus ticket into the private library. Up to 3 per exercise. |
 | POST | `/form-videos/{id}/uploaded` | The file is in; Bunny encodes it, then Dasha is told |
 | DELETE | `/form-videos/{id}` | The client deletes their video, on Bunny too |
+| GET, PUT | `/me/questionnaire` | The questionnaire; PUT saves `{birth_year, sex, height_cm}` |
+| POST | `/me/gym/photos` | A gym photo as the JPEG body. Up to 10. |
+| POST | `/me/gym/videos` | Starts a gym video: a tus ticket into the private library. Up to 3. |
+| POST | `/me/gym/videos/{id}/uploaded` | The gym video's file is in |
+| DELETE | `/me/gym/{id}` | Deletes a gym photo or video, on Bunny too |
 
 Coach (`role = coach`):
 
@@ -241,6 +252,7 @@ Coach (`role = coach`):
 | GET/POST/PATCH | `/coach/clients`, `/coach/clients/{id}` | List (with each client's unseen reports; `?archived=true` for the archive); add (returns the first invite link); edit (name, `paid_until`, archive or restore) |
 | PUT | `/coach/me/timezone` | From Dasha's phone; her evening summary follows it |
 | POST | `/coach/clients/{id}/invite` | New invite link |
+| GET | `/coach/clients/{id}/questionnaire` | The client's questionnaire, with signed links to their gym photos and videos |
 | GET | `/coach/workouts?from&to&client_id` | Every active client's workouts in a date range (at most 62 days) plus undated drafts, with the client's name: the workouts tab |
 | GET | `/coach/clients/{id}/workouts` | Her workouts for this client: undated drafts first, then newest date first, with done and differing set counts and the report's effort and seen state |
 | GET | `/coach/workouts/{id}/results` | Every set's target next to what the client logged, `differs` per set, and the report |

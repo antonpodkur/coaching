@@ -40,6 +40,7 @@ pub fn test_config() -> Config {
         frontend_origin: header::HeaderValue::from_static(FRONTEND_URL),
         bunny: None,
         client_videos: None,
+        storage: None,
     }
 }
 

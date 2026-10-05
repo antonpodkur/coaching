@@ -1,0 +1,51 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM gym_media WHERE id = $1 AND client_id = $2\n           RETURNING kind AS \"kind: MediaKind\", object_key",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "kind: MediaKind",
+        "type_info": {
+          "Custom": {
+            "name": "gym_media_kind",
+            "kind": {
+              "Enum": [
+                "photo",
+                "video"
+              ]
+            }
+          }
+        },
+        "origin": {
+          "Table": {
+            "table": "gym_media",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "object_key",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "gym_media",
+            "name": "object_key"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "bc1e697e36d1a4c4f62147d92a6f3e34ac638d4696ac699b17a659fde001176f"
+}

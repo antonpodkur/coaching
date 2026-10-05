@@ -6,6 +6,7 @@ import { type Schemas, api } from '../api/client'
 import { BackLink } from '../shared/BackLink'
 import { FormVideoTile } from '../shared/FormVideoTile'
 import { VideoPlayer } from '../shared/VideoPlayer'
+import { confirmAction } from '../shared/dialogs'
 import {
   type Measure,
   type TimeUnit,
@@ -17,12 +18,13 @@ import {
   plural,
   timeUnitFor,
 } from '../shared/format'
-import { CameraIcon, CheckIcon, ChevronIcon, CloseIcon } from '../shared/icons'
+import { CameraIcon, CheckIcon, ChevronIcon } from '../shared/icons'
 import { Screen } from '../shared/Screen'
 import { useNoSwipeToClose } from './gestures'
 import { logSet } from './outbox'
 import { telegramWebApp } from './telegram'
-import { dismissSend, sendVideo, useVideoSends } from './videoSends'
+import { VideoSendCards } from './VideoSendCards'
+import { exerciseTarget, sendVideo, useVideoSends } from './videoSends'
 import { type ClientSet, MY_WORKOUTS_KEY, differs, useMyWorkout } from './workouts'
 
 /**
@@ -162,7 +164,8 @@ function FormVideos({
   enabled: boolean
 }) {
   const queryClient = useQueryClient()
-  const sends = useVideoSends().filter((send) => send.workoutExerciseId === exercise.id)
+  const target = exerciseTarget(workoutId, exercise.id)
+  const sends = useVideoSends().filter((send) => send.target === target.key)
   // Workouts cached before videos existed have no list.
   const videos = exercise.videos ?? []
   if (!enabled && videos.length === 0) return null
@@ -174,21 +177,12 @@ function FormVideos({
   const pick = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     event.target.value = ''
-    if (file) void sendVideo(workoutId, exercise.id, file, queryClient)
+    if (file) void sendVideo(target, file, queryClient)
   }
-  const remove = (videoId: string) => {
-    const deleteIt = (confirmed: boolean) => {
-      if (!confirmed) return
-      void api
-        .DELETE('/form-videos/{id}', { params: { path: { id: videoId } } })
-        .finally(
-          () => void queryClient.invalidateQueries({ queryKey: [...MY_WORKOUTS_KEY, workoutId] }),
-        )
-    }
-    const question = 'Видалити це відео? Даша його більше не побачить.'
-    const webApp = telegramWebApp()
-    if (webApp) webApp.showConfirm(question, deleteIt)
-    else deleteIt(window.confirm(question))
+  const remove = async (videoId: string) => {
+    if (!(await confirmAction('Видалити це відео? Даша його більше не побачить.'))) return
+    await api.DELETE('/form-videos/{id}', { params: { path: { id: videoId } } }).catch(() => undefined)
+    void queryClient.invalidateQueries({ queryKey: [...MY_WORKOUTS_KEY, workoutId] })
   }
 
   return (
@@ -204,40 +198,7 @@ function FormVideos({
           onDelete={() => remove(video.id)}
         />
       ))}
-      {sends.map((send) => (
-        <div key={send.key} className={send.phase === 'failed' ? 'video-send failed' : 'video-send'}>
-          <div className="video-send-head">
-            <span className="small">
-              {send.phase === 'failed'
-                ? send.error
-                : send.phase === 'uploading'
-                  ? `Надсилаю відео… ${Math.round(send.progress * 100)}%`
-                  : 'Готую відео…'}
-            </span>
-            {send.phase === 'failed' && (
-              <button
-                type="button"
-                className="icon-button"
-                aria-label="Закрити"
-                onClick={() => dismissSend(send.key)}
-              >
-                <CloseIcon />
-              </button>
-            )}
-          </div>
-          {send.phase !== 'failed' && (
-            <div
-              className="progress"
-              role="progressbar"
-              aria-valuenow={Math.round(send.progress * 100)}
-              aria-valuemin={0}
-              aria-valuemax={100}
-            >
-              <div style={{ width: `${Math.round(send.progress * 100)}%` }} />
-            </div>
-          )}
-        </div>
-      ))}
+      <VideoSendCards sends={sends} />
       {enabled && counted < MAX_VIDEOS && (
         <label className="button block file-button">
           <CameraIcon />

@@ -2,6 +2,9 @@ import type { Schemas } from '../api/client'
 
 type Session = Schemas['MiniAppSession']
 
+/** The Mini App's session in the query cache. */
+export const SESSION_KEY = ['mini-app-session']
+
 const STORAGE_KEY = 'mini_app_session'
 /** A little under the token's 12 hours, so a cached session is never expired. */
 const MAX_AGE_MS = 11 * 60 * 60 * 1000

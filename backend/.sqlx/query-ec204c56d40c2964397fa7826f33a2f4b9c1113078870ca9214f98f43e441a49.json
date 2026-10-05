@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT EXISTS (SELECT 1 FROM clients WHERE id = $1 AND coach_id = $2) AS \"theirs!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "theirs!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "ec204c56d40c2964397fa7826f33a2f4b9c1113078870ca9214f98f43e441a49"
+}

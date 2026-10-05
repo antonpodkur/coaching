@@ -4,6 +4,7 @@
 pub mod api;
 pub mod auth;
 pub mod bot;
+pub mod cdn_token;
 pub mod coaches;
 pub mod codes;
 pub mod config;
@@ -14,7 +15,9 @@ pub mod import;
 pub mod invites;
 pub mod jobs;
 pub mod notify;
+pub mod questionnaire;
 pub mod state;
+pub mod storage;
 pub mod telegram;
 pub mod video;
 

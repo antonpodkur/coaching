@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE gym_media SET status = $2, length_secs = $3 WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        {
+          "Custom": {
+            "name": "form_video_status",
+            "kind": {
+              "Enum": [
+                "uploading",
+                "processing",
+                "ready",
+                "failed"
+              ]
+            }
+          }
+        },
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "0e7722e3da5e37c065579218cb63a2ce5ee682947b5a9d95f5b86d9964ac315b"
+}

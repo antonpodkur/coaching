@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE gym_media SET status = 'processing'\n         WHERE id = $1 AND client_id = $2 AND kind = 'video'\n           AND status IN ('uploading', 'processing')\n         RETURNING object_key",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "object_key",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "gym_media",
+            "name": "object_key"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "940ebb026762b8335d849329c209089e70db1b6a7725fc2890ee300c236a8606"
+}

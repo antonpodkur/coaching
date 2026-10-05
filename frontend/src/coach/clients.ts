@@ -1,10 +1,35 @@
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { type Schemas, api, unwrap } from '../api/client'
-import { daysBetween, formatDate, localDate } from '../shared/format'
+import { daysBetween, formatAge, formatDate, localDate } from '../shared/format'
 import { CLIENTS_KEY, isUnauthorized, useCoach } from './context'
 
 export type Client = Schemas['CoachClient']
+
+export const SEX_WORD: Record<Schemas['Sex'], string> = { female: 'жіноча', male: 'чоловіча' }
+
+/** One client's questionnaire: `[...CLIENTS_KEY, id, 'questionnaire']`. */
+export function questionnaireQuery(id: string) {
+  return queryOptions({
+    queryKey: [...CLIENTS_KEY, id, 'questionnaire'],
+    queryFn: async () =>
+      unwrap(
+        await api.GET('/coach/clients/{id}/questionnaire', { params: { path: { id } } }),
+      ),
+  })
+}
+
+/** `34 роки · чоловіча · 182 см · 6 фото · 1 відео`, or `null` before any answer. */
+export function questionnaireSummary(client: Client): string | null {
+  const parts = [
+    client.birth_year != null && formatAge(client.birth_year),
+    client.sex && SEX_WORD[client.sex],
+    client.height_cm != null && `${client.height_cm} см`,
+    client.gym_photos > 0 && `${client.gym_photos} фото`,
+    client.gym_videos > 0 && `${client.gym_videos} відео`,
+  ].filter(Boolean)
+  return parts.length > 0 ? parts.join(' · ') : null
+}
 
 /** The archive list, fetched only when Dasha opens it. */
 export const ARCHIVED_KEY = [...CLIENTS_KEY, 'archived']

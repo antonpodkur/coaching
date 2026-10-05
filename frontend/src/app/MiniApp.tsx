@@ -7,7 +7,7 @@ import { checkHomeScreen } from '../shared/homeScreen'
 import { Screen } from '../shared/Screen'
 import { ClientApp } from './ClientApp'
 import { installSwipeBack } from './gestures'
-import { recalledSession, rememberSession } from './session'
+import { SESSION_KEY, recalledSession, rememberSession } from './session'
 import { telegramWebApp } from './telegram'
 
 const webApp = telegramWebApp()
@@ -72,7 +72,7 @@ export function MiniApp() {
   useEffect(() => (webApp?.platform === 'ios' ? installSwipeBack() : undefined), [])
 
   const session = useQuery({
-    queryKey: ['mini-app-session'],
+    queryKey: SESSION_KEY,
     queryFn: () => signIn(webApp?.initData ?? ''),
     enabled: webApp !== null,
     staleTime: Infinity,

@@ -8,7 +8,7 @@ use serde::Deserialize;
 use chrono::Utc;
 
 use crate::{
-    form_videos,
+    form_videos, questionnaire,
     state::AppState,
     video::{self, StreamClient},
 };
@@ -45,7 +45,8 @@ pub async fn webhook(State(state): State<AppState>, headers: HeaderMap, body: By
     }
 }
 
-/// The same for the private library of clients' technique videos.
+/// The same for the private library of clients' own videos: technique videos
+/// and gym videos from the questionnaire.
 pub async fn client_videos_webhook(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -59,7 +60,11 @@ pub async fn client_videos_webhook(
         Ok(None) => return StatusCode::OK,
         Err(status) => return status,
     };
-    match form_videos::refresh(&state, &video_guid, Utc::now()).await {
+    let refreshed = match form_videos::refresh(&state, &video_guid, Utc::now()).await {
+        Ok(()) => questionnaire::refresh_video(&state, &video_guid).await,
+        Err(err) => Err(err),
+    };
+    match refreshed {
         Ok(()) => StatusCode::OK,
         Err(err) => {
             tracing::error!(error = ?err, "handling a client video webhook failed");

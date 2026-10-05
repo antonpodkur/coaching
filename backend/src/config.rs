@@ -3,7 +3,7 @@ use std::net::SocketAddr;
 use anyhow::{Context, Result, ensure};
 use axum::http::HeaderValue;
 
-use crate::video::StreamSettings;
+use crate::{storage::StorageSettings, video::StreamSettings};
 
 /// Settings read from the environment (and `backend/.env` in development).
 ///
@@ -31,6 +31,9 @@ pub struct Config {
     /// A second, private Bunny library for clients' own technique videos,
     /// played only through signed links. Without it clients cannot send videos.
     pub client_videos: Option<StreamSettings>,
+    /// A private Bunny Storage zone for photos (clients' gyms), served only
+    /// through signed links. Without it photos cannot be added.
+    pub storage: Option<StorageSettings>,
 }
 
 impl Config {
@@ -73,6 +76,17 @@ impl Config {
             }),
         };
 
+        let storage = match optional_var("BUNNY_STORAGE_ZONE") {
+            None => None,
+            Some(zone) => Some(StorageSettings {
+                zone,
+                hostname: hostname(&var("BUNNY_STORAGE_HOSTNAME")?),
+                password: var("BUNNY_STORAGE_PASSWORD")?,
+                cdn_hostname: hostname(&var("BUNNY_STORAGE_CDN_HOSTNAME")?),
+                token_key: var("BUNNY_STORAGE_TOKEN_KEY")?,
+            }),
+        };
+
         let frontend_url = var("FRONTEND_ORIGIN")?.trim_end_matches('/').to_owned();
         let frontend_origin = HeaderValue::from_str(&frontend_url)
             .context("FRONTEND_ORIGIN is not a valid header value")?;
@@ -99,6 +113,7 @@ impl Config {
             frontend_origin,
             bunny,
             client_videos,
+            storage,
         })
     }
 

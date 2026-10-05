@@ -5,12 +5,12 @@ import { Link, useNavigate, useParams } from 'react-router'
 import { ApiError, type Schemas, api, unwrap } from '../api/client'
 import { BackLink } from '../shared/BackLink'
 import { formatDay, initials } from '../shared/format'
-import { CopyIcon, EditIcon, PlusIcon } from '../shared/icons'
+import { ChevronIcon, CopyIcon, EditIcon, PlusIcon } from '../shared/icons'
 import { ArchivedNotice } from './ClientEditPage'
 import { InviteCard, type ShownInvite } from './InviteCard'
 import { ReportCard } from './ReportCard'
 import { WorkoutRow } from './WorkoutRow'
-import { clientQuery, payment } from './clients'
+import { clientQuery, payment, questionnaireSummary } from './clients'
 import { CLIENTS_KEY, WORKOUTS_KEY, isUnauthorized, useCoach } from './context'
 import { resultsQuery } from './results'
 
@@ -126,6 +126,14 @@ export function ClientPage() {
       </header>
 
       {person.archived && <ArchivedNotice client={person} />}
+
+      <Link className="workout-row" to={`${base}/clients/${id}/questionnaire`}>
+        <span className="workout-text">
+          <span className="workout-title">Анкета</span>
+          <span className="muted small">{questionnaireSummary(person) ?? 'Ще не заповнена'}</span>
+        </span>
+        <ChevronIcon />
+      </Link>
 
       {active && !person.joined && !invite && (
         <button

@@ -7,7 +7,7 @@ import { BackLink } from '../shared/BackLink'
 import { addMonths, localDate } from '../shared/format'
 import { type Client, clientQuery, useUpdateClient } from './clients'
 import { isUnauthorized, useCoach } from './context'
-import { confirmAction } from './library'
+import { confirmAction } from '../shared/dialogs'
 
 /** A client's name, how long they have paid for, and the archive. */
 export function ClientEditPage() {

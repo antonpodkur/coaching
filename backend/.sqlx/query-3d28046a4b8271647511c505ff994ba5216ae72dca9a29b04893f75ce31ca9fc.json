@@ -1,0 +1,62 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT birth_year, sex AS \"sex: Sex\", height_cm FROM clients WHERE id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "birth_year",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "clients",
+            "name": "birth_year"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "sex: Sex",
+        "type_info": {
+          "Custom": {
+            "name": "client_sex",
+            "kind": {
+              "Enum": [
+                "female",
+                "male"
+              ]
+            }
+          }
+        },
+        "origin": {
+          "Table": {
+            "table": "clients",
+            "name": "sex"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "height_cm",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "clients",
+            "name": "height_cm"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "3d28046a4b8271647511c505ff994ba5216ae72dca9a29b04893f75ce31ca9fc"
+}

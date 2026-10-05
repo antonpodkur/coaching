@@ -1,0 +1,27 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE clients SET birth_year = $2, sex = $3, height_cm = $4 WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Int4",
+        {
+          "Custom": {
+            "name": "client_sex",
+            "kind": {
+              "Enum": [
+                "female",
+                "male"
+              ]
+            }
+          }
+        },
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "108435cfce0d0446e198b81213ae5278d939bc8e4baa8b1604497134c78c6392"
+}

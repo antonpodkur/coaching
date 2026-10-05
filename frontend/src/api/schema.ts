@@ -121,6 +121,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/coach/clients/{id}/questionnaire": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One client's questionnaire, for Dasha. */
+        get: operations["get_client_questionnaire"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/coach/clients/{id}/workouts": {
         parameters: {
             query?: never;
@@ -446,6 +463,98 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/gym/photos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Adds a photo of the client's gym: a JPEG shrunk on the phone, as the body.
+         *     Up to ten.
+         */
+        post: operations["add_gym_photo"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/gym/videos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Starts uploading a video of the client's gym: creates it on Bunny and signs
+         *     a tus upload straight from the phone. Up to three.
+         */
+        post: operations["start_gym_video"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/gym/videos/{id}/uploaded": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** The phone finished sending a gym video; Bunny encodes it next. */
+        post: operations["finish_gym_video"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/gym/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** The client deletes a photo or video of their gym, on Bunny too. */
+        delete: operations["delete_gym_media"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/questionnaire": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The client's own questionnaire. */
+        get: operations["get_my_questionnaire"];
+        /** Saves the client's answers: birth year, sex and height. */
+        put: operations["save_my_answers"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/me/timezone": {
         parameters: {
             query?: never;
@@ -565,6 +674,14 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** @description The client's answers; each is optional, and leaving one out clears it. */
+        Answers: {
+            /** Format: int32 */
+            birth_year?: number | null;
+            /** Format: int32 */
+            height_cm?: number | null;
+            sex?: components["schemas"]["Sex"] | null;
+        };
         BotLoginPoll: {
             /** @enum {string} */
             status: "pending";
@@ -628,6 +745,11 @@ export interface components {
             /** Format: uuid */
             id: string;
             name: string;
+            /**
+             * @description They answered something in the questionnaire or added a gym photo or
+             *     video; until then the app offers it.
+             */
+            questionnaire_started: boolean;
             /** @description IANA timezone reported by the client's phone, e.g. `Europe/Kyiv`. */
             timezone?: string | null;
         };
@@ -697,8 +819,22 @@ export interface components {
         CoachClient: {
             /** @description Hidden from the list; the client cannot open the app until restored. */
             archived: boolean;
+            /**
+             * Format: int32
+             * @description From the questionnaire the client fills in; each answer may be missing.
+             */
+            birth_year?: number | null;
             /** Format: date-time */
             created_at: string;
+            /**
+             * Format: int64
+             * @description Gym photos, and gym videos that arrived (encoding or ready).
+             */
+            gym_photos: number;
+            /** Format: int64 */
+            gym_videos: number;
+            /** Format: int32 */
+            height_cm?: number | null;
             /** Format: uuid */
             id: string;
             /**
@@ -716,6 +852,7 @@ export interface components {
             new_videos: number;
             /** Format: date */
             paid_until?: string | null;
+            sex?: components["schemas"]["Sex"] | null;
             /**
              * Format: int64
              * @description Reports Dasha has not opened yet.
@@ -814,6 +951,26 @@ export interface components {
             ticket: components["schemas"]["UploadTicket"];
             /** @description Send as the tus `title` metadata, so Bunny keeps this name. */
             title: string;
+        };
+        GymPhoto: {
+            /** Format: date-time */
+            created_at: string;
+            /** Format: uuid */
+            id: string;
+            /** @description Signed for a few hours. */
+            url: string;
+        };
+        GymVideo: {
+            /** Format: date-time */
+            created_at: string;
+            /** @description HLS playlist, signed for a few hours. Only once ready. */
+            hls_url?: string | null;
+            /** Format: uuid */
+            id: string;
+            /** Format: int32 */
+            length_secs?: number | null;
+            status: components["schemas"]["FormVideoStatus"];
+            thumbnail_url?: string | null;
         };
         Health: {
             database: boolean;
@@ -922,6 +1079,12 @@ export interface components {
             /** Format: int32 */
             reps?: number | null;
         };
+        /**
+         * Format: binary
+         * @description A photo file's bytes as the request body. Only describes the body in the
+         *     API, so the field is never read.
+         */
+        PhotoFile: string;
         PublishedWorkout: {
             /**
              * @description The bot has told the client; `false` while they have not joined the app or
@@ -929,6 +1092,17 @@ export interface components {
              */
             client_notified: boolean;
             workout: components["schemas"]["Workout"];
+        };
+        Questionnaire: {
+            /** Format: int32 */
+            birth_year?: number | null;
+            /** Format: int32 */
+            height_cm?: number | null;
+            /** @description Oldest first. */
+            photos: components["schemas"]["GymPhoto"][];
+            sex?: components["schemas"]["Sex"] | null;
+            /** @description Oldest first. Dasha sees only the ones that arrived (encoding or ready). */
+            videos: components["schemas"]["GymVideo"][];
         };
         Report: {
             comment: string;
@@ -1001,6 +1175,8 @@ export interface components {
             /** @description IANA name from `Intl.DateTimeFormat().resolvedOptions().timeZone`. */
             timezone: string;
         };
+        /** @enum {string} */
+        Sex: "female" | "male";
         /** @enum {string} */
         UploadStatus: "uploading" | "processing" | "failed";
         /** @description What the phone needs to upload one video straight to Bunny with tus. */
@@ -1429,6 +1605,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["InviteLink"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_client_questionnaire: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Client id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Questionnaire"];
                 };
             };
             401: {
@@ -2318,6 +2532,248 @@ export interface operations {
             };
             /** @description `bot_cannot_write`: Telegram refused, so messages are not allowed after all */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    add_gym_photo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "image/jpeg": components["schemas"]["PhotoFile"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GymPhoto"];
+                };
+            };
+            /** @description `invalid_photo`: not a JPEG, or too big */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description `too_many_photos` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description `photos_not_configured` */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    start_gym_video: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FormVideoUpload"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description `too_many_videos` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description `client_videos_not_configured` */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    finish_gym_video: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Gym video id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_gym_media: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Gym photo or video id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_my_questionnaire: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Questionnaire"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    save_my_answers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Answers"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Questionnaire"];
+                };
+            };
+            /** @description `invalid_birth_year` or `invalid_height` */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };

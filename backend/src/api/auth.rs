@@ -32,6 +32,9 @@ pub struct ClientProfile {
     /// The bot may message them. Joining through an app link skips the bot's
     /// Start, so until they allow it the app asks (`requestWriteAccess`).
     pub bot_allowed: bool,
+    /// They answered something in the questionnaire or added a gym photo or
+    /// video; until then the app offers it.
+    pub questionnaire_started: bool,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -125,7 +128,10 @@ pub async fn telegram_webapp(
 
     let mut client = sqlx::query_as!(
         ClientProfile,
-        r#"SELECT id, name, timezone, bot_allowed_at IS NOT NULL AS "bot_allowed!"
+        r#"SELECT id, name, timezone, bot_allowed_at IS NOT NULL AS "bot_allowed!",
+                  (birth_year IS NOT NULL OR sex IS NOT NULL OR height_cm IS NOT NULL
+                   OR EXISTS (SELECT 1 FROM gym_media m WHERE m.client_id = clients.id))
+                  AS "questionnaire_started!"
            FROM clients
            WHERE telegram_id = $1 AND archived_at IS NULL"#,
         telegram_id,

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, name, timezone, bot_allowed_at IS NOT NULL AS \"bot_allowed!\"\n           FROM clients WHERE id = $1 AND archived_at IS NULL",
+  "query": "SELECT id, name, timezone, bot_allowed_at IS NOT NULL AS \"bot_allowed!\",\n                  (birth_year IS NOT NULL OR sex IS NOT NULL OR height_cm IS NOT NULL\n                   OR EXISTS (SELECT 1 FROM gym_media m WHERE m.client_id = clients.id))\n                  AS \"questionnaire_started!\"\n           FROM clients WHERE id = $1 AND archived_at IS NULL",
   "describe": {
     "columns": [
       {
@@ -41,6 +41,12 @@
         "name": "bot_allowed!",
         "type_info": "Bool",
         "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "questionnaire_started!",
+        "type_info": "Bool",
+        "origin": "Expression"
       }
     ],
     "parameters": {
@@ -52,8 +58,9 @@
       false,
       false,
       true,
+      null,
       null
     ]
   },
-  "hash": "34cb650220ad7db02b885558686ea86e447ab12322adf641e8023193f6d64479"
+  "hash": "7e9a4372d7005a05d23db4925ecdf8931b3b42fe52605c3d699957a5b89d693f"
 }

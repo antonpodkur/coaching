@@ -27,7 +27,10 @@ pub async fn me(
 ) -> AppResult<Json<ClientProfile>> {
     let profile = sqlx::query_as!(
         ClientProfile,
-        r#"SELECT id, name, timezone, bot_allowed_at IS NOT NULL AS "bot_allowed!"
+        r#"SELECT id, name, timezone, bot_allowed_at IS NOT NULL AS "bot_allowed!",
+                  (birth_year IS NOT NULL OR sex IS NOT NULL OR height_cm IS NOT NULL
+                   OR EXISTS (SELECT 1 FROM gym_media m WHERE m.client_id = clients.id))
+                  AS "questionnaire_started!"
            FROM clients WHERE id = $1 AND archived_at IS NULL"#,
         client_id,
     )

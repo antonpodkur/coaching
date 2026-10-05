@@ -106,6 +106,22 @@ Clients can send Dasha videos of how they did an exercise. These go to a second 
 
 The pull zone's bare address answering 403 is expected: there is no file there, and unsigned requests are refused.
 
+## 5c. Photo storage
+
+Clients add photos of their gym to the questionnaire. Photos need no encoding, so they go to a Bunny Storage zone rather than Stream, shrunk on the phone to 1600 px first. Gym videos use the client video library from 5b.
+
+1. In Bunny, Storage → Add Storage Zone: a name such as `coaching-photos`, the Standard tier, Frankfurt as the main region, no replication, and S3 compatibility off.
+2. In the zone, Connected Pull Zones → add one, e.g. `coaching-photos` (`coaching-photos.b-cdn.net`).
+3. In that pull zone, Security → Token Authentication: turn it on, and leave Token IP validation off (phones switch networks). Copy the key without revealing it.
+4. In Render, set:
+   - `BUNNY_STORAGE_ZONE`: the zone's name.
+   - `BUNNY_STORAGE_HOSTNAME`: the region endpoint from the zone's Access page, `storage.bunnycdn.com` for Frankfurt.
+   - `BUNNY_STORAGE_PASSWORD`: the zone's Password (not the read-only one) from the Access page.
+   - `BUNNY_STORAGE_CDN_HOSTNAME`: the pull zone's `….b-cdn.net` hostname.
+   - `BUNNY_STORAGE_TOKEN_KEY`: the key from step 3.
+
+Without these the questionnaire still works, but "Додати фото" answers that photos are not set up. An unsigned link to the pull zone answering 403 is expected.
+
 ## 6. Bunny webhook
 
 On the library's API page in Bunny, set the webhook URL to `https://<Render address>/webhooks/stream`. With it, a video shows as ready as soon as Bunny finishes encoding. Without it, the app checks with Bunny whenever Dasha opens the exercise.

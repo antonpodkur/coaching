@@ -1,0 +1,34 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT count(*) AS \"count!\" FROM gym_media\n           WHERE client_id = $1 AND kind = $2 AND status <> 'failed'",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        {
+          "Custom": {
+            "name": "gym_media_kind",
+            "kind": {
+              "Enum": [
+                "photo",
+                "video"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "b8f6352581dc175cba82b7e4c2707eb47f5c27cd0beccd40fbdabf4cd968da77"
+}

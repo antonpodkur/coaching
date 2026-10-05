@@ -3,10 +3,12 @@ import { Link } from 'react-router'
 
 import type { Schemas } from '../api/client'
 import { formatShortDate, formatToday, localDate, parseDate, plural } from '../shared/format'
-import { CalendarIcon, CheckIcon, ChevronIcon } from '../shared/icons'
+import { CalendarIcon, CheckIcon, ChevronIcon, PersonIcon } from '../shared/icons'
 import { HomeScreenCard } from '../shared/HomeScreenCard'
 import { Screen } from '../shared/Screen'
 import { BotMessagesCard } from './BotMessagesCard'
+import { QuestionnaireCard } from './QuestionnaireCard'
+import { questionnaireCardDismissed } from './questionnaire'
 import { type ClientWorkoutSummary, useMyWorkouts } from './workouts'
 
 const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд']
@@ -26,19 +28,27 @@ export function HomePage({ client }: { client: Schemas['ClientProfile'] }) {
   const upcoming = all.filter((workout) => workout !== main && workout.date > today).slice(0, 2)
   const firstName = client.name.split(' ')[0]
   const [botAllowed, setBotAllowed] = useState(client.bot_allowed)
+  const [questionnaireLater, setQuestionnaireLater] = useState(questionnaireCardDismissed)
 
   return (
     <Screen>
       <header className="client-top">
-        <p className="muted small">{formatToday()}</p>
-        <h1>Привіт, {firstName}</h1>
+        <div className="client-top-text">
+          <p className="muted small">{formatToday()}</p>
+          <h1>Привіт, {firstName}</h1>
+        </div>
+        <Link className="icon-button" to="/app/questionnaire" aria-label="Анкета для Даші">
+          <PersonIcon />
+        </Link>
       </header>
 
-      {/* One ask at a time: messages first, they bring the reminders. */}
-      {botAllowed ? (
-        <HomeScreenCard />
-      ) : (
+      {/* One ask at a time: messages first (they bring the reminders), then the questionnaire. */}
+      {!botAllowed ? (
         <BotMessagesCard onAllowed={() => setBotAllowed(true)} />
+      ) : !client.questionnaire_started && !questionnaireLater ? (
+        <QuestionnaireCard onDismiss={() => setQuestionnaireLater(true)} />
+      ) : (
+        <HomeScreenCard />
       )}
 
       <WeekStrip workouts={all} today={today} />

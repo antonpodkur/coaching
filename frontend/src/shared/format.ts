@@ -7,6 +7,12 @@ export function plural(n: number, one: string, few: string, many: string): strin
   return many
 }
 
+/** `34 роки` from a birth year; a year off before the birthday, which is fine here. */
+export function formatAge(birthYear: number, today = new Date()): string {
+  const age = today.getFullYear() - birthYear
+  return `${age} ${plural(age, 'рік', 'роки', 'років')}`
+}
+
 /** `29 вересня`. */
 export function formatDay(iso: string): string {
   return new Date(iso).toLocaleDateString('uk-UA', { day: 'numeric', month: 'long' })

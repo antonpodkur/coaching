@@ -10,7 +10,8 @@ import { GroupPicker } from './GroupPicker'
 import { MeasurePicker } from './MeasurePicker'
 import { UploadCard } from './UploadCard'
 import { EXERCISES_KEY, isUnauthorized, useCoach } from './context'
-import { type Exercise, confirmAction, formatLength } from './library'
+import { confirmAction } from '../shared/dialogs'
+import { type Exercise, formatLength } from './library'
 import { uploadVideo, useUploads } from './uploads'
 
 /** While Bunny encodes, ask again this often. */

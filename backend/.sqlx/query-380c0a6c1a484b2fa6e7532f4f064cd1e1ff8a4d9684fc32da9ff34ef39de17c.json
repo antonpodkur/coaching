@@ -1,0 +1,165 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT c.id, c.name, c.telegram_id IS NOT NULL AS \"joined!\", c.invite_expires_at,\n                  c.paid_until, c.created_at,\n                  (SELECT count(*) FROM workout_reports r JOIN workouts w ON w.id = r.workout_id\n                   WHERE w.client_id = c.id AND r.seen_at IS NULL) AS \"unseen_reports!\",\n                  (SELECT count(*) FROM form_videos v\n                   WHERE v.client_id = c.id AND v.status = 'ready' AND v.seen_at IS NULL)\n                   AS \"new_videos!\",\n                  c.archived_at IS NOT NULL AS \"archived!\",\n                  c.birth_year, c.sex AS \"sex: Sex\", c.height_cm,\n                  (SELECT count(*) FROM gym_media m WHERE m.client_id = c.id AND m.kind = 'photo')\n                   AS \"gym_photos!\",\n                  (SELECT count(*) FROM gym_media m WHERE m.client_id = c.id AND m.kind = 'video'\n                   AND m.status IN ('processing', 'ready')) AS \"gym_videos!\"\n           FROM clients c\n           WHERE c.coach_id = $1 AND (c.archived_at IS NOT NULL) = $2\n           ORDER BY c.archived_at DESC NULLS LAST, c.created_at DESC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "clients",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "clients",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "joined!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "invite_expires_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "clients",
+            "name": "invite_expires_at"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "paid_until",
+        "type_info": "Date",
+        "origin": {
+          "Table": {
+            "table": "clients",
+            "name": "paid_until"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "clients",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "unseen_reports!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 7,
+        "name": "new_videos!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 8,
+        "name": "archived!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 9,
+        "name": "birth_year",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "clients",
+            "name": "birth_year"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "sex: Sex",
+        "type_info": {
+          "Custom": {
+            "name": "client_sex",
+            "kind": {
+              "Enum": [
+                "female",
+                "male"
+              ]
+            }
+          }
+        },
+        "origin": {
+          "Table": {
+            "table": "clients",
+            "name": "sex"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "height_cm",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "clients",
+            "name": "height_cm"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "gym_photos!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 13,
+        "name": "gym_videos!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Bool"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      null,
+      true,
+      true,
+      false,
+      null,
+      null,
+      null,
+      true,
+      true,
+      true,
+      null,
+      null
+    ]
+  },
+  "hash": "380c0a6c1a484b2fa6e7532f4f064cd1e1ff8a4d9684fc32da9ff34ef39de17c"
+}

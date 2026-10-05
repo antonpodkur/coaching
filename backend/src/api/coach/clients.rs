@@ -12,6 +12,7 @@ use crate::{
     auth::CurrentCoach,
     error::{AppError, AppResult, ErrorBody},
     invites,
+    questionnaire::Sex,
     state::AppState,
     telegram::{Button, ShareableMessage},
 };
@@ -34,6 +35,13 @@ pub struct CoachClient {
     pub new_videos: i64,
     /// Hidden from the list; the client cannot open the app until restored.
     pub archived: bool,
+    /// From the questionnaire the client fills in; each answer may be missing.
+    pub birth_year: Option<i32>,
+    pub sex: Option<Sex>,
+    pub height_cm: Option<i32>,
+    /// Gym photos, and gym videos that arrived (encoding or ready).
+    pub gym_photos: i64,
+    pub gym_videos: i64,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -114,7 +122,12 @@ pub async fn list(
                   (SELECT count(*) FROM form_videos v
                    WHERE v.client_id = c.id AND v.status = 'ready' AND v.seen_at IS NULL)
                    AS "new_videos!",
-                  c.archived_at IS NOT NULL AS "archived!"
+                  c.archived_at IS NOT NULL AS "archived!",
+                  c.birth_year, c.sex AS "sex: Sex", c.height_cm,
+                  (SELECT count(*) FROM gym_media m WHERE m.client_id = c.id AND m.kind = 'photo')
+                   AS "gym_photos!",
+                  (SELECT count(*) FROM gym_media m WHERE m.client_id = c.id AND m.kind = 'video'
+                   AND m.status IN ('processing', 'ready')) AS "gym_videos!"
            FROM clients c
            WHERE c.coach_id = $1 AND (c.archived_at IS NOT NULL) = $2
            ORDER BY c.archived_at DESC NULLS LAST, c.created_at DESC"#,
@@ -329,7 +342,12 @@ async fn fetch_client(state: &AppState, coach_id: Uuid, client_id: Uuid) -> AppR
                   (SELECT count(*) FROM form_videos v
                    WHERE v.client_id = c.id AND v.status = 'ready' AND v.seen_at IS NULL)
                    AS "new_videos!",
-                  c.archived_at IS NOT NULL AS "archived!"
+                  c.archived_at IS NOT NULL AS "archived!",
+                  c.birth_year, c.sex AS "sex: Sex", c.height_cm,
+                  (SELECT count(*) FROM gym_media m WHERE m.client_id = c.id AND m.kind = 'photo')
+                   AS "gym_photos!",
+                  (SELECT count(*) FROM gym_media m WHERE m.client_id = c.id AND m.kind = 'video'
+                   AND m.status IN ('processing', 'ready')) AS "gym_videos!"
            FROM clients c WHERE c.id = $1 AND c.coach_id = $2"#,
         client_id,
         coach_id,

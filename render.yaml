@@ -67,6 +67,18 @@ services:
         sync: false
       - key: BUNNY_CLIENT_TOKEN_KEY
         sync: false
+      # The private storage zone for photos (clients' gyms), with token
+      # authentication on its pull zone; see docs/DEPLOY.md.
+      - key: BUNNY_STORAGE_ZONE
+        sync: false
+      - key: BUNNY_STORAGE_HOSTNAME
+        sync: false
+      - key: BUNNY_STORAGE_PASSWORD
+        sync: false
+      - key: BUNNY_STORAGE_CDN_HOSTNAME
+        sync: false
+      - key: BUNNY_STORAGE_TOKEN_KEY
+        sync: false
     # The Telegram webhook needs no setting: the backend registers
     # $RENDER_EXTERNAL_URL/telegram/webhook on startup.
 

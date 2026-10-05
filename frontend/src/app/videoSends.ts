@@ -2,7 +2,7 @@ import type { QueryClient } from '@tanstack/react-query'
 import { useSyncExternalStore } from 'react'
 import { Upload } from 'tus-js-client'
 
-import { ApiError, api, unwrap } from '../api/client'
+import { ApiError, type Schemas, api, unwrap } from '../api/client'
 import { holdClosing } from '../shared/closingGuard'
 import { MY_WORKOUTS_KEY } from './workouts'
 
@@ -12,13 +12,45 @@ import { MY_WORKOUTS_KEY } from './workouts'
  */
 export interface VideoSend {
   key: string
-  workoutId: string
-  workoutExerciseId: string
+  /** The `key` of where it goes, e.g. one exercise of a workout, or the gym. */
+  target: string
   phase: 'checking' | 'preparing' | 'uploading' | 'finishing' | 'failed'
   /** 0 to 1. */
   progress: number
   /** Why it failed, in words for the client. */
   error?: string
+}
+
+/** Where a video goes, and the backend calls that get it there. */
+export interface VideoTarget {
+  /** Sends are listed under it, e.g. `exercise:<id>` or `gym`. */
+  key: string
+  /** Creates the video on Bunny and signs its upload. */
+  start: () => Promise<Schemas['FormVideoUpload']>
+  /** Tells the backend the file is in. */
+  uploaded: (id: string) => Promise<unknown>
+  /** Frees the slot after a failed send. */
+  remove: (id: string) => Promise<unknown>
+  /** Refetches the list the video shows up in. */
+  refresh: (queryClient: QueryClient) => Promise<void>
+}
+
+/** A technique video under one exercise of a workout. */
+export function exerciseTarget(workoutId: string, workoutExerciseId: string): VideoTarget {
+  return {
+    key: `exercise:${workoutExerciseId}`,
+    start: async () =>
+      unwrap(
+        await api.POST('/workout-exercises/{id}/videos', {
+          params: { path: { id: workoutExerciseId } },
+        }),
+      ),
+    uploaded: async (id) =>
+      unwrap(await api.POST('/form-videos/{id}/uploaded', { params: { path: { id } } })),
+    remove: (id) => api.DELETE('/form-videos/{id}', { params: { path: { id } } }),
+    refresh: (queryClient) =>
+      queryClient.invalidateQueries({ queryKey: [...MY_WORKOUTS_KEY, workoutId] }),
+  }
 }
 
 /** Longer videos are refused before uploading; Dasha needs a set, not a session. */
@@ -88,7 +120,7 @@ function videoLength(file: File): Promise<number | null> {
 
 function failureText(err: unknown): string {
   if (err instanceof ApiError && err.code === 'too_many_videos') {
-    return 'До однієї вправи можна надіслати до 3 відео.'
+    return 'Можна надіслати до 3 відео.'
   }
   if (err instanceof ApiError && err.code === 'client_videos_not_configured') {
     return 'Надсилання відео ще не налаштоване.'
@@ -97,21 +129,15 @@ function failureText(err: unknown): string {
 }
 
 /**
- * Sends `file` to Dasha under one exercise of a workout: the backend creates
- * the video in the private library and signs the upload, the phone sends the
- * file straight to Bunny, and the backend is told when it is in.
+ * Sends `file` to Dasha: the backend creates the video in the private library
+ * and signs the upload, the phone sends the file straight to Bunny, and the
+ * backend is told when it is in.
  */
-export async function sendVideo(
-  workoutId: string,
-  workoutExerciseId: string,
-  file: File,
-  queryClient: QueryClient,
-) {
+export async function sendVideo(target: VideoTarget, file: File, queryClient: QueryClient) {
   const key = crypto.randomUUID()
-  sends.set(key, { key, workoutId, workoutExerciseId, phase: 'checking', progress: 0 })
+  sends.set(key, { key, target: target.key, phase: 'checking', progress: 0 })
   publish()
-  const refresh = () =>
-    queryClient.invalidateQueries({ queryKey: [...MY_WORKOUTS_KEY, workoutId] })
+  const refresh = () => target.refresh(queryClient)
 
   const secs = await videoLength(file)
   if (secs !== null && secs > MAX_VIDEO_SECS) {
@@ -125,11 +151,7 @@ export async function sendVideo(
   let videoId: string | null = null
   try {
     set(key, { phase: 'preparing' })
-    const started = unwrap(
-      await api.POST('/workout-exercises/{id}/videos', {
-        params: { path: { id: workoutExerciseId } },
-      }),
-    )
+    const started = await target.start()
     videoId = started.id
     const { ticket } = started
     set(key, { phase: 'uploading' })
@@ -156,15 +178,11 @@ export async function sendVideo(
     })
 
     set(key, { phase: 'finishing', progress: 1 })
-    unwrap(await api.POST('/form-videos/{id}/uploaded', { params: { path: { id: videoId } } }))
+    await target.uploaded(videoId)
   } catch (err) {
     console.error('video send failed', err)
     // Free the slot, so trying again does not count against the three.
-    if (videoId) {
-      await api
-        .DELETE('/form-videos/{id}', { params: { path: { id: videoId } } })
-        .catch(() => undefined)
-    }
+    if (videoId) await target.remove(videoId).catch(() => undefined)
     set(key, { phase: 'failed', error: failureText(err) })
     void refresh()
     return

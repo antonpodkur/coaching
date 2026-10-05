@@ -1,5 +1,4 @@
 import type { Schemas } from '../api/client'
-import { telegramWebApp } from '../app/telegram'
 import type { UploadProgress } from './uploads'
 
 export type Exercise = Schemas['Exercise']
@@ -76,18 +75,4 @@ export function videoSummary(
     return { text: [`відео${length}`, group, measure].filter(Boolean).join(' · '), busy: false }
   }
   return { text: ['без відео', group, measure].filter(Boolean).join(' · '), busy: false }
-}
-
-/** Telegram's own confirm dialog inside the Mini App, the browser's elsewhere. */
-export function confirmAction(message: string): Promise<boolean> {
-  const webApp = telegramWebApp()
-  if (!webApp) return Promise.resolve(window.confirm(message))
-  return new Promise((resolve) => webApp.showConfirm(message, resolve))
-}
-
-/** Telegram's own alert inside the Mini App, the browser's elsewhere. */
-export function alertMessage(message: string) {
-  const webApp = telegramWebApp()
-  if (webApp) webApp.showAlert(message)
-  else window.alert(message)
 }
