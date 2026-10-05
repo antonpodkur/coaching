@@ -1,2 +1,9 @@
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
+
+# Phones look for a new version by fetching these; never serve a stale copy.
+/sw.js
+  Cache-Control: no-cache
+/manifest.webmanifest
+  Cache-Control: no-cache
+  Content-Type: application/manifest+json

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- A placeholder until there is branding: a dumbbell in the app's pink.
+       It stays inside the middle 80%, so phones can crop it to any shape. -->
+  <rect width="512" height="512" fill="#121212"/>
+  <g fill="#f4b9c9">
+    <rect x="88" y="245" width="336" height="22" rx="11"/>
+    <rect x="105" y="194" width="31" height="124" rx="11"/>
+    <rect x="376" y="194" width="31" height="124" rx="11"/>
+    <rect x="148" y="166" width="41" height="180" rx="12"/>
+    <rect x="323" y="166" width="41" height="180" rx="12"/>
+  </g>
+</svg>

@@ -72,7 +72,7 @@ Chosen for low cost with no servers to maintain. Prices were checked on the prov
   - TanStack Query for server state. The client's workouts are also kept in `localStorage`, so an opened workout survives losing signal (see "Offline set logging").
   - `dnd-kit` for reordering exercises in the builder.
   - `hls.js` where the browser cannot play HLS natively (Android WebView). iOS plays it natively. Bunny's MP4 fallback covers any WebView where HLS misbehaves.
-- **Telegram:** `telegram-web-app.js`, loaded in `index.html` before the app so it can read the launch parameters from the URL. It provides `initData`, `start_param`, theme colours, the back button, haptics and `openTelegramLink`. Outside Telegram it does nothing.
+- **Telegram:** `telegram-web-app.js`, loaded in `index.html` before the app so it can read the launch parameters from the URL. It provides `initData`, `start_param`, theme colours, the back button, haptics and `openTelegramLink`. Outside Telegram it does nothing. A copy is served with the app (`public/`, refreshed with `pnpm update:telegram`), and so are the fonts, so a weak connection can't hold the page up.
 - **One Mini App, two roles:** the sign-in response says whether Dasha or a client opened `/app`, and the app mounts her workspace or the client's screens. Nothing in the URL decides the role.
 - **Coach screens are phone-first:** pages above a bottom tab bar; sub-pages go back with Telegram's own back button. The browser at `/coach` shows the same components with an in-page back link, and on a wide screen the tabs move to the top. The builder's phone design (set chips with a −/+ editor, the library as a bottom sheet) is in the prototype.
 - **Invites go out as a card:** in the Mini App, "Надіслати запрошення" shares a prepared message with an "Відкрити" button (`shareMessage`). Without it, "Надіслати в Telegram" opens `https://t.me/share/url?url=<invite>` with `openTelegramLink`, so Dasha picks the chat instead of copying a link. Copying stays as a fallback.
@@ -303,6 +303,7 @@ Gyms often have no signal, so logging must never block on the network:
 4. `PUT /sets/{id}/result` sends absolute values, not increments. The server ignores a write whose `client_updated_at` is older than the stored one, so retries, duplicates and late arrivals are harmless. Results are accepted after the report too.
 5. "Надіслати звіт" is queued the same way, after the sets. The Finish screen says it will be sent once the phone connects instead of failing.
 6. The Mini App remembers its session for 11 hours (with the Telegram user it belongs to). If sign-in fails for lack of a network, it reuses it, so the app also opens inside the gym. Sign-in runs even when the phone reports being offline, so it can fall back instead of waiting.
+7. A service worker (`frontend/sw/`) keeps the app's own files on the phone, so the app opens with no signal at all: installed on the home screen, and inside Telegram on Android. Inside Telegram on an iPhone service workers don't run, so there the app still needs Telegram to load the page. A new version downloads in the background and waits; the app offers "Оновити", and otherwise it takes over once the app is closed. See [PWA.md](PWA.md).
 
 ## Notifications
 

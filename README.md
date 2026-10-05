@@ -107,6 +107,8 @@ Frontend (`frontend/`):
 | Command | When |
 | --- | --- |
 | `pnpm dev` / `pnpm build` | Develop / production build |
+| `pnpm build && pnpm preview` | Run the built app with its service worker on :4173, e.g. to try it offline. Development leaves the service worker out. |
+| `pnpm update:telegram` | Refresh the copy of Telegram's Mini App script in `public/` |
 | `pnpm typecheck` / `pnpm lint` | Before pushing; CI runs both |
 | `pnpm gen:api` | After changing any backend route or body type; commit `src/api/schema.ts` |
 

@@ -10,9 +10,12 @@
     "typecheck": "tsc -b",
     "lint": "eslint .",
     "preview": "vite preview",
+    "update:telegram": "curl -fsSL https://telegram.org/js/telegram-web-app.js -o public/telegram-web-app.js",
     "gen:api": "cargo run -q --manifest-path ../backend/Cargo.toml --bin openapi > openapi.json && openapi-typescript openapi.json -o src/api/schema.ts && rm openapi.json"
   },
   "dependencies": {
+    "@fontsource-variable/manrope": "^5.3.0",
+    "@fontsource/unbounded": "^5.3.0",
     "@tanstack/react-query": "^5.104.0",
     "hls.js": "^1.7.3",
     "openapi-fetch": "^0.17.0",

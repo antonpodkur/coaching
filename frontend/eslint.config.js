@@ -20,4 +20,13 @@ export default defineConfig([
       globals: globals.browser,
     },
   },
+  {
+    // The service worker is plain JavaScript; tsconfig.sw.json checks its types.
+    files: ['sw/*.js'],
+    extends: [js.configs.recommended],
+    languageOptions: {
+      ecmaVersion: 2022,
+      globals: globals.serviceworker,
+    },
+  },
 ])

@@ -11,8 +11,11 @@
   --pink-soft: #f6d9e1;
   --lilac: #cbc6f6;
   --radius: 14px;
-  --font-body: 'Manrope', system-ui, sans-serif;
+  --font-body: 'Manrope Variable', system-ui, sans-serif;
   --font-display: 'Unbounded', var(--font-body);
+  /* The phone's home bar; inside Telegram, Telegram's own bottom inset. */
+  --safe-bottom: max(env(safe-area-inset-bottom), var(--tg-safe-area-inset-bottom, 0px));
+  --tab-bar-height: 64px;
   color-scheme: dark;
 }
 
@@ -153,11 +156,13 @@ a.button {
   box-shadow: -12px 0 32px rgba(0, 0, 0, 0.7);
 }
 
+/* Installed on an iPhone, the page runs under the status bar (index.html), so
+   the top of each screen leaves room for it. Elsewhere the inset is 0. */
 .screen {
   max-width: 640px;
   min-height: 100dvh;
   margin: 0 auto;
-  padding: 24px 20px calc(28px + env(safe-area-inset-bottom));
+  padding: calc(24px + env(safe-area-inset-top)) 20px calc(28px + env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -172,7 +177,7 @@ a.button {
   align-items: center;
   justify-content: center;
   gap: 14px;
-  padding: 16px;
+  padding: calc(16px + env(safe-area-inset-top)) 16px calc(16px + env(safe-area-inset-bottom));
   text-align: center;
 }
 
@@ -202,8 +207,6 @@ a.button {
 /* The workspace is laid out for a phone: pages above a bottom tab bar. */
 
 .coach-shell {
-  --tab-bar-height: 64px;
-  --safe-bottom: max(env(safe-area-inset-bottom), var(--tg-safe-area-inset-bottom, 0px));
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
@@ -214,7 +217,7 @@ a.button {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 16px 16px 0;
+  padding: calc(16px + env(safe-area-inset-top)) 16px 0;
 }
 
 .coach-main {
@@ -222,6 +225,11 @@ a.button {
   max-width: 640px;
   margin: 0 auto;
   padding: 20px 16px calc(var(--tab-bar-height) + var(--safe-bottom) + 28px);
+}
+
+/* In the Mini App there is no header above, so the page meets the top edge. */
+.coach-main:first-child {
+  padding-top: calc(20px + env(safe-area-inset-top));
 }
 
 .tab-bar {
@@ -261,7 +269,7 @@ a.button {
 
 /* A computer: tabs sit at the top, like a normal site. */
 @media (min-width: 900px) {
-  .coach-shell {
+  :root {
     --tab-bar-height: 0px;
   }
 
@@ -1759,14 +1767,50 @@ button.save-status {
   font-weight: 700;
 }
 
-.offline-note {
+/* Notes over the bottom of the screen (BottomNote), stacked. Taps pass
+   through the stack's empty space to the page. */
+.notes {
   position: fixed;
   left: 12px;
   right: 12px;
-  bottom: calc(12px + env(safe-area-inset-bottom));
+  bottom: calc(12px + var(--safe-bottom));
   z-index: 20;
   max-width: 616px;
   margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.notes > * {
+  pointer-events: auto;
+}
+
+/* Above the coach's tab bar. */
+:root:has(.tab-bar) .notes {
+  bottom: calc(var(--tab-bar-height) + 12px + var(--safe-bottom));
+}
+
+.update-note {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 8px 8px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* A new version can wait while the builder's bottom bar or a sheet is up. */
+:root:has(.builder-add, .set-editor, .sheet) .update-note {
+  display: none;
+}
+
+.offline-note {
   padding: 10px 14px;
   border-radius: 12px;
   border: 1px solid #5a3a45;

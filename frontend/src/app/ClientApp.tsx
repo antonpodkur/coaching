@@ -3,6 +3,7 @@ import { useEffect } from 'react'
 import { Route, Routes } from 'react-router'
 
 import type { Schemas } from '../api/client'
+import { BottomNote } from '../shared/BottomNote'
 import { holdClosing } from '../shared/closingGuard'
 import { ExerciseScreen } from './ExerciseScreen'
 import { FinishPage } from './FinishPage'
@@ -51,8 +52,8 @@ function OfflineNote() {
   const { waiting, failing } = useOutboxStatus()
   if (waiting === 0 || !failing) return null
   return (
-    <p className="offline-note" role="status">
+    <BottomNote className="offline-note">
       Немає зв’язку. Зміни збережено на телефоні й надішлються самі.
-    </p>
+    </BottomNote>
   )
 }

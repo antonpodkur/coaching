@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.sw.tsbuildinfo",
+    "target": "ES2022",
+    "lib": ["ES2022", "WebWorker"],
+    "types": [],
+    "skipLibCheck": true,
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true
+  },
+  "include": ["sw/sw.js"]
+}
