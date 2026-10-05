@@ -123,3 +123,5 @@ In order, following [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md):
    - About $18/month in total; see "Hosting and costs" in the architecture doc.
 2. Test on real phones in Telegram, using the checklist in the deploy guide. It covers a large video upload on Dasha's iPhone, the back button, the share sheet, the menu button and logging without signal.
 3. Builder extras: templates, and the Telegram import inside the builder (today it is a separate tab).
+4. The installed app (PWA): sign-in outside Telegram, a start without signal, web push. See [docs/PWA.md](docs/PWA.md).
+5. Many coaches, sold as a subscription: what is ready and what is still single-coach. See [docs/MANY_COACHES.md](docs/MANY_COACHES.md).
