@@ -1,0 +1,88 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, protein_g, fat_g, carbs_g, note, created_at\n         FROM nutrition_targets WHERE client_id = $1 ORDER BY created_at DESC LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "nutrition_targets",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "protein_g",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "nutrition_targets",
+            "name": "protein_g"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "fat_g",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "nutrition_targets",
+            "name": "fat_g"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "carbs_g",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "nutrition_targets",
+            "name": "carbs_g"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "note",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "nutrition_targets",
+            "name": "note"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "nutrition_targets",
+            "name": "created_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "c74a623a00ad012287fa2b027c4f1d36f890c2c3fcedfd6ca04f2a5a9219a836"
+}

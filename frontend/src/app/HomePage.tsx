@@ -3,13 +3,22 @@ import { Link } from 'react-router'
 
 import type { Schemas } from '../api/client'
 import { formatShortDate, formatToday, localDate, parseDate, plural } from '../shared/format'
-import { CalendarIcon, CheckIcon, ChevronIcon, PersonIcon, ScaleIcon } from '../shared/icons'
+import {
+  CalendarIcon,
+  CheckIcon,
+  ChevronIcon,
+  PersonIcon,
+  PlateIcon,
+  ScaleIcon,
+} from '../shared/icons'
 import { HomeScreenCard } from '../shared/HomeScreenCard'
 import { Screen } from '../shared/Screen'
+import { nutritionSummary } from '../shared/nutrition'
 import { weightSummary } from '../shared/weight'
 import { BotMessagesCard } from './BotMessagesCard'
 import { QuestionnaireCard } from './QuestionnaireCard'
 import { questionnaireCardDismissed } from './questionnaire'
+import { useMyNutrition } from './nutrition'
 import { useMyWeight } from './weight'
 import { type ClientWorkoutSummary, useMyWorkouts } from './workouts'
 
@@ -19,6 +28,7 @@ const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд']
 export function HomePage({ client }: { client: Schemas['ClientProfile'] }) {
   const workouts = useMyWorkouts()
   const weight = useMyWeight()
+  const nutrition = useMyNutrition()
   const today = localDate(new Date())
   const all = workouts.data ?? []
 
@@ -90,8 +100,20 @@ export function HomePage({ client }: { client: Schemas['ClientProfile'] }) {
         </ul>
       )}
 
-      {/* Below the workouts and drawn with them, so it never pushes them down. */}
-      {!workouts.isPending && (
+      {/* Below the workouts and drawn with them, so they never push anything down. */}
+      {!workouts.isPending && !nutrition.isPending && nutrition.data?.current && (
+        <Link className="other-workout" to="/app/nutrition">
+          <span className="round-icon">
+            <PlateIcon />
+          </span>
+          <span className="other-text">
+            <span className="other-title">Харчування</span>
+            <span className="muted small">{nutritionSummary(nutrition.data.current)}</span>
+          </span>
+          <ChevronIcon />
+        </Link>
+      )}
+      {!workouts.isPending && !nutrition.isPending && (
         <Link className="other-workout" to="/app/weight">
           <span className="round-icon">
             <ScaleIcon />

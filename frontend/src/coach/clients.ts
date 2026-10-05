@@ -28,6 +28,15 @@ export function weightQuery(id: string) {
   })
 }
 
+/** One client's nutrition targets, newest first: `[...CLIENTS_KEY, id, 'nutrition']`. */
+export function nutritionQuery(id: string) {
+  return queryOptions({
+    queryKey: [...CLIENTS_KEY, id, 'nutrition'],
+    queryFn: async () =>
+      unwrap(await api.GET('/coach/clients/{id}/nutrition', { params: { path: { id } } })),
+  })
+}
+
 /** `34 роки · чоловіча · 182 см · 6 фото · 1 відео`, or `null` before any answer. */
 export function questionnaireSummary(client: Client): string | null {
   const parts = [

@@ -121,6 +121,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/coach/clients/{id}/nutrition": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A client's nutrition targets, the current one first. */
+        get: operations["get_client_nutrition"];
+        put?: never;
+        /**
+         * Sets a client's daily target, replacing the current one, and the bot tells
+         *     the client the new numbers.
+         */
+        post: operations["set_client_nutrition"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/coach/clients/{id}/questionnaire": {
         parameters: {
             query?: never;
@@ -549,6 +570,23 @@ export interface paths {
         post?: never;
         /** The client deletes a photo or video of their gym, on Bunny too. */
         delete: operations["delete_gym_media"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/nutrition": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The client's daily nutrition target from Dasha. */
+        get: operations["get_my_nutrition"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1097,6 +1135,9 @@ export interface components {
             role: "client";
             token: string;
         };
+        MyNutrition: {
+            current?: components["schemas"]["NutritionTarget"] | null;
+        };
         NewClient: {
             name: string;
         };
@@ -1111,6 +1152,15 @@ export interface components {
             muscle_group?: string | null;
             name: string;
         };
+        NewTarget: {
+            /** Format: int32 */
+            carbs_g: number;
+            /** Format: int32 */
+            fat_g: number;
+            note?: string | null;
+            /** Format: int32 */
+            protein_g: number;
+        };
         NewWorkout: {
             /** Format: uuid */
             client_id: string;
@@ -1124,6 +1174,29 @@ export interface components {
              * @description For a copy, defaults to a week after the copied workout's date.
              */
             date?: string | null;
+        };
+        NutritionHistory: {
+            /** @description Newest first; the first is the current target. */
+            targets: components["schemas"]["NutritionTarget"][];
+        };
+        NutritionTarget: {
+            /** Format: int32 */
+            carbs_g: number;
+            /** Format: int32 */
+            fat_g: number;
+            /** Format: uuid */
+            id: string;
+            /**
+             * Format: int32
+             * @description 4 kcal per gram of protein and of carbohydrates, 9 per gram of fat.
+             */
+            kcal: number;
+            /** @description Dasha's words to go with it, e.g. "2 л води на день". */
+            note?: string | null;
+            /** Format: int32 */
+            protein_g: number;
+            /** Format: date-time */
+            set_at: string;
         };
         /** @description A logged set from an earlier workout. */
         PastSet: {
@@ -1202,6 +1275,14 @@ export interface components {
             target_reps_max: number;
             /** Format: int32 */
             target_reps_min: number;
+        };
+        SavedTarget: {
+            /**
+             * @description The bot is telling the client. `false` if it cannot write to them;
+             *     they still see the target in the app.
+             */
+            client_notified: boolean;
+            target: components["schemas"]["NutritionTarget"];
         };
         /** @description A workout in the workouts tab, with whose it is. */
         ScheduledWorkout: {
@@ -1670,6 +1751,95 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["InviteLink"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_client_nutrition: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Client id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NutritionHistory"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    set_client_nutrition: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Client id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NewTarget"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedTarget"];
+                };
+            };
+            /** @description `invalid_grams` (0–1000 each, not all 0) or `note_too_long` */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
             401: {
@@ -2810,6 +2980,33 @@ export interface operations {
                 };
             };
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_my_nutrition: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyNutrition"];
+                };
+            };
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };

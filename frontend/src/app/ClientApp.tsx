@@ -7,6 +7,7 @@ import { holdClosing } from '../shared/closingGuard'
 import { ExerciseScreen } from './ExerciseScreen'
 import { FinishPage } from './FinishPage'
 import { HomePage } from './HomePage'
+import { NutritionPage } from './NutritionPage'
 import { QuestionnairePage } from './QuestionnairePage'
 import { WeightPage } from './WeightPage'
 import { WorkoutPage } from './WorkoutPage'
@@ -39,6 +40,7 @@ export function ClientApp({ client }: { client: Schemas['ClientProfile'] }) {
         <Route path="workouts/:id/finish" element={<FinishPage />} />
         <Route path="questionnaire" element={<QuestionnairePage />} />
         <Route path="weight" element={<WeightPage />} />
+        <Route path="nutrition" element={<NutritionPage />} />
       </Routes>
       <OfflineNote />
     </>

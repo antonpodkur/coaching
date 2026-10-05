@@ -183,3 +183,12 @@ export function ScaleIcon({ size = 16 }: { size?: number }) {
     </Icon>
   )
 }
+
+export function PlateIcon({ size = 16 }: { size?: number }) {
+  return (
+    <Icon size={size}>
+      <circle cx="12" cy="12" r="8" />
+      <circle cx="12" cy="12" r="4" />
+    </Icon>
+  )
+}

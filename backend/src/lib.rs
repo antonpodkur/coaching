@@ -15,6 +15,7 @@ pub mod import;
 pub mod invites;
 pub mod jobs;
 pub mod notify;
+pub mod nutrition;
 pub mod questionnaire;
 pub mod state;
 pub mod storage;

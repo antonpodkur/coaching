@@ -176,6 +176,7 @@ clients           id, coach_id, name, telegram_id UNIQUE NULL, bot_allowed_at NU
 gym_media         id, client_id, kind (photo|video), object_key UNIQUE, status, length_secs NULL, created_at
 body_measurements id, client_id, kind (weight), value NUMERIC(6,2), measured_on DATE, created_at,
                   UNIQUE (client_id, kind, measured_on)
+nutrition_targets id, client_id, protein_g, fat_g, carbs_g, note NULL, created_at   -- latest = current
 exercises         id, coach_id, name, measure (weight | bodyweight | time), muscle_group, aliases TEXT[],
                   video_uid NULL, video_length_secs NULL,
                   upload_video_uid UNIQUE NULL, upload_status (uploading|processing|failed) NULL,
@@ -223,6 +224,7 @@ coach_logins      id, code_hash UNIQUE, poll_secret_hash UNIQUE, display_code, c
   - each weigh-in as a dot and the average of the week up to it as a line, since daily weight swings with water;
   - "за місяць": the change of that weekly average against about four weeks earlier, or since a named date when the history is shorter or sparse;
   - no reminders for now.
+- **Nutrition targets** are Dasha's: grams of protein, fat and carbohydrates per day, the same every day until she changes them. Calories are worked out, never stored (4/9/4 kcal per gram). A change is a new `nutrition_targets` row, so the history stays, and saving sends the client a bot message with the new numbers.
 - **Clients are archived, never deleted,** so Dasha keeps their history. An archived client is signed out on their next request (the client extractor checks `archived_at`), gets no bot messages, and cannot use an invite. If they come back and Dasha adds them as a new client, the archived profile gives up the Telegram account to the new one.
 - **`coach_id`** is on the top-level tables even though there is one coach. It costs nothing and keeps the door open.
 - **Invite and login codes are stored hashed.** Until it is used, a code in a link works like a password.
@@ -250,6 +252,7 @@ Client (`role = client`):
 | DELETE | `/me/gym/{id}` | Deletes a gym photo or video, on Bunny too |
 | GET | `/me/weight` | The client's weigh-ins, oldest first |
 | PUT, DELETE | `/me/weight/{date}` | `{kg}` for that day, replacing any entry; or deletes it |
+| GET | `/me/nutrition` | Dasha's current daily target, or `null` |
 
 Coach (`role = coach`):
 
@@ -262,6 +265,7 @@ Coach (`role = coach`):
 | POST | `/coach/clients/{id}/invite` | New invite link |
 | GET | `/coach/clients/{id}/questionnaire` | The client's questionnaire, with signed links to their gym photos and videos |
 | GET | `/coach/clients/{id}/weight` | The client's weigh-ins, oldest first |
+| GET, POST | `/coach/clients/{id}/nutrition` | The client's nutrition targets, newest first; POST sets a new one and the bot tells the client |
 | GET | `/coach/workouts?from&to&client_id` | Every active client's workouts in a date range (at most 62 days) plus undated drafts, with the client's name: the workouts tab |
 | GET | `/coach/clients/{id}/workouts` | Her workouts for this client: undated drafts first, then newest date first, with done and differing set counts and the report's effort and seen state |
 | GET | `/coach/workouts/{id}/results` | Every set's target next to what the client logged, `differs` per set, and the report |
@@ -308,6 +312,7 @@ All messages come from the bot and are written in Ukrainian. Each one is first a
 | Workout published | Client | "Нове тренування від Даші: «Спина», вт, 6 жовтня.", with a button opening the Mini App (the workout itself once client screens exist, `startapp=w_<id>`). Not sent until the client has joined and let the bot message them; publishing again after that sends it. |
 | 09:00–21:00 client time on the workout date, if published, not done, and not published in the last 12 hours | Client | "Нагадування: сьогодні тренування «Спина».", with a button opening the workout. Clients without a timezone count as Kyiv. |
 | Workout finished | Dasha | "Максим К.: звіт про «Спина», вт, 6 жовтня. 18 з 20 підходів · 2 інакше, ніж у плані · важко" and the comment, with a button opening that client in her workspace |
+| Dasha sets a nutrition target | Client | "Даша склала тобі норму харчування на день:" (or "оновила твою норму…") with the grams of each and "Разом близько 1650 ккал.", her note, and a button opening the targets. Skipped if a newer target replaced it before sending. |
 | 20:00–22:00 in Dasha's timezone, daily | Dasha | One summary: today's published workouts nobody opened (opening a workout sets `opened_at`), and clients whose `paid_until` is within 3 days. No message on a quiet day. |
 
 ## Video pipeline

@@ -11,6 +11,7 @@ use uuid::Uuid;
 
 use crate::{
     api::workouts::Effort,
+    nutrition,
     state::AppState,
     telegram::{Button, OutgoingMessage},
 };
@@ -63,6 +64,8 @@ pub enum Kind {
     CoachDaily,
     /// To Dasha when a client's technique video is ready; the subject is the video.
     FormVideo,
+    /// To the client when Dasha sets their nutrition target; the subject is the target.
+    NutritionChanged,
 }
 
 impl Kind {
@@ -73,6 +76,7 @@ impl Kind {
             Self::WorkoutFinished => "workout_finished",
             Self::CoachDaily => "coach_daily",
             Self::FormVideo => "form_video",
+            Self::NutritionChanged => "nutrition_changed",
         }
     }
 
@@ -83,6 +87,7 @@ impl Kind {
             Self::WorkoutFinished,
             Self::CoachDaily,
             Self::FormVideo,
+            Self::NutritionChanged,
         ]
         .into_iter()
         .find(|known| known.as_str() == kind)
@@ -145,6 +150,7 @@ pub async fn deliver(state: &AppState, id: Uuid, now: DateTime<Utc>) -> anyhow::
         Some(Kind::WorkoutFinished) => finished(state, row.entity_id).await?,
         Some(Kind::CoachDaily) => daily_summary(state, row.entity_id, row.local_date).await?,
         Some(Kind::FormVideo) => form_video(state, row.entity_id).await?,
+        Some(Kind::NutritionChanged) => nutrition(state, row.entity_id).await?,
         None => None,
     };
     let Some(message) = message else {
@@ -203,6 +209,35 @@ pub async fn workout_finished(state: &AppState, workout_id: Uuid) -> anyhow::Res
         send_or_leave_for_retry(state, id).await;
     }
     Ok(())
+}
+
+/// Queues the client's message about a new nutrition target and sends it.
+/// Returns `false` if the client cannot get bot messages; they still see the
+/// target in the app.
+pub async fn nutrition_changed(state: &AppState, target_id: Uuid) -> anyhow::Result<bool> {
+    let reachable = sqlx::query_scalar!(
+        r#"SELECT c.telegram_id IS NOT NULL AND c.bot_allowed_at IS NOT NULL
+                  AND c.archived_at IS NULL AS "reachable!"
+           FROM nutrition_targets t JOIN clients c ON c.id = t.client_id
+           WHERE t.id = $1"#,
+        target_id,
+    )
+    .fetch_one(&state.db)
+    .await?;
+    if !reachable {
+        return Ok(false);
+    }
+    if let Some(id) = queue(
+        state,
+        Kind::NutritionChanged,
+        target_id,
+        Utc::now().date_naive(),
+    )
+    .await?
+    {
+        send_or_leave_for_retry(state, id).await;
+    }
+    Ok(true)
 }
 
 /// Sends a queued message now; if that fails, the jobs try again later.
@@ -430,6 +465,46 @@ async fn form_video(state: &AppState, id: Uuid) -> anyhow::Result<Option<Outgoin
                 state.config.mini_app_url(),
                 video.workout_id
             ),
+        }]),
+    ))
+}
+
+/// The client's new nutrition target, unless Dasha has replaced it since.
+async fn nutrition(state: &AppState, target_id: Uuid) -> anyhow::Result<Option<OutgoingMessage>> {
+    let Some(target) = sqlx::query!(
+        r#"SELECT t.protein_g, t.fat_g, t.carbs_g, t.note, c.telegram_id AS "telegram_id!",
+                  EXISTS (SELECT 1 FROM nutrition_targets p
+                          WHERE p.client_id = t.client_id AND p.created_at < t.created_at)
+                  AS "changed!"
+           FROM nutrition_targets t JOIN clients c ON c.id = t.client_id
+           WHERE t.id = $1 AND c.telegram_id IS NOT NULL AND c.bot_allowed_at IS NOT NULL
+             AND c.archived_at IS NULL
+             AND NOT EXISTS (SELECT 1 FROM nutrition_targets n
+                             WHERE n.client_id = t.client_id AND n.created_at > t.created_at)"#,
+        target_id,
+    )
+    .fetch_optional(&state.db)
+    .await?
+    else {
+        return Ok(None);
+    };
+    let opening = if target.changed {
+        "Даша оновила твою норму харчування на день:"
+    } else {
+        "Даша склала тобі норму харчування на день:"
+    };
+    let kcal = nutrition::kcal(target.protein_g, target.fat_g, target.carbs_g);
+    let mut text = format!(
+        "{opening}\nбілки — {} г\nжири — {} г\nвуглеводи — {} г\nРазом близько {kcal} ккал.",
+        target.protein_g, target.fat_g, target.carbs_g,
+    );
+    if let Some(note) = target.note {
+        text.push_str(&format!("\n\n«{note}»"));
+    }
+    Ok(Some(
+        OutgoingMessage::text(target.telegram_id, text).with_row(vec![Button::WebApp {
+            text: "Відкрити".to_owned(),
+            url: format!("{}/nutrition", state.config.mini_app_url()),
         }]),
     ))
 }

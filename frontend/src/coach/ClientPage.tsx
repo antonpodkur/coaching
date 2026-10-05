@@ -5,13 +5,14 @@ import { Link, useNavigate, useParams } from 'react-router'
 import { ApiError, type Schemas, api, unwrap } from '../api/client'
 import { BackLink } from '../shared/BackLink'
 import { formatDay, initials } from '../shared/format'
+import { nutritionSummary } from '../shared/nutrition'
 import { weightSummary } from '../shared/weight'
 import { ChevronIcon, CopyIcon, EditIcon, PlusIcon } from '../shared/icons'
 import { ArchivedNotice } from './ClientEditPage'
 import { InviteCard, type ShownInvite } from './InviteCard'
 import { ReportCard } from './ReportCard'
 import { WorkoutRow } from './WorkoutRow'
-import { clientQuery, payment, questionnaireSummary, weightQuery } from './clients'
+import { clientQuery, nutritionQuery, payment, questionnaireSummary, weightQuery } from './clients'
 import { CLIENTS_KEY, WORKOUTS_KEY, isUnauthorized, useCoach } from './context'
 import { resultsQuery } from './results'
 
@@ -25,6 +26,7 @@ export function ClientPage() {
 
   const client = useQuery(clientQuery(id))
   const weight = useQuery(weightQuery(id))
+  const nutrition = useQuery(nutritionQuery(id))
   const workouts = useQuery({
     queryKey: [...WORKOUTS_KEY, 'client', id],
     queryFn: async () =>
@@ -141,6 +143,19 @@ export function ClientPage() {
           <span className="workout-title">Вага</span>
           <span className="muted small">
             {weight.isPending ? '…' : (weightSummary(weight.data ?? []) ?? 'Ще немає записів')}
+          </span>
+        </span>
+        <ChevronIcon />
+      </Link>
+      <Link className="workout-row" to={`${base}/clients/${id}/nutrition`}>
+        <span className="workout-text">
+          <span className="workout-title">Харчування</span>
+          <span className="muted small">
+            {nutrition.isPending
+              ? '…'
+              : nutrition.data?.targets[0]
+                ? nutritionSummary(nutrition.data.targets[0])
+                : 'Ще не задано'}
           </span>
         </span>
         <ChevronIcon />

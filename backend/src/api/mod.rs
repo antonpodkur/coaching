@@ -5,6 +5,7 @@ pub mod client;
 pub mod coach;
 pub mod form_videos;
 pub mod health;
+pub mod nutrition;
 pub mod questionnaire;
 pub mod stream;
 pub mod telegram;
@@ -60,6 +61,9 @@ use crate::state::AppState;
         weight::log,
         weight::delete,
         weight::list_for_coach,
+        nutrition::get_mine,
+        nutrition::history,
+        nutrition::set,
         coach::clients::list,
         coach::clients::create,
         coach::clients::get,
@@ -159,6 +163,7 @@ pub fn router(state: AppState) -> Router {
         .route("/me/gym/{id}", delete(questionnaire::delete))
         .route("/me/weight", get(weight::list_mine))
         .route("/me/weight/{date}", put(weight::log).delete(weight::delete))
+        .route("/me/nutrition", get(nutrition::get_mine))
         .route(
             "/coach/clients",
             get(coach::clients::list).post(coach::clients::create),
@@ -173,6 +178,10 @@ pub fn router(state: AppState) -> Router {
             get(questionnaire::get_for_coach),
         )
         .route("/coach/clients/{id}/weight", get(weight::list_for_coach))
+        .route(
+            "/coach/clients/{id}/nutrition",
+            get(nutrition::history).post(nutrition::set),
+        )
         .route("/coach/me/timezone", put(coach::me::set_timezone))
         .route(
             "/coach/clients/{id}/workouts",

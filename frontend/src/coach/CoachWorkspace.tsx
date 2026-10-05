@@ -3,6 +3,7 @@ import { Link, Route, Routes, useLocation } from 'react-router'
 
 import { CalendarIcon, ImportIcon, LibraryIcon, PeopleIcon } from '../shared/icons'
 import { ClientEditPage } from './ClientEditPage'
+import { ClientNutritionPage } from './ClientNutritionPage'
 import { ClientPage } from './ClientPage'
 import { ClientQuestionnairePage } from './ClientQuestionnairePage'
 import { ClientWeightPage } from './ClientWeightPage'
@@ -67,6 +68,7 @@ export function CoachWorkspace({ base, onUnauthorized, onSignOut }: Props) {
             <Route path="clients/:id/edit" element={<ClientEditPage />} />
             <Route path="clients/:id/questionnaire" element={<ClientQuestionnairePage />} />
             <Route path="clients/:id/weight" element={<ClientWeightPage />} />
+            <Route path="clients/:id/nutrition" element={<ClientNutritionPage />} />
             <Route path="workouts" element={<WorkoutsPage />} />
             <Route path="workouts/:id" element={<BuilderPage />} />
             <Route path="workouts/:id/report" element={<ReportPage />} />
