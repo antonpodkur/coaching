@@ -20,5 +20,6 @@ pub mod state;
 pub mod storage;
 pub mod telegram;
 pub mod video;
+pub mod weight;
 
 pub use api::{openapi, router};

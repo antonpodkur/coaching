@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM body_measurements\n         WHERE client_id = $1 AND kind = 'weight' AND measured_on = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Date"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "429d1be3ed20b6bb62be71be6255c44707e0a74153e61841061ea4c698f64c1c"
+}

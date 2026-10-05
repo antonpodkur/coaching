@@ -1,0 +1,35 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT measured_on AS date, value::float8 AS \"kg!\"\n           FROM body_measurements\n           WHERE client_id = $1 AND kind = 'weight'\n           ORDER BY measured_on",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "date",
+        "type_info": "Date",
+        "origin": {
+          "Table": {
+            "table": "body_measurements",
+            "name": "measured_on"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "kg!",
+        "type_info": "Float8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      null
+    ]
+  },
+  "hash": "c1bb653dfcafdf1b6b2d783bda5e8c7b2b0951925343416c18d96578d052dabb"
+}

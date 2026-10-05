@@ -8,6 +8,7 @@ import { ExerciseScreen } from './ExerciseScreen'
 import { FinishPage } from './FinishPage'
 import { HomePage } from './HomePage'
 import { QuestionnairePage } from './QuestionnairePage'
+import { WeightPage } from './WeightPage'
 import { WorkoutPage } from './WorkoutPage'
 import { flush, onDrained, useOutboxStatus } from './outbox'
 import { MY_WORKOUTS_KEY } from './workouts'
@@ -37,6 +38,7 @@ export function ClientApp({ client }: { client: Schemas['ClientProfile'] }) {
         <Route path="workouts/:id/exercises/:exerciseId" element={<ExerciseScreen />} />
         <Route path="workouts/:id/finish" element={<FinishPage />} />
         <Route path="questionnaire" element={<QuestionnairePage />} />
+        <Route path="weight" element={<WeightPage />} />
       </Routes>
       <OfflineNote />
     </>

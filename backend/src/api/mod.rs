@@ -8,6 +8,7 @@ pub mod health;
 pub mod questionnaire;
 pub mod stream;
 pub mod telegram;
+pub mod weight;
 pub mod workouts;
 
 use axum::{
@@ -55,6 +56,10 @@ use crate::state::AppState;
         questionnaire::finish_video,
         questionnaire::delete,
         questionnaire::get_for_coach,
+        weight::list_mine,
+        weight::log,
+        weight::delete,
+        weight::list_for_coach,
         coach::clients::list,
         coach::clients::create,
         coach::clients::get,
@@ -152,6 +157,8 @@ pub fn router(state: AppState) -> Router {
             post(questionnaire::finish_video),
         )
         .route("/me/gym/{id}", delete(questionnaire::delete))
+        .route("/me/weight", get(weight::list_mine))
+        .route("/me/weight/{date}", put(weight::log).delete(weight::delete))
         .route(
             "/coach/clients",
             get(coach::clients::list).post(coach::clients::create),
@@ -165,6 +172,7 @@ pub fn router(state: AppState) -> Router {
             "/coach/clients/{id}/questionnaire",
             get(questionnaire::get_for_coach),
         )
+        .route("/coach/clients/{id}/weight", get(weight::list_for_coach))
         .route("/coach/me/timezone", put(coach::me::set_timezone))
         .route(
             "/coach/clients/{id}/workouts",

@@ -5,6 +5,7 @@ import { CalendarIcon, ImportIcon, LibraryIcon, PeopleIcon } from '../shared/ico
 import { ClientEditPage } from './ClientEditPage'
 import { ClientPage } from './ClientPage'
 import { ClientQuestionnairePage } from './ClientQuestionnairePage'
+import { ClientWeightPage } from './ClientWeightPage'
 import { ClientsPage } from './ClientsPage'
 import { ExercisePage } from './ExercisePage'
 import { ImportPage } from './ImportPage'
@@ -65,6 +66,7 @@ export function CoachWorkspace({ base, onUnauthorized, onSignOut }: Props) {
             <Route path="clients/:id" element={<ClientPage />} />
             <Route path="clients/:id/edit" element={<ClientEditPage />} />
             <Route path="clients/:id/questionnaire" element={<ClientQuestionnairePage />} />
+            <Route path="clients/:id/weight" element={<ClientWeightPage />} />
             <Route path="workouts" element={<WorkoutsPage />} />
             <Route path="workouts/:id" element={<BuilderPage />} />
             <Route path="workouts/:id/report" element={<ReportPage />} />

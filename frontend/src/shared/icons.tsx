@@ -173,3 +173,13 @@ export function PhotoIcon({ size = 16 }: { size?: number }) {
     </Icon>
   )
 }
+
+export function ScaleIcon({ size = 16 }: { size?: number }) {
+  return (
+    <Icon size={size}>
+      <rect x="4" y="4" width="16" height="16" rx="4" />
+      <path d="M8.5 10a3.5 3.5 0 0 1 7 0" />
+      <path d="M12 10l1.4-1.8" />
+    </Icon>
+  )
+}

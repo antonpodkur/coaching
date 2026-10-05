@@ -19,6 +19,15 @@ export function questionnaireQuery(id: string) {
   })
 }
 
+/** One client's weigh-ins, oldest first: `[...CLIENTS_KEY, id, 'weight']`. */
+export function weightQuery(id: string) {
+  return queryOptions({
+    queryKey: [...CLIENTS_KEY, id, 'weight'],
+    queryFn: async () =>
+      unwrap(await api.GET('/coach/clients/{id}/weight', { params: { path: { id } } })),
+  })
+}
+
 /** `34 роки · чоловіча · 182 см · 6 фото · 1 відео`, or `null` before any answer. */
 export function questionnaireSummary(client: Client): string | null {
   const parts = [

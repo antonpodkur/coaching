@@ -1,0 +1,37 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO body_measurements (client_id, kind, value, measured_on)\n           VALUES ($1, 'weight', $2::float8::numeric(6, 2), $3)\n           ON CONFLICT (client_id, kind, measured_on)\n           DO UPDATE SET value = EXCLUDED.value, created_at = now()\n           RETURNING measured_on AS date, value::float8 AS \"kg!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "date",
+        "type_info": "Date",
+        "origin": {
+          "Table": {
+            "table": "body_measurements",
+            "name": "measured_on"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "kg!",
+        "type_info": "Float8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Float8",
+        "Date"
+      ]
+    },
+    "nullable": [
+      false,
+      null
+    ]
+  },
+  "hash": "a543d00a468668b787335237933ba8a830b86777e793d19ec37c83faf72050d4"
+}

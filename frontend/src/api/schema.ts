@@ -138,6 +138,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/coach/clients/{id}/weight": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One client's weigh-ins, oldest first, for Dasha. */
+        get: operations["get_client_weight"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/coach/clients/{id}/workouts": {
         parameters: {
             query?: never;
@@ -567,6 +584,41 @@ export interface paths {
         put: operations["set_timezone"];
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/weight": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The client's weigh-ins, oldest first. */
+        get: operations["get_my_weight"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/weight/{date}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Records the client's weight on a day, replacing that day's entry. */
+        put: operations["log_my_weight"];
+        post?: never;
+        /** Deletes the client's entry for a day. */
+        delete: operations["delete_my_weight"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1023,6 +1075,10 @@ export interface components {
              */
             url: string;
         };
+        LogWeight: {
+            /** Format: double */
+            kg: number;
+        };
         /**
          * @description How an exercise's sets are counted. Seconds share the reps fields, so for
          *     `time` a set's `reps_*` and `actual_reps` are seconds.
@@ -1203,6 +1259,15 @@ export interface components {
         WebAppAuthRequest: {
             /** @description `Telegram.WebApp.initData`, exactly as the Mini App received it. */
             init_data: string;
+        };
+        WeightEntry: {
+            /**
+             * Format: date
+             * @description The client's own calendar date.
+             */
+            date: string;
+            /** Format: double */
+            kg: number;
         };
         /** @description A workout as one document: what the builder loads and saves. */
         Workout: {
@@ -1643,6 +1708,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Questionnaire"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_client_weight: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Client id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WeightEntry"][];
                 };
             };
             401: {
@@ -2812,6 +2915,112 @@ export interface operations {
                 };
             };
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_my_weight: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WeightEntry"][];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    log_my_weight: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The client's date, e.g. 2026-10-05 */
+                date: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LogWeight"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WeightEntry"];
+                };
+            };
+            /** @description `invalid_weight` (20–400 kg) or `invalid_date` (in the future) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_my_weight: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The entry's date */
+                date: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

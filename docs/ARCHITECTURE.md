@@ -174,6 +174,8 @@ clients           id, coach_id, name, telegram_id UNIQUE NULL, bot_allowed_at NU
                   birth_year NULL, sex (female|male) NULL, height_cm NULL,   -- the questionnaire
                   created_at, archived_at
 gym_media         id, client_id, kind (photo|video), object_key UNIQUE, status, length_secs NULL, created_at
+body_measurements id, client_id, kind (weight), value NUMERIC(6,2), measured_on DATE, created_at,
+                  UNIQUE (client_id, kind, measured_on)
 exercises         id, coach_id, name, measure (weight | bodyweight | time), muscle_group, aliases TEXT[],
                   video_uid NULL, video_length_secs NULL,
                   upload_video_uid UNIQUE NULL, upload_status (uploading|processing|failed) NULL,
@@ -217,6 +219,10 @@ coach_logins      id, code_hash UNIQUE, poll_secret_hash UNIQUE, display_code, c
   - **Photos** are shrunk on the phone to 1600 px, which also drops the camera's metadata, and sent through the backend, which checks they are JPEGs. They sit in a private Bunny Storage zone under `clients/<id>/gym/`, and one signed directory token covers a client's photos.
   - **Videos** take the technique videos' path: straight from the phone to the private client library, encoded there, and followed by the same webhook and jobs.
   - **Dasha** sees a summary on the client page and the whole questionnaire one tap further. The client's home screen offers it until they answer anything ("Не зараз" hides the offer on that phone).
+- **Weight** is logged by the client, one entry a day (weighing again replaces it), in `body_measurements`, whose `kind` leaves room for other measurements. Both apps show the same chart:
+  - each weigh-in as a dot and the average of the week up to it as a line, since daily weight swings with water;
+  - "за місяць": the change of that weekly average against about four weeks earlier, or since a named date when the history is shorter or sparse;
+  - no reminders for now.
 - **Clients are archived, never deleted,** so Dasha keeps their history. An archived client is signed out on their next request (the client extractor checks `archived_at`), gets no bot messages, and cannot use an invite. If they come back and Dasha adds them as a new client, the archived profile gives up the Telegram account to the new one.
 - **`coach_id`** is on the top-level tables even though there is one coach. It costs nothing and keeps the door open.
 - **Invite and login codes are stored hashed.** Until it is used, a code in a link works like a password.
@@ -242,6 +248,8 @@ Client (`role = client`):
 | POST | `/me/gym/videos` | Starts a gym video: a tus ticket into the private library. Up to 3. |
 | POST | `/me/gym/videos/{id}/uploaded` | The gym video's file is in |
 | DELETE | `/me/gym/{id}` | Deletes a gym photo or video, on Bunny too |
+| GET | `/me/weight` | The client's weigh-ins, oldest first |
+| PUT, DELETE | `/me/weight/{date}` | `{kg}` for that day, replacing any entry; or deletes it |
 
 Coach (`role = coach`):
 
@@ -253,6 +261,7 @@ Coach (`role = coach`):
 | PUT | `/coach/me/timezone` | From Dasha's phone; her evening summary follows it |
 | POST | `/coach/clients/{id}/invite` | New invite link |
 | GET | `/coach/clients/{id}/questionnaire` | The client's questionnaire, with signed links to their gym photos and videos |
+| GET | `/coach/clients/{id}/weight` | The client's weigh-ins, oldest first |
 | GET | `/coach/workouts?from&to&client_id` | Every active client's workouts in a date range (at most 62 days) plus undated drafts, with the client's name: the workouts tab |
 | GET | `/coach/clients/{id}/workouts` | Her workouts for this client: undated drafts first, then newest date first, with done and differing set counts and the report's effort and seen state |
 | GET | `/coach/workouts/{id}/results` | Every set's target next to what the client logged, `differs` per set, and the report |

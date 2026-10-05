@@ -3,12 +3,14 @@ import { Link } from 'react-router'
 
 import type { Schemas } from '../api/client'
 import { formatShortDate, formatToday, localDate, parseDate, plural } from '../shared/format'
-import { CalendarIcon, CheckIcon, ChevronIcon, PersonIcon } from '../shared/icons'
+import { CalendarIcon, CheckIcon, ChevronIcon, PersonIcon, ScaleIcon } from '../shared/icons'
 import { HomeScreenCard } from '../shared/HomeScreenCard'
 import { Screen } from '../shared/Screen'
+import { weightSummary } from '../shared/weight'
 import { BotMessagesCard } from './BotMessagesCard'
 import { QuestionnaireCard } from './QuestionnaireCard'
 import { questionnaireCardDismissed } from './questionnaire'
+import { useMyWeight } from './weight'
 import { type ClientWorkoutSummary, useMyWorkouts } from './workouts'
 
 const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд']
@@ -16,6 +18,7 @@ const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд']
 /** Today: this week at a glance, and the workout to do now or next. */
 export function HomePage({ client }: { client: Schemas['ClientProfile'] }) {
   const workouts = useMyWorkouts()
+  const weight = useMyWeight()
   const today = localDate(new Date())
   const all = workouts.data ?? []
 
@@ -85,6 +88,22 @@ export function HomePage({ client }: { client: Schemas['ClientProfile'] }) {
             </li>
           ))}
         </ul>
+      )}
+
+      {/* Below the workouts and drawn with them, so it never pushes them down. */}
+      {!workouts.isPending && (
+        <Link className="other-workout" to="/app/weight">
+          <span className="round-icon">
+            <ScaleIcon />
+          </span>
+          <span className="other-text">
+            <span className="other-title">Вага</span>
+            <span className="muted small">
+              {weight.isPending ? '…' : (weightSummary(weight.data ?? []) ?? 'Записати вагу')}
+            </span>
+          </span>
+          <ChevronIcon />
+        </Link>
       )}
     </Screen>
   )
