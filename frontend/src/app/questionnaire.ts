@@ -2,7 +2,7 @@ import { type QueryClient, useQuery } from '@tanstack/react-query'
 
 import { type Schemas, api, unwrap } from '../api/client'
 import { jpegBody, shrinkPhoto } from '../shared/photos'
-import { SESSION_KEY } from './session'
+import { type AppSession, SESSION_KEY } from './session'
 import type { VideoTarget } from './videoSends'
 
 export const QUESTIONNAIRE_KEY = ['my-questionnaire']
@@ -18,7 +18,7 @@ export function useQuestionnaire() {
 
 /** After the first answer or photo the home screen stops offering the questionnaire. */
 export function markStarted(queryClient: QueryClient) {
-  queryClient.setQueryData<Schemas['MiniAppSession']>(SESSION_KEY, (session) =>
+  queryClient.setQueryData<AppSession>(SESSION_KEY, (session) =>
     session?.role === 'client'
       ? { ...session, client: { ...session.client, questionnaire_started: true } }
       : session,

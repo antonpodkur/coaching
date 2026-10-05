@@ -6,5 +6,5 @@ pub mod extract;
 pub mod jwt;
 pub mod telegram;
 
-pub use extract::{CurrentClient, CurrentCoach};
+pub use extract::{CurrentClient, CurrentCoach, CurrentSession};
 pub use jwt::{JwtKeys, Role};

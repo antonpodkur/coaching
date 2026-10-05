@@ -127,6 +127,12 @@ impl Config {
         format!("https://t.me/{}?start={payload}", self.bot_username)
     }
 
+    /// The same as `bot_start_url`, straight in the Telegram app. A phone opens
+    /// it without a web page in between, also from an app on the home screen.
+    pub fn bot_app_start_url(&self, payload: &str) -> String {
+        format!("tg://resolve?domain={}&start={payload}", self.bot_username)
+    }
+
     /// A `t.me` link that opens the bot's main Mini App straight away, with
     /// `payload` as its `start_param`. Needs the Mini App set up in BotFather.
     pub fn app_start_url(&self, payload: &str) -> String {

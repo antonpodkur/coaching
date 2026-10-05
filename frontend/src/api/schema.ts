@@ -13,7 +13,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Starts a coach sign-in that the coach confirms in the bot. */
+        /** Starts a sign-in outside Telegram, which the person confirms in the bot. */
         post: operations["bot_login_start"];
         delete?: never;
         options?: never;
@@ -30,8 +30,32 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Collects the result of a coach sign-in started with `/auth/bot-login`. */
+        /**
+         * Collects the result of a sign-in started with `/auth/bot-login`: the
+         *     coach's or the client's session, whoever confirmed it.
+         */
         post: operations["bot_login_poll"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Renews a session, which an app outside Telegram does each time it opens,
+         *     for as long again as the session it replaces. Refused (401) once the coach
+         *     or client is gone or archived, which signs them out.
+         */
+        post: operations["refresh"];
         delete?: never;
         options?: never;
         head?: never;
@@ -809,6 +833,18 @@ export interface components {
             height_cm?: number | null;
             sex?: components["schemas"]["Sex"] | null;
         };
+        /** @description Who signed in decides which screens they get. */
+        AppSession: {
+            coach: components["schemas"]["CoachProfile"];
+            /** @enum {string} */
+            role: "coach";
+            token: string;
+        } | {
+            client: components["schemas"]["ClientProfile"];
+            /** @enum {string} */
+            role: "client";
+            token: string;
+        };
         BotLoginPoll: {
             /** @enum {string} */
             status: "pending";
@@ -817,24 +853,28 @@ export interface components {
             status: "cancelled";
         } | {
             /** @enum {string} */
+            status: "refused";
+        } | {
+            /** @enum {string} */
             status: "expired";
         } | {
-            coach: components["schemas"]["CoachProfile"];
+            session: components["schemas"]["AppSession"];
             /** @enum {string} */
             status: "approved";
-            token: string;
         };
         BotLoginPollRequest: {
             poll_secret: string;
         };
         BotLoginStart: {
-            /** @description Opens the bot in Telegram with the login code. */
+            /** @description The same, straight in the Telegram app (`tg://`), for a phone. */
+            bot_app_url: string;
+            /** @description Opens the bot with the login code: `t.me`, for a computer. */
             bot_url: string;
-            /** @description Shown on the page; the bot shows the same digits before the coach confirms. */
+            /** @description Shown in the app; the bot shows the same digits before they confirm. */
             display_code: string;
             /** Format: date-time */
             expires_at: string;
-            /** @description Keep in the page; send it to `/auth/bot-login/poll` to collect the token. */
+            /** @description Keep in the app; send it to `/auth/bot-login/poll` to collect the session. */
             poll_secret: string;
         };
         /** @description Changes to one client. Fields left out stay as they are. */
@@ -1176,18 +1216,6 @@ export interface components {
          * @enum {string}
          */
         Measure: "weight" | "bodyweight" | "time";
-        /** @description Who opened the Mini App decides which screens they get. */
-        MiniAppSession: {
-            coach: components["schemas"]["CoachProfile"];
-            /** @enum {string} */
-            role: "coach";
-            token: string;
-        } | {
-            client: components["schemas"]["ClientProfile"];
-            /** @enum {string} */
-            role: "client";
-            token: string;
-        };
         MyNutrition: {
             current?: components["schemas"]["NutritionTarget"] | null;
         };
@@ -1586,6 +1614,33 @@ export interface operations {
             };
         };
     };
+    refresh: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppSession"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     telegram_webapp: {
         parameters: {
             query?: never;
@@ -1604,7 +1659,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MiniAppSession"];
+                    "application/json": components["schemas"]["AppSession"];
                 };
             };
             /** @description `initData` is invalid or older than a day */

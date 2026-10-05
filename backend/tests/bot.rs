@@ -1,4 +1,4 @@
-//! The bot end to end: invites, coach sign-in and the webhook, with a Telegram
+//! The bot end to end: invites, sign-in outside Telegram and the webhook, with a Telegram
 //! client that records messages instead of sending them.
 
 mod common;
@@ -262,7 +262,7 @@ async fn plain_start_greets_by_role(db: PgPool) {
     let mini_app = Some(format!("{FRONTEND_URL}/app"));
     let coach = last_message_to(&state, COACH_TG);
     assert_eq!(web_app_url(&coach), mini_app);
-    assert!(coach.text.contains(&format!("{FRONTEND_URL}/coach")));
+    assert!(coach.text.contains(&format!("{FRONTEND_URL}/app")));
     assert_eq!(web_app_url(&last_message_to(&state, CLIENT_TG)), mini_app);
     assert!(
         last_message_to(&state, STRANGER_TG)
@@ -303,6 +303,14 @@ async fn start_login(app: &axum::Router) -> (String, String, String) {
     assert_eq!(status, StatusCode::OK);
     let bot_url = login["bot_url"].as_str().unwrap();
     assert!(bot_url.starts_with("https://t.me/dasha_test_bot?start=login_"));
+    assert_eq!(
+        login["bot_app_url"],
+        format!(
+            "tg://resolve?domain=dasha_test_bot&start={}",
+            start_payload(bot_url)
+        ),
+        "the same login, straight in the Telegram app"
+    );
     (
         format!("/start {}", start_payload(bot_url)),
         login["poll_secret"].as_str().unwrap().to_owned(),
@@ -350,12 +358,13 @@ async fn the_coach_signs_in_by_confirming_in_the_bot(db: PgPool) {
         text: "Вхід підтверджено".into(),
     }));
     assert!(sent.iter().any(|s| matches!(s,
-        Sent::Edited { chat_id: COACH_TG, message_id: 42, text } if text.contains("Повернись у браузер"))));
+        Sent::Edited { chat_id: COACH_TG, message_id: 42, text } if text.contains("повертатися в застосунок"))));
 
     let approved = poll(&app, &poll_secret).await;
     assert_eq!(approved["status"], "approved");
-    assert_eq!(approved["coach"]["name"], "Даша");
-    let token = approved["token"].as_str().unwrap();
+    assert_eq!(approved["session"]["role"], "coach");
+    assert_eq!(approved["session"]["coach"]["name"], "Даша");
+    let token = approved["session"]["token"].as_str().unwrap();
     let (status, _) = call(&app, "GET", "/coach/clients", Some(token), None).await;
     assert_eq!(status, StatusCode::OK);
 
@@ -372,7 +381,7 @@ async fn bot_sign_in_refuses_strangers_and_honours_cancel(db: PgPool) {
     let state = test_state(db.clone());
     let app = coaching_backend::router(state.clone());
 
-    // Someone who is not a coach opens a login link.
+    // Someone without an account opens a login link: the app hears it at once.
     let (start, poll_secret, _) = start_login(&app).await;
     webhook(&app, text_update(STRANGER_TG, &start)).await;
     assert!(
@@ -380,8 +389,10 @@ async fn bot_sign_in_refuses_strangers_and_honours_cancel(db: PgPool) {
             .text
             .contains("не має доступу")
     );
+    assert_eq!(poll(&app, &poll_secret).await["status"], "refused");
 
-    // The coach opens it; a stranger pressing her Confirm button changes nothing.
+    // The coach opens one; a stranger pressing her Confirm button changes nothing.
+    let (start, poll_secret, _) = start_login(&app).await;
     webhook(&app, text_update(COACH_TG, &start)).await;
     let buttons = callback_data(&last_message_to(&state, COACH_TG));
     webhook(&app, button_update(STRANGER_TG, &buttons[0])).await;
@@ -396,7 +407,7 @@ async fn bot_sign_in_refuses_strangers_and_honours_cancel(db: PgPool) {
 
     // An expired login is refused in the bot and reported as expired.
     let (start, poll_secret, _) = start_login(&app).await;
-    sqlx::query("UPDATE coach_logins SET expires_at = now() - interval '1 second'")
+    sqlx::query("UPDATE bot_logins SET expires_at = now() - interval '1 second'")
         .execute(&db)
         .await
         .unwrap();
@@ -408,4 +419,72 @@ async fn bot_sign_in_refuses_strangers_and_honours_cancel(db: PgPool) {
     );
     assert_eq!(poll(&app, &poll_secret).await["status"], "expired");
     assert_eq!(poll(&app, "made-up-secret").await["status"], "expired");
+}
+
+#[sqlx::test]
+async fn a_client_signs_in_outside_telegram(db: PgPool) {
+    let coach_id = seed_coach(&db, COACH_TG).await;
+    let client_id = seed_client(&db, coach_id, CLIENT_TG).await;
+    // Joined through an app link and never let the bot write to them.
+    sqlx::query!(
+        "UPDATE clients SET bot_allowed_at = NULL WHERE id = $1",
+        client_id
+    )
+    .execute(&db)
+    .await
+    .unwrap();
+    let state = test_state(db.clone());
+    let app = coaching_backend::router(state.clone());
+
+    let (start, poll_secret, display_code) = start_login(&app).await;
+    webhook(&app, text_update(CLIENT_TG, &start)).await;
+    // Pressing Start let the bot write: the pinned welcome, then the question.
+    let sent = messages_to(&state, CLIENT_TG);
+    assert_eq!(sent.len(), 2);
+    assert!(sent[0].text.starts_with("Вітаю"));
+    assert!(state.telegram.sent().iter().any(|s| matches!(
+        s,
+        Sent::Pinned {
+            chat_id: CLIENT_TG,
+            ..
+        }
+    )));
+    assert!(sent[1].text.contains("Увійти в застосунок?"));
+    assert!(sent[1].text.contains(&display_code));
+
+    let buttons = callback_data(&sent[1]);
+    webhook(&app, button_update(CLIENT_TG, &buttons[0])).await;
+    let approved = poll(&app, &poll_secret).await;
+    assert_eq!(approved["status"], "approved");
+    let session = &approved["session"];
+    assert_eq!(session["role"], "client");
+    assert_eq!(session["client"]["name"], "Максим К.");
+    assert_eq!(session["client"]["bot_allowed"], true);
+    let token = session["token"].as_str().unwrap();
+    let (status, me) = call(&app, "GET", "/me", Some(token), None).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(me["id"], client_id.to_string());
+    let claims = state.jwt.verify(token).unwrap();
+    assert_eq!(
+        claims.exp - claims.iat,
+        30 * 24 * 60 * 60,
+        "a session outside Telegram lasts a month"
+    );
+
+    // Archived clients can no longer sign in.
+    sqlx::query!(
+        "UPDATE clients SET archived_at = now() WHERE id = $1",
+        client_id
+    )
+    .execute(&db)
+    .await
+    .unwrap();
+    let (start, poll_secret, _) = start_login(&app).await;
+    webhook(&app, text_update(CLIENT_TG, &start)).await;
+    assert!(
+        last_message_to(&state, CLIENT_TG)
+            .text
+            .contains("не має доступу")
+    );
+    assert_eq!(poll(&app, &poll_secret).await["status"], "refused");
 }

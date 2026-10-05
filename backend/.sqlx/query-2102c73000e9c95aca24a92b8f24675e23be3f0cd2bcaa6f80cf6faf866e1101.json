@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "UPDATE coach_logins SET coach_id = $2\n         WHERE code_hash = $1 AND status = 'pending' AND expires_at > now()\n           AND (coach_id IS NULL OR coach_id = $2)\n         RETURNING id, display_code",
+  "query": "UPDATE bot_logins SET telegram_id = $2\n         WHERE code_hash = $1 AND status = 'pending' AND expires_at > now()\n           AND (telegram_id IS NULL OR telegram_id = $2)\n         RETURNING id, display_code",
   "describe": {
     "columns": [
       {
@@ -9,7 +9,7 @@
         "type_info": "Uuid",
         "origin": {
           "Table": {
-            "table": "coach_logins",
+            "table": "bot_logins",
             "name": "id"
           }
         }
@@ -20,7 +20,7 @@
         "type_info": "Text",
         "origin": {
           "Table": {
-            "table": "coach_logins",
+            "table": "bot_logins",
             "name": "display_code"
           }
         }
@@ -29,7 +29,7 @@
     "parameters": {
       "Left": [
         "Text",
-        "Uuid"
+        "Int8"
       ]
     },
     "nullable": [
@@ -37,5 +37,5 @@
       false
     ]
   },
-  "hash": "3697273ed349d44d389707068c9c77f2762f931f9807c7df612a275e4518b511"
+  "hash": "2102c73000e9c95aca24a92b8f24675e23be3f0cd2bcaa6f80cf6faf866e1101"
 }

@@ -40,7 +40,8 @@ export function setSwipeBack(back: () => void): () => void {
  * Going back with a swipe from the left edge, as iPhone apps do: the page
  * follows the finger and goes back past a third of the screen or on a quick
  * flick, otherwise it springs back. Telegram gives Mini Apps no such gesture
- * on iPhones; on Android the system one already presses the back arrow.
+ * on iPhones, and neither does an iPhone to an app installed on the home
+ * screen; on Android the system one already goes back.
  * Returns a function that removes it.
  */
 export function installSwipeBack(): () => void {

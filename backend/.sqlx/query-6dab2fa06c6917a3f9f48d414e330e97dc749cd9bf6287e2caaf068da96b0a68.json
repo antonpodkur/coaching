@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE bot_logins SET status = 'refused'\n             WHERE code_hash = $1 AND status = 'pending' AND expires_at > now()\n               AND telegram_id IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "6dab2fa06c6917a3f9f48d414e330e97dc749cd9bf6287e2caaf068da96b0a68"
+}

@@ -33,7 +33,8 @@ const SEXES: { value: Sex; label: string }[] = [
  * The questionnaire for Dasha: age, sex, height, and photos and videos of the
  * client's gym. Optional, and only Dasha sees it.
  */
-export function QuestionnairePage() {
+/** The client's profile: the questionnaire, and signing out outside Telegram. */
+export function QuestionnairePage({ onSignOut }: { onSignOut?: () => void }) {
   const questionnaire = useQuestionnaire()
   const back = <BackLink to="/app" label="Головна" />
   if (!questionnaire.data) {
@@ -57,6 +58,17 @@ export function QuestionnairePage() {
       </header>
       <AnswersForm saved={questionnaire.data} />
       <GymSection questionnaire={questionnaire.data} />
+      {onSignOut && (
+        <button
+          type="button"
+          className="link-button sign-out"
+          onClick={async () => {
+            if (await confirmAction('Вийти з акаунта на цьому пристрої?')) onSignOut()
+          }}
+        >
+          Вийти з акаунта
+        </button>
+      )}
     </Screen>
   )
 }

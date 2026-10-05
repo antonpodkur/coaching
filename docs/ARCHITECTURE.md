@@ -5,19 +5,19 @@ The planned system behind the clickable prototype (`app-prototype/` in the `dash
 ## Context
 
 - **What v1 does:** Dasha builds workouts from her exercise library and publishes them to a client. The client opens them in a Telegram Mini App, logs each set against the target and sends a short report. Chat, technique-video checks and payments stay in Telegram or are handled by hand.
-- **Where Dasha works:** mostly on her phone, like most coaches. Her workspace is the same Telegram Mini App: it shows her the coach screens instead of a client's. A browser version of the same screens is there for when she sits at a computer.
+- **Where Dasha works:** mostly on her phone, like most coaches. Her workspace is the same Telegram Mini App: it shows her the coach screens instead of a client's. The same screens work outside Telegram too: installed on a phone's home screen, or in a browser at a computer (see [PWA.md](PWA.md)).
 - **Scale:** one coach and tens of clients, growing to low hundreds. Performance is not a design driver. Reliability, low running cost and one developer's time are.
 - **Users:** Ukraine and the Ukrainian diaspora, so clients are in many timezones. Clients train in gyms with poor reception, mostly on mid-range phones inside Telegram's in-app browser.
 
 ## Overview
 
 ```
- Client's phone          Dasha's phone           Dasha's laptop (optional)
+ Client's phone          Dasha's phone           Outside Telegram (optional)
  ┌───────────────────┐   ┌───────────────────┐   ┌───────────────────┐
- │ Telegram          │   │ Telegram          │   │ Browser (/coach)  │
- │  chat with bot    │   │  chat with bot    │   │  sign-in that     │
- │  Mini App (/app)  │   │  Mini App (/app)  │   │  she confirms     │
- │                   │   │  (her workspace)  │   │  in the bot       │
+ │ Telegram          │   │ Telegram          │   │ Installed app or  │
+ │  chat with bot    │   │  chat with bot    │   │  browser (/app),  │
+ │  Mini App (/app)  │   │  Mini App (/app)  │   │  sign-in that is  │
+ │                   │   │  (her workspace)  │   │  confirmed in bot │
  └─────────┬─────────┘   └─────────┬─────────┘   └─────────┬─────────┘
            │ initData, API         │ initData, API         │ API
            ▼                       ▼                       ▼
@@ -36,7 +36,7 @@ Videos go from Dasha's phone straight to Bunny with a resumable upload; the back
 
 | Part | Choice | Why |
 | --- | --- | --- |
-| Frontend | React + TypeScript + Vite. `/app` is the Telegram Mini App for clients and for Dasha; `/coach` is her workspace in a browser | One codebase and shared UI. The Telegram SDK and the UI libraries the builder needs are JavaScript. |
+| Frontend | React + TypeScript + Vite. `/app` is the app for clients and for Dasha: the Telegram Mini App, or the same app installed on a phone or in a browser | One codebase and shared UI. The Telegram SDK and the UI libraries the builder needs are JavaScript. |
 | Backend | Rust: axum, tokio, sqlx, and a small Bot API client over reqwest | One small binary for the API, bot, parser and jobs. The compiler catches mistakes early. |
 | API contract | `utoipa` → OpenAPI → `openapi-typescript` + `openapi-fetch` | Typed paths, params and bodies in the frontend, generated from the Rust structs. |
 | Database | Postgres 16, managed (Render, Frankfurt) | Relational data, 3-day point-in-time restore, EU region. |
@@ -74,10 +74,10 @@ Chosen for low cost with no servers to maintain. Prices were checked on the prov
   - `hls.js` where the browser cannot play HLS natively (Android WebView). iOS plays it natively. Bunny's MP4 fallback covers any WebView where HLS misbehaves.
 - **Telegram:** `telegram-web-app.js`, loaded in `index.html` before the app so it can read the launch parameters from the URL. It provides `initData`, `start_param`, theme colours, the back button, haptics and `openTelegramLink`. Outside Telegram it does nothing. A copy is served with the app (`public/`, refreshed with `pnpm update:telegram`), and so are the fonts, so a weak connection can't hold the page up.
 - **One Mini App, two roles:** the sign-in response says whether Dasha or a client opened `/app`, and the app mounts her workspace or the client's screens. Nothing in the URL decides the role.
-- **Coach screens are phone-first:** pages above a bottom tab bar; sub-pages go back with Telegram's own back button. The browser at `/coach` shows the same components with an in-page back link, and on a wide screen the tabs move to the top. The builder's phone design (set chips with a −/+ editor, the library as a bottom sheet) is in the prototype.
+- **Coach screens are phone-first:** pages above a bottom tab bar; sub-pages go back with Telegram's own back button. Outside Telegram the same components show an in-page back link, and on a wide screen the tabs move to the top. The builder's phone design (set chips with a −/+ editor, the library as a bottom sheet) is in the prototype.
 - **Invites go out as a card:** in the Mini App, "Надіслати запрошення" shares a prepared message with an "Відкрити" button (`shareMessage`). Without it, "Надіслати в Telegram" opens `https://t.me/share/url?url=<invite>` with `openTelegramLink`, so Dasha picks the chat instead of copying a link. Copying stays as a fallback.
 - **Types:** `frontend/src/api/schema.ts` is generated from the backend's OpenAPI spec and never edited by hand. CI fails if it is out of date.
-- **Tokens:** sent as `Authorization: Bearer …`, not cookies. Telegram Web runs Mini Apps in an iframe, where cookies are unreliable. Mini App tokens, the client's and Dasha's alike, live in memory and are re-issued from fresh `initData` on every launch. The browser's coach token lives in `localStorage`.
+- **Tokens:** sent as `Authorization: Bearer …`, not cookies. Telegram Web runs Mini Apps in an iframe, where cookies are unreliable. Mini App tokens, the client's and Dasha's alike, live in memory and are re-issued from fresh `initData` on every launch. Outside Telegram the session lives in `localStorage` and is renewed with `POST /auth/refresh` each time the app opens.
 
 ## Backend
 
@@ -110,7 +110,7 @@ backend/
   - **Menu button:** on startup the bot's default menu button is set to open the Mini App at `<FRONTEND_ORIGIN>/app`, so it follows the deployment (and the dev tunnel). Clients and Dasha open the app from it in any chat with the bot.
   - **Failures:** those that may be temporary answer 500, so Telegram retries. Handling is safe to repeat: tapping a spent invite again just offers the app.
   - **Tests** swap in a client that records messages instead of sending them.
-- **Sessions:** HS256 JWTs (`jsonwebtoken`) carrying `role` and `client_id` or `coach_id`. Mini App tokens (either role) last 12 hours; the browser coach token lasts 30 days. Rotating the secret signs everyone out.
+- **Sessions:** HS256 JWTs (`jsonwebtoken`) carrying `role` and `client_id` or `coach_id`. Mini App tokens (either role) last 12 hours; tokens from the bot sign-in outside Telegram last 30 days, and renewing keeps a token's lifetime. Rotating the secret signs everyone out.
 - **Background jobs:** one tokio task in the same process (no extra Render service), spawned at startup. Every 5 minutes it queues reminders and Dasha's summary, then sends whatever is due, retries included. Each round takes a Postgres advisory lock first, so a second instance or a deploy overlap skips the round instead of doubling it. Rounds take an explicit `now`, so tests run them on any clock.
 
 ## Authentication and onboarding
@@ -153,15 +153,18 @@ This is as strong as the bot-confirmed sign-in below: both rest on Telegram vouc
 
 The unit tests include a real `initData` string captured from the dev bot.
 
-**Browser sign-in for Dasha, confirmed through the bot.** The secondary way in, for a computer. The browser workspace shows "Увійти через Telegram":
+**Sign-in outside Telegram, confirmed through the bot.** For the app installed on a phone, or in a browser; for Dasha and for clients alike. The sign-in screen starts a login as it opens:
 
-1. `POST /auth/bot-login` creates a random single-use code, valid for 5 minutes. It returns the link `https://t.me/<bot>?start=login_<code>`, a short display code such as `4821`, and a separate poll secret that stays in the page.
-2. Dasha opens the link and taps Start. The bot's handler takes her Telegram ID from the update (Telegram vouches for it) and checks that it belongs to a row in `coaches`. It replies "Увійти в кабінет? Код 4821 [Підтвердити] [Скасувати]".
-3. Only the Confirm button approves the code. The page polls `POST /auth/bot-login/poll` with its poll secret; someone who only saw the link cannot collect the token. Once the code is approved, the page receives the coach JWT a single time, and the code is spent. Polling continues while the page is hidden, and it checks again as soon as the page returns: confirming means switching to Telegram, which hides the page.
+1. `POST /auth/bot-login` creates a random single-use code, valid for 5 minutes. It returns the link `https://t.me/<bot>?start=login_<code>` (for a computer), the same as `tg://resolve?domain=<bot>&start=login_<code>` (a phone opens Telegram straight away), a short display code such as `4821`, and a separate poll secret that stays in the app.
+2. The person opens the link and taps Start. The bot's handler takes their Telegram ID from the update (Telegram vouches for it) and checks that it is the coach or a client who joined and is not archived. It replies "Увійти в застосунок? Код 4821 [Підтвердити] [Скасувати]". A client the bot could not write to yet gets the pinned welcome first: pressing Start allows it.
+   - **Anyone else** gets told to open their invite first, and the login is marked `refused`, so the app says so at once instead of waiting for the code to run out.
+3. Only the Confirm button approves the code. The app polls `POST /auth/bot-login/poll` with its poll secret; someone who only saw the link cannot collect the session. Once the code is approved, the app receives the coach's or the client's session a single time, and the code is spent. Polling continues while the app is hidden, and it checks again as soon as it returns: confirming means switching to Telegram, which hides the app.
 
-**Why the confirm step and the code.** Without them, an attacker could start a login in their own browser and trick Dasha into opening that link, which would sign the attacker in as her. Asking her to confirm, and to match the code shown on her own screen, prevents this.
+**Why the confirm step and the code.** Without them, an attacker could start a login in their own app and trick someone into opening that link, which would sign the attacker in as them. Asking them to confirm, and to match the code shown on their own screen, prevents this.
 
-This replaces the Telegram Login Widget, which Telegram now labels legacy. Telegram's OpenID Connect login (set up in BotFather with a client ID and secret) can be added later if clients ever get a browser version. The last step, Telegram ID to our session, stays the same.
+**Staying signed in.** The session lasts 30 days and is kept on the phone, so the app opens with no signal. Each time it opens (and when it comes back after 12 hours) it renews the session with `POST /auth/refresh`. That fails once the client is archived, which signs them out; a month away does too. Dasha's older `/coach` address redirects to `/app`, and her older browser token renews into the new session.
+
+This replaces the Telegram Login Widget, which Telegram now labels legacy, and which asks for a phone number in a popup that installed iPhone apps handle badly. The last step, Telegram ID to our session, would stay the same with Telegram's OpenID Connect login if it is ever needed.
 
 **Authorisation.** Client handlers take `client_id` only from the token, never from the request. Coach handlers require `role = coach`.
 
@@ -261,8 +264,9 @@ Coach (`role = coach`):
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| POST | `/auth/bot-login` | New login code, bot link and display code |
-| POST | `/auth/bot-login/poll` | `{poll_secret}` → `pending`, `cancelled`, `expired`, or `approved` with the coach token (once) |
+| POST | `/auth/bot-login` | New login code, bot links (`t.me` and `tg://`) and display code |
+| POST | `/auth/bot-login/poll` | `{poll_secret}` → `pending`, `cancelled`, `refused`, `expired`, or `approved` with the coach's or client's session (once) |
+| POST | `/auth/refresh` | A new token for the same person and lifetime, with their profile; 401 once they are archived |
 | GET/POST/PATCH | `/coach/clients`, `/coach/clients/{id}` | List (with each client's unseen reports; `?archived=true` for the archive); add (returns the first invite link); edit (name, `paid_until`, archive or restore) |
 | PUT | `/coach/me/timezone` | From Dasha's phone; her evening summary follows it |
 | POST | `/coach/clients/{id}/invite` | New invite link |

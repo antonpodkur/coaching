@@ -98,11 +98,15 @@ The installed app, its stored data, its sign-in and its push subscriptions all b
 ## Phases
 
 1. **Groundwork, invisible to users.** Built:
-   - **Manifest** (`frontend/public/manifest.webmanifest`): the name "Тренування" and a dumbbell icon, both placeholders until there is branding. The PNGs are made from `icon.svg` with ImageMagick: `magick -density 288 icon.svg -resize 512x512 -alpha off -depth 8 -strip icon-512.png`, and the same for `icon-192.png` and the 180-pixel `apple-touch-icon.png`. It opens at `/app`, which shows "Відкрий у Telegram" outside Telegram until phase 2.
+   - **Manifest** (`frontend/public/manifest.webmanifest`): the name "Тренування" and a dumbbell icon, both placeholders until there is branding. The PNGs are made from `icon.svg` with ImageMagick: `magick -density 288 icon.svg -resize 512x512 -alpha off -depth 8 -strip icon-512.png`, and the same for `icon-192.png` and the 180-pixel `apple-touch-icon.png`. It opens at `/app`.
    - **Service worker** (`frontend/sw/sw.js`): keeps the app's own files. The build (`sw/plugin.ts`) lists them and versions it. Pages are answered from the phone's copy, so the app opens at once and with no signal. A new version waits until "Оновити" (`shared/UpdateNote.tsx`), which floats over the bottom of the screen, above Dasha's tab bar, and stays hidden over the builder's bottom bar and sheets.
    - **Telegram's script and the fonts** are served with the app.
    - **The status bar:** installed on an iPhone, the page runs under a see-through status bar, and the tops of screens leave room for it.
-2. **Sign-in outside Telegram:** the bot sign-in for everyone, 30-day sessions, one entry instead of "Відкрий у Telegram", and the replacements in the table above.
+2. **Sign-in outside Telegram.** Built:
+   - **One address, `/app`:** inside Telegram the Mini App signs in as before (`MiniApp.tsx`); anywhere else `StandaloneApp.tsx` opens with the session saved on the phone, renews it in the background (`POST /auth/refresh`), and shows the bot sign-in (`SignIn.tsx`) when there is none. `/coach/…` redirects to `/app/…`.
+   - **Bot sign-in for everyone:** the coach or a client who joined; anyone else is refused at once. A client the bot could not write to yet gets the pinned welcome when they press Start. On a phone the button opens Telegram directly (`tg://`), on a computer `t.me`.
+   - **Signing out:** Dasha's header has "Вийти"; a client has "Вийти з акаунта" at the bottom of their profile (the questionnaire).
+   - **Replacements:** swipe back on an installed iPhone app, vibration on Android for a ticked set and a sent report (`shared/haptics.ts`), and the phone's share sheet for an invite.
 3. **Getting people to install:** the install page and the card in the Telegram version.
 4. **Web push:** subscriptions, short texts, the badge, and Dasha's notifications.
 
@@ -115,3 +119,5 @@ The installed app, its stored data, its sign-in and its push subscriptions all b
 - Video playback and uploads in the installed app, and what happens to an upload when the app goes to the background.
 - The notch and home bar on phones that have them, and the see-through status bar on an installed iPhone app.
 - Inside Telegram on Android, the second launch with no signal (the first one installs the service worker).
+- The sign-in on an installed iPhone app: "Відкрити Telegram" (iPhone asks whether to open Telegram), Start and Confirm in the bot, then back to the app, which should be signed in a moment later.
+- Swipe back from the left edge on an installed iPhone app.

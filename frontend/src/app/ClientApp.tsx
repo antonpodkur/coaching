@@ -15,8 +15,17 @@ import { WorkoutPage } from './WorkoutPage'
 import { flush, onDrained, useOutboxStatus } from './outbox'
 import { MY_WORKOUTS_KEY } from './workouts'
 
-/** The client's side of the Mini App: today, a workout, an exercise, the report. */
-export function ClientApp({ client }: { client: Schemas['ClientProfile'] }) {
+/**
+ * The client's side of the app: today, a workout, an exercise, the report.
+ * `onSignOut` is there outside Telegram, where the session is kept on the phone.
+ */
+export function ClientApp({
+  client,
+  onSignOut,
+}: {
+  client: Schemas['ClientProfile']
+  onSignOut?: () => void
+}) {
   const queryClient = useQueryClient()
   const { waiting } = useOutboxStatus()
 
@@ -39,7 +48,7 @@ export function ClientApp({ client }: { client: Schemas['ClientProfile'] }) {
         <Route path="workouts/:id" element={<WorkoutPage />} />
         <Route path="workouts/:id/exercises/:exerciseId" element={<ExerciseScreen />} />
         <Route path="workouts/:id/finish" element={<FinishPage />} />
-        <Route path="questionnaire" element={<QuestionnairePage />} />
+        <Route path="questionnaire" element={<QuestionnairePage onSignOut={onSignOut} />} />
         <Route path="weight" element={<WeightPage />} />
         <Route path="nutrition" element={<NutritionPage />} />
       </Routes>

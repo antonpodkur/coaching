@@ -78,7 +78,7 @@ The database has no access from the internet (`ipAllowList: []`). Only the backe
    - **Build command:** `pnpm build`
    - **Deploy command:** `npx wrangler deploy` (the default)
    - **Build variables:** `VITE_API_URL` = the Render address from step 4, without a trailing `/`. It is a build variable, not a runtime one: Vite bakes it into the app.
-3. Deploy. Then open `https://coaching.<subdomain>.workers.dev/app` in a browser. It should say "Відкрий у Telegram", which means it is served.
+3. Deploy. Then open `https://coaching.<subdomain>.workers.dev/app` in a browser. It should show the sign-in ("Вхід" and a four-digit code), which means it is served.
 4. Optional: under the build settings' watch paths, include only `frontend/**`, so backend-only pushes don't rebuild the frontend.
 
 If the address differs from what you entered in step 4, change `FRONTEND_ORIGIN` in Render (Environment, then save; it redeploys).

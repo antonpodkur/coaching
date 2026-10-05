@@ -1,4 +1,4 @@
-//! What the bot does with incoming updates: invite links, coach sign-in, and a
+//! What the bot does with incoming updates: invite links, sign-in, and a
 //! short answer to anything else. It only talks in private chats.
 //!
 //! The chat is the client's inbox: new workouts and reminders, each with a
@@ -263,6 +263,7 @@ async fn pin(state: &AppState, chat_id: i64, message_id: i64) {
     }
 }
 
+/// A sign-in link from the app outside Telegram, opened in the bot.
 async fn claim_login(
     state: &AppState,
     from: &User,
@@ -273,31 +274,46 @@ async fn claim_login(
         Claimed::Confirm {
             login_id,
             display_code,
-        } => OutgoingMessage::text(
-            chat_id,
-            format!(
-                "Увійти в кабінет тренера?\n\nКод на екрані має бути {display_code}. \
-                 Якщо ти не входила зараз — натисни «Скасувати»."
-            ),
-        )
-        .with_row(vec![
-            Button::Callback {
-                text: "Підтвердити".to_owned(),
-                data: format!("login_ok:{login_id}"),
-            },
-            Button::Callback {
-                text: "Скасувати".to_owned(),
-                data: format!("login_no:{login_id}"),
-            },
-        ]),
-        Claimed::NotACoach => {
-            OutgoingMessage::text(chat_id, "Цей акаунт не має доступу до кабінету тренера.")
+        } => {
+            // Pressing Start lets the bot write to them: a client who joined
+            // through an app link gets the pinned welcome now, above this.
+            if let Some(client_id) = client_id(state, from.id).await?
+                && let Err(err) = welcome_client(state, client_id, Some(&from.first_name)).await
+            {
+                tracing::warn!(error = ?err, "could not welcome a client in the bot");
+            }
+            confirm_login(chat_id, login_id, &display_code)
         }
+        Claimed::NoAccount => OutgoingMessage::text(
+            chat_id,
+            "Цей Telegram-акаунт ще не має доступу. Спершу відкрий посилання-запрошення від \
+             тренера, а потім увійди знову.",
+        ),
         Claimed::Invalid => OutgoingMessage::text(
             chat_id,
-            "Посилання для входу недійсне або застаріло. Спробуй ще раз у браузері.",
+            "Посилання для входу недійсне або застаріло. Спробуй увійти ще раз.",
         ),
     })
+}
+
+fn confirm_login(chat_id: i64, login_id: Uuid, display_code: &str) -> OutgoingMessage {
+    OutgoingMessage::text(
+        chat_id,
+        format!(
+            "Увійти в застосунок?\n\nКод на екрані має бути {display_code}. \
+             Якщо це не твій вхід — натисни «Скасувати»."
+        ),
+    )
+    .with_row(vec![
+        Button::Callback {
+            text: "Підтвердити".to_owned(),
+            data: format!("login_ok:{login_id}"),
+        },
+        Button::Callback {
+            text: "Скасувати".to_owned(),
+            data: format!("login_no:{login_id}"),
+        },
+    ])
 }
 
 async fn greet(state: &AppState, from: &User, chat_id: i64) -> anyhow::Result<Reply> {
@@ -336,8 +352,8 @@ async fn greet(state: &AppState, from: &User, chat_id: i64) -> anyhow::Result<Re
     if is_coach {
         let text = format!(
             "Кабінет тренера — кнопкою нижче або «{MENU_BUTTON_TEXT}» біля поля повідомлення. \
-             На комп’ютері: {}/coach",
-            state.config.frontend_url
+             На комп’ютері: {}",
+            state.config.mini_app_url()
         );
         return Ok(Reply::plain(OutgoingMessage::text(chat_id, text).with_row(
             vec![Button::WebApp {
@@ -378,12 +394,12 @@ async fn handle_callback(state: &AppState, query: CallbackQuery) -> anyhow::Resu
     let (toast, result) = match (decided, approve) {
         (true, true) => (
             "Вхід підтверджено",
-            "Вхід підтверджено. Повернись у браузер.",
+            "Вхід підтверджено. Можна повертатися в застосунок.",
         ),
         (true, false) => ("Вхід скасовано", "Вхід скасовано."),
         (false, _) => (
             "Посилання застаріло",
-            "Посилання для входу застаріло. Спробуй ще раз у браузері.",
+            "Посилання для входу застаріло. Спробуй увійти ще раз.",
         ),
     };
     state

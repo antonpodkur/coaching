@@ -8,7 +8,7 @@ Dasha's online coaching app. She builds workouts from her exercise library and p
 | Folder | What |
 | --- | --- |
 | `backend/` | Rust: axum, sqlx (Postgres), Telegram auth, plan import parser |
-| `frontend/` | React + TypeScript + Vite: `/app` is the Mini App (the client's screens, or Dasha's workspace), `/coach` is her workspace in a browser |
+| `frontend/` | React + TypeScript + Vite: `/app` is the app: the client's screens or Dasha's workspace, inside Telegram, installed on a phone, or in a browser |
 | `docs/` | Architecture, and the deploy guide |
 | `render.yaml` | Render Blueprint: backend and Postgres |
 
@@ -34,7 +34,7 @@ Dasha's online coaching app. She builds workouts from her exercise library and p
 - **Dasha's reports:** a client's page opens with their newest report, differences first (effort, comment, sets done differently or skipped), and "copy to the next workout". New reports put the client at the top of the list.
 - **Background jobs** (inside the backend, every 5 minutes): workout-day reminders at 09:00 in each client's timezone, Dasha's 20:00 summary of unopened workouts and payments ending, and retries for messages Telegram refused. Run `RUST_LOG=coaching_backend=debug` to see each round.
 - **Exercise library and videos:** add, rename, group and archive exercises. Each exercise is counted with weight, by bodyweight (reps, plus optional extra weight like a belt) or by time (a plank, a bike), and the builder, the client's screen and the report follow it. Videos upload from the phone straight to Bunny Stream with tus; the backend signs each upload, follows the encoding (webhook, or asking Bunny when Dasha looks), swaps the new video in when it is ready and deletes the old one.
-- **Frontend:** the Mini App signs in and greets the client, or opens Dasha's workspace: a phone layout with a bottom tab bar, the client list, inviting through Telegram's share sheet, the client page and workout builder, the exercise library with video upload and playback, and the import preview. The same workspace runs in a browser at `/coach`.
+- **Frontend:** the Mini App signs in and greets the client, or opens Dasha's workspace: a phone layout with a bottom tab bar, the client list, inviting through Telegram's share sheet, the client page and workout builder, the exercise library with video upload and playback, and the import preview. Outside Telegram (installed on a phone or in a browser) the same app signs in through the bot.
 - **API types:** `frontend/src/api/schema.ts` is generated from the backend's OpenAPI spec.
 
 ## Prerequisites
@@ -56,7 +56,7 @@ cd backend && cargo run                      # http://localhost:8080, runs migra
 cd frontend && pnpm install && pnpm dev      # http://localhost:5173, proxies /api to the backend
 ```
 
-`/app` in a normal browser only says "open in Telegram". `/coach` works in a browser, but its sign-in is confirmed in the bot. To use either, go through Telegram as below.
+`/app` in a normal browser shows the sign-in, which is confirmed in the bot. So either way, go through Telegram as below.
 
 ### Local Telegram
 
@@ -76,7 +76,7 @@ Telegram only opens Mini Apps and bot buttons over HTTPS, and it has to reach th
 5. Make yourself the coach, once: send `/start` to the bot, and the backend logs your ID ("message from an unknown Telegram user"). Set `COACH_TELEGRAM_ID` to it in `backend/.env` and restart the backend.
 6. In the chat with the bot, tap the menu button ("Відкрити"). The Mini App opens your workspace.
 7. Invite a client: "Запросити", enter a name, "Надіслати запрошення", and pick a chat. Any second Telegram account works. Tapping "Відкрити" there opens the client's screens, already joined.
-8. Optional, the browser version: open `https://<tunnel>/coach`, choose "Увійти через Telegram", tap Start in the bot, check that the code matches, and confirm.
+8. Optional, outside Telegram: open `https://<tunnel>/app` in a browser, tap "Відкрити Telegram", tap Start in the bot, check that the code matches, and confirm. Clients who joined sign in the same way.
 
 Your own account is the coach, so the Mini App always opens the workspace for it, even if you also accepted an invite with it.
 

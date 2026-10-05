@@ -168,9 +168,9 @@ a.button {
   gap: 16px;
 }
 
-/* Coach workspace */
+/* Sign-in outside Telegram */
 
-.coach-login {
+.sign-in {
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
@@ -180,6 +180,23 @@ a.button {
   padding: calc(16px + env(safe-area-inset-top)) 16px calc(16px + env(safe-area-inset-bottom));
   text-align: center;
 }
+
+.login-code {
+  font-family: var(--font-display);
+  font-size: 44px;
+  letter-spacing: 0.12em;
+}
+
+.login-hint {
+  max-width: 320px;
+}
+
+.sign-out {
+  align-self: center;
+  margin-top: 12px;
+}
+
+/* Coach workspace */
 
 .wordmark {
   display: flex;
@@ -192,16 +209,6 @@ a.button {
 .wordmark span:first-child {
   font-family: var(--font-display);
   font-size: 15px;
-}
-
-.login-code {
-  font-family: var(--font-display);
-  font-size: 44px;
-  letter-spacing: 0.12em;
-}
-
-.login-hint {
-  max-width: 320px;
 }
 
 /* The workspace is laid out for a phone: pages above a bottom tab bar. */

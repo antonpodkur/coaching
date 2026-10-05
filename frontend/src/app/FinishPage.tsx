@@ -6,9 +6,9 @@ import { BackLink } from '../shared/BackLink'
 import { plural } from '../shared/format'
 import { CheckIcon } from '../shared/icons'
 import { Screen } from '../shared/Screen'
+import { successFeedback } from '../shared/haptics'
 import { useNoSwipeToClose } from './gestures'
 import { finishWorkout, useOutboxStatus } from './outbox'
-import { telegramWebApp } from './telegram'
 import { EFFORT_TEXT, progress, useMyWorkout } from './workouts'
 
 const EFFORTS: Schemas['Effort'][] = ['easy', 'ok', 'hard']
@@ -67,7 +67,7 @@ export function FinishPage() {
       // A first ✓ from another day says nothing about this session's length.
       duration_min: minutes !== null && minutes <= 6 * 60 ? minutes : null,
     })
-    telegramWebApp()?.HapticFeedback.notificationOccurred('success')
+    successFeedback()
     setSent(true)
   }
 

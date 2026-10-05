@@ -2,6 +2,7 @@ import { useState } from 'react'
 
 import type { Schemas } from '../api/client'
 import { telegramSupporting, telegramWebApp } from '../app/telegram'
+import { onPhone } from '../shared/device'
 import { formatDay } from '../shared/format'
 import { SendIcon } from '../shared/icons'
 
@@ -17,7 +18,8 @@ function shareUrl(inviteUrl: string) {
 
 /**
  * A fresh invite, ready to send in Telegram. Inside Telegram it goes as a card
- * with an "Відкрити" button that opens the app; elsewhere as a plain link.
+ * with an "Відкрити" button that opens the app; elsewhere as a plain link,
+ * through the phone's share sheet or Telegram's share page.
  */
 export function InviteCard({ invite, onClose }: { invite: ShownInvite; onClose?: () => void }) {
   const [copied, setCopied] = useState(false)
@@ -26,6 +28,7 @@ export function InviteCard({ invite, onClose }: { invite: ShownInvite; onClose?:
   const share = shareUrl(invite.url)
   const cardSharer = invite.prepared_message_id ? telegramSupporting('8.0') : null
   const preparedId = invite.prepared_message_id
+  const shareSheet = !webApp && onPhone() && typeof navigator.share === 'function'
 
   const copy = async () => {
     try {
@@ -66,6 +69,17 @@ export function InviteCard({ invite, onClose }: { invite: ShownInvite; onClose?:
         >
           <SendIcon />
           Надіслати в Telegram
+        </button>
+      ) : shareSheet ? (
+        <button
+          type="button"
+          className="button primary block"
+          onClick={() =>
+            void navigator.share({ text: SHARE_TEXT, url: invite.url }).catch(() => undefined)
+          }
+        >
+          <SendIcon />
+          Надіслати запрошення
         </button>
       ) : (
         <a className="button primary block" href={share} target="_blank" rel="noreferrer">

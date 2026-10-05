@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, status AS \"status: LoginStatus\", coach_id, expires_at\n           FROM coach_logins WHERE poll_secret_hash = $1\n           FOR UPDATE",
+  "query": "SELECT id, status AS \"status: LoginStatus\", telegram_id, expires_at\n           FROM bot_logins WHERE poll_secret_hash = $1\n           FOR UPDATE",
   "describe": {
     "columns": [
       {
@@ -9,7 +9,7 @@
         "type_info": "Uuid",
         "origin": {
           "Table": {
-            "table": "coach_logins",
+            "table": "bot_logins",
             "name": "id"
           }
         }
@@ -19,32 +19,33 @@
         "name": "status: LoginStatus",
         "type_info": {
           "Custom": {
-            "name": "coach_login_status",
+            "name": "bot_login_status",
             "kind": {
               "Enum": [
                 "pending",
                 "approved",
                 "cancelled",
-                "used"
+                "used",
+                "refused"
               ]
             }
           }
         },
         "origin": {
           "Table": {
-            "table": "coach_logins",
+            "table": "bot_logins",
             "name": "status"
           }
         }
       },
       {
         "ordinal": 2,
-        "name": "coach_id",
-        "type_info": "Uuid",
+        "name": "telegram_id",
+        "type_info": "Int8",
         "origin": {
           "Table": {
-            "table": "coach_logins",
-            "name": "coach_id"
+            "table": "bot_logins",
+            "name": "telegram_id"
           }
         }
       },
@@ -54,7 +55,7 @@
         "type_info": "Timestamptz",
         "origin": {
           "Table": {
-            "table": "coach_logins",
+            "table": "bot_logins",
             "name": "expires_at"
           }
         }
@@ -72,5 +73,5 @@
       false
     ]
   },
-  "hash": "15e4e8193ed67810d91ae5e867c6ecb01a99a74c9c506e400c9b69f6a7103ffb"
+  "hash": "cb1530d8c48d1df6839fb81e8cc1edb483c95e0e89753f30f13dec3c87e756b0"
 }

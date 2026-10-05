@@ -6,8 +6,9 @@ use uuid::Uuid;
 /// Mini App sessions, for clients and the coach alike. The Mini App keeps the
 /// token in memory and gets a new one from fresh `initData` on every launch.
 pub const MINI_APP_TOKEN_TTL: Duration = Duration::hours(12);
-/// The coach's browser session from the bot-confirmed sign-in, kept in
-/// `localStorage` so she is not asked to confirm every visit.
+/// Sessions outside Telegram (an installed app, a browser) from the
+/// bot-confirmed sign-in. The app keeps the token in `localStorage` and renews
+/// it each time it opens (`/auth/refresh`), so only a month away signs it out.
 pub const BROWSER_TOKEN_TTL: Duration = Duration::days(30);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

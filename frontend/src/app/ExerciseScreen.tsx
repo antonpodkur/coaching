@@ -21,9 +21,9 @@ import {
 } from '../shared/format'
 import { CameraIcon, CheckIcon, ChevronIcon } from '../shared/icons'
 import { Screen } from '../shared/Screen'
+import { tapFeedback } from '../shared/haptics'
 import { useNoSwipeToClose } from './gestures'
 import { logSet } from './outbox'
-import { telegramWebApp } from './telegram'
 import { VideoSendCards } from './VideoSendCards'
 import { exerciseTarget, sendVideo, useVideoSends } from './videoSends'
 import { type ClientSet, MY_WORKOUTS_KEY, differs, useMyWorkout } from './workouts'
@@ -276,7 +276,7 @@ function SetRow({ workoutId, set, number, measure, unit, showKg }: SetRowProps) 
 
   const toggle = () => {
     if (!valid) return
-    telegramWebApp()?.HapticFeedback.impactOccurred(set.completed ? 'soft' : 'light')
+    tapFeedback(set.completed ? 'soft' : 'light')
     send(!set.completed)
   }
 

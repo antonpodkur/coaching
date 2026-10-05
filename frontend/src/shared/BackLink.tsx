@@ -7,19 +7,19 @@ import { BackIcon } from './icons'
 
 /**
  * Way back from a sub-page. Inside Telegram this is the back arrow in
- * Telegram's own header, and on iPhones a swipe from the left edge too; in a
- * browser it is a link at the top of the page.
+ * Telegram's own header; elsewhere a link at the top of the page. On iPhones,
+ * in Telegram or installed on the home screen, a swipe from the left edge too.
  */
 export function BackLink({ to, label }: { to: string; label: string }) {
   const navigate = useNavigate()
   const webApp = telegramWebApp()
 
   useEffect(() => {
-    if (!webApp) return
     const back = () => void navigate(to)
+    const releaseSwipe = setSwipeBack(back)
+    if (!webApp) return releaseSwipe
     webApp.BackButton.onClick(back)
     webApp.BackButton.show()
-    const releaseSwipe = setSwipeBack(back)
     return () => {
       webApp.BackButton.offClick(back)
       webApp.BackButton.hide()

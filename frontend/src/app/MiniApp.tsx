@@ -1,13 +1,19 @@
 import { useQuery } from '@tanstack/react-query'
 import { useCallback, useEffect, useState } from 'react'
 
-import { ApiError, type Schemas, api, setSessionToken, unwrap } from '../api/client'
+import { ApiError, api, setSessionToken, unwrap } from '../api/client'
 import { CoachWorkspace } from '../coach/CoachWorkspace'
 import { checkHomeScreen } from '../shared/homeScreen'
 import { Screen } from '../shared/Screen'
 import { ClientApp } from './ClientApp'
 import { installSwipeBack } from './gestures'
-import { SESSION_KEY, recalledSession, rememberSession } from './session'
+import {
+  type AppSession,
+  SESSION_KEY,
+  recalledSession,
+  rememberSession,
+  syncTimezone,
+} from './session'
 import { telegramWebApp } from './telegram'
 
 const webApp = telegramWebApp()
@@ -31,9 +37,9 @@ const SIGN_IN_ERRORS: Record<string, [string, string]> = {
  * Without a network, a session from the last few hours is reused, so the app
  * still opens in a gym with no signal.
  */
-async function signIn(initData: string): Promise<Schemas['MiniAppSession']> {
+async function signIn(initData: string): Promise<AppSession> {
   const telegramUserId = webApp?.initDataUnsafe.user?.id
-  let session: Schemas['MiniAppSession']
+  let session: AppSession
   try {
     session = unwrap(await api.POST('/auth/telegram-webapp', { body: { init_data: initData } }))
   } catch (err) {
@@ -44,16 +50,7 @@ async function signIn(initData: string): Promise<Schemas['MiniAppSession']> {
   }
   setSessionToken(session.token)
   rememberSession(session, telegramUserId)
-
-  // Bot messages follow the phone's clock: the client's reminders, Dasha's
-  // evening summary. Best effort; the next launch tries again.
-  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
-  if (session.role === 'client' && timezone && session.client.timezone !== timezone) {
-    await api.PUT('/me/timezone', { body: { timezone } }).catch(() => undefined)
-  }
-  if (session.role === 'coach' && timezone && session.coach.timezone !== timezone) {
-    await api.PUT('/coach/me/timezone', { body: { timezone } }).catch(() => undefined)
-  }
+  await syncTimezone(session)
   return session
 }
 
@@ -81,15 +78,6 @@ export function MiniApp() {
     // the remembered session instead of waiting for a network.
     networkMode: 'always',
   })
-
-  if (!webApp) {
-    return (
-      <Screen>
-        <h1>Відкрий у Telegram</h1>
-        <p className="muted">Застосунок відкривається кнопкою в чаті з ботом.</p>
-      </Screen>
-    )
-  }
 
   if (session.isPending || session.isFetching) {
     return (

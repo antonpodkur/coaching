@@ -19,7 +19,7 @@ import { BuilderPage } from './builder/BuilderPage'
 import { CoachContext } from './context'
 
 interface Props {
-  /** `/app` inside Telegram, `/coach` in a browser. */
+  /** Where the workspace lives: `/app`. */
   base: string
   onUnauthorized: () => void
   /** Browser only; inside Telegram the session belongs to her Telegram account. */

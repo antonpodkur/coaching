@@ -4,7 +4,10 @@
 mod common;
 
 use axum::http::StatusCode;
-use coaching_backend::auth::{Role, jwt::BROWSER_TOKEN_TTL};
+use coaching_backend::auth::{
+    Role,
+    jwt::{BROWSER_TOKEN_TTL, MINI_APP_TOKEN_TTL},
+};
 use common::{BOT_TOKEN, call, coach_token, seed_client, seed_coach, signed_init_data, test_state};
 use serde_json::json;
 use sqlx::PgPool;
@@ -210,4 +213,69 @@ async fn import_preview_matches_the_library_and_is_coach_only(db: PgPool) {
     .await;
     assert_eq!(status, StatusCode::FORBIDDEN);
     assert_eq!(body["error"], "wrong_role");
+}
+
+#[sqlx::test]
+async fn sessions_renew_for_as_long_again_until_archived(db: PgPool) {
+    let coach_id = seed_coach(&db, 555_000_222).await;
+    let client_id = seed_client(&db, coach_id, 777_000_111).await;
+    let state = test_state(db.clone());
+    let app = coaching_backend::router(state.clone());
+    let lifetime = |token: &str| {
+        let claims = state.jwt.verify(token).unwrap();
+        claims.exp - claims.iat
+    };
+
+    // An installed app renews its month-long session each time it opens.
+    let token = state
+        .jwt
+        .issue(Role::Client, client_id, BROWSER_TOKEN_TTL)
+        .unwrap();
+    let (status, session) = call(&app, "POST", "/auth/refresh", Some(&token), None).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(session["role"], "client");
+    assert_eq!(session["client"]["name"], "Максим К.");
+    let renewed = session["token"].as_str().unwrap();
+    assert_eq!(lifetime(renewed), BROWSER_TOKEN_TTL.num_seconds());
+    let (status, _) = call(&app, "GET", "/me", Some(renewed), None).await;
+    assert_eq!(status, StatusCode::OK);
+
+    // A Mini App session stays a Mini App session.
+    let short = state
+        .jwt
+        .issue(Role::Client, client_id, MINI_APP_TOKEN_TTL)
+        .unwrap();
+    let (_, session) = call(&app, "POST", "/auth/refresh", Some(&short), None).await;
+    assert_eq!(
+        lifetime(session["token"].as_str().unwrap()),
+        MINI_APP_TOKEN_TTL.num_seconds()
+    );
+
+    // The coach renews hers too.
+    let (status, session) = call(
+        &app,
+        "POST",
+        "/auth/refresh",
+        Some(&coach_token(&state, coach_id)),
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(session["role"], "coach");
+    assert_eq!(session["coach"]["id"], coach_id.to_string());
+
+    // Archiving signs the client out; so does a token we did not issue.
+    sqlx::query!(
+        "UPDATE clients SET archived_at = now() WHERE id = $1",
+        client_id
+    )
+    .execute(&db)
+    .await
+    .unwrap();
+    let (status, _) = call(&app, "POST", "/auth/refresh", Some(renewed), None).await;
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+    let (status, _) = call(&app, "POST", "/auth/refresh", Some("made-up"), None).await;
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+    let (status, _) = call(&app, "POST", "/auth/refresh", None, None).await;
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
 }

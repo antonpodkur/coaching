@@ -3,7 +3,7 @@ import { createContext, useContext } from 'react'
 import { ApiError } from '../api/client'
 
 export interface CoachContextValue {
-  /** Where the workspace is mounted: `/app` in the Mini App, `/coach` in a browser. */
+  /** Where the workspace is mounted: `/app`. */
   base: string
   /** The session was rejected: sign out in a browser, ask to reopen in the Mini App. */
   onUnauthorized: () => void
