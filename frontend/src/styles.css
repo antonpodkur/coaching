@@ -478,6 +478,7 @@ a.button {
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
   font-size: 12px;
   font-weight: 800;
 }
@@ -982,6 +983,40 @@ a.button {
   border-radius: 26px;
   font-family: var(--font-display);
   font-size: 15px;
+}
+
+/* A photo fills the circle; the initials show while there is none. */
+.avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* The client's photo at the top of their profile. */
+.profile-photo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+}
+
+.profile-photo-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.profile-photo-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 4px;
+}
+
+.profile-photo .error {
+  flex-basis: 100%;
 }
 
 .week-nav {

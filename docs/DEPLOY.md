@@ -108,7 +108,7 @@ The pull zone's bare address answering 403 is expected: there is no file there, 
 
 ## 5c. Photo storage
 
-Clients add photos of their gym to the questionnaire. Photos need no encoding, so they go to a Bunny Storage zone rather than Stream, shrunk on the phone to 1600 px first. Gym videos use the client video library from 5b.
+Clients add photos of their gym to the questionnaire, and their own avatar; their Telegram photo is copied here too. Photos need no encoding, so they go to a Bunny Storage zone rather than Stream, shrunk on the phone to 1600 px first. Gym videos use the client video library from 5b.
 
 1. In Bunny, Storage → Add Storage Zone: a name such as `coaching-photos`, the Standard tier, Frankfurt as the main region, no replication, and S3 compatibility off.
 2. In the zone, Connected Pull Zones → add one, e.g. `coaching-photos` (`coaching-photos.b-cdn.net`).

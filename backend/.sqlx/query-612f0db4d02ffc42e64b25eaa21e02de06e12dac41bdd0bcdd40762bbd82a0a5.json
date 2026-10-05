@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT c.id, c.name, c.telegram_id IS NOT NULL AS \"joined!\", c.invite_expires_at,\n                  c.paid_until, c.created_at,\n                  (SELECT count(*) FROM workout_reports r JOIN workouts w ON w.id = r.workout_id\n                   WHERE w.client_id = c.id AND r.seen_at IS NULL) AS \"unseen_reports!\",\n                  (SELECT count(*) FROM form_videos v\n                   WHERE v.client_id = c.id AND v.status = 'ready' AND v.seen_at IS NULL)\n                   AS \"new_videos!\",\n                  c.archived_at IS NOT NULL AS \"archived!\",\n                  c.birth_year, c.sex AS \"sex: Sex\", c.height_cm,\n                  (SELECT count(*) FROM gym_media m WHERE m.client_id = c.id AND m.kind = 'photo')\n                   AS \"gym_photos!\",\n                  (SELECT count(*) FROM gym_media m WHERE m.client_id = c.id AND m.kind = 'video'\n                   AND m.status IN ('processing', 'ready')) AS \"gym_videos!\"\n           FROM clients c\n           WHERE c.coach_id = $1 AND (c.archived_at IS NOT NULL) = $2\n           ORDER BY c.archived_at DESC NULLS LAST, c.created_at DESC",
+  "query": "SELECT c.id, c.name, c.telegram_id IS NOT NULL AS \"joined!\", c.invite_expires_at,\n                  c.paid_until, c.created_at,\n                  (SELECT count(*) FROM workout_reports r JOIN workouts w ON w.id = r.workout_id\n                   WHERE w.client_id = c.id AND r.seen_at IS NULL) AS \"unseen_reports!\",\n                  (SELECT count(*) FROM form_videos v\n                   WHERE v.client_id = c.id AND v.status = 'ready' AND v.seen_at IS NULL)\n                   AS \"new_videos!\",\n                  c.archived_at IS NOT NULL AS \"archived!\",\n                  c.birth_year, c.sex AS \"sex: Sex\", c.height_cm,\n                  (SELECT count(*) FROM gym_media m WHERE m.client_id = c.id AND m.kind = 'photo')\n                   AS \"gym_photos!\",\n                  (SELECT count(*) FROM gym_media m WHERE m.client_id = c.id AND m.kind = 'video'\n                   AND m.status IN ('processing', 'ready')) AS \"gym_videos!\",\n                  -- The storage path, replaced with a signed link below.\n                  c.avatar_path AS avatar_url\n           FROM clients c WHERE c.id = $1 AND c.coach_id = $2",
   "describe": {
     "columns": [
       {
@@ -136,12 +136,23 @@
         "name": "gym_videos!",
         "type_info": "Int8",
         "origin": "Expression"
+      },
+      {
+        "ordinal": 14,
+        "name": "avatar_url",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "clients",
+            "name": "avatar_path"
+          }
+        }
       }
     ],
     "parameters": {
       "Left": [
         "Uuid",
-        "Bool"
+        "Uuid"
       ]
     },
     "nullable": [
@@ -158,8 +169,9 @@
       true,
       true,
       null,
-      null
+      null,
+      true
     ]
   },
-  "hash": "380c0a6c1a484b2fa6e7532f4f064cd1e1ff8a4d9684fc32da9ff34ef39de17c"
+  "hash": "612f0db4d02ffc42e64b25eaa21e02de06e12dac41bdd0bcdd40762bbd82a0a5"
 }

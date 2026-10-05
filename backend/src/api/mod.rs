@@ -49,6 +49,8 @@ use crate::state::AppState;
         client::me,
         client::set_timezone,
         client::allow_bot,
+        client::set_avatar,
+        client::remove_avatar,
         workouts::list,
         workouts::get,
         workouts::log_set,
@@ -155,6 +157,12 @@ pub fn router(state: AppState) -> Router {
         .route("/me", get(client::me))
         .route("/me/timezone", put(client::set_timezone))
         .route("/me/bot-allowed", post(client::allow_bot))
+        .route(
+            "/me/avatar",
+            put(client::set_avatar)
+                .delete(client::remove_avatar)
+                .layer(DefaultBodyLimit::max(crate::photos::MAX_BYTES)),
+        )
         .route("/me/workouts", get(workouts::list))
         .route("/workouts/{id}", get(workouts::get))
         .route("/workouts/{id}/finish", post(workouts::finish))

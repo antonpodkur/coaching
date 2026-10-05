@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE clients c\n             SET avatar_path = NULL, avatar_from_telegram = false, telegram_photo_id = NULL\n             FROM clients old\n             WHERE c.id = $1 AND old.id = c.id AND c.avatar_from_telegram\n             RETURNING old.avatar_path",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "avatar_path",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "clients",
+            "name": "avatar_path"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "afb57a8e4b8b5af6b8c868ac254d5d30737661ba55523a4757b53e5b5ccd09b2"
+}

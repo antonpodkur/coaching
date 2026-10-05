@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { type ChangeEvent, useEffect, useState } from 'react'
 
 import { ApiError, type Schemas, api, unwrap } from '../api/client'
+import { Avatar } from '../shared/Avatar'
 import { BackLink } from '../shared/BackLink'
 import { FormVideoTile } from '../shared/FormVideoTile'
 import { PhotoGrid } from '../shared/PhotoGrid'
@@ -10,6 +11,7 @@ import { holdClosing } from '../shared/closingGuard'
 import { confirmAction } from '../shared/dialogs'
 import { CameraIcon, PhotoIcon } from '../shared/icons'
 import { VideoSendCards } from './VideoSendCards'
+import { removeAvatar, showAvatar, uploadAvatar } from './avatar'
 import {
   GYM_VIDEOS,
   MAX_PHOTOS,
@@ -33,14 +35,28 @@ const SEXES: { value: Sex; label: string }[] = [
  * The questionnaire for Dasha: age, sex, height, and photos and videos of the
  * client's gym. Optional, and only Dasha sees it.
  */
-/** The client's profile: the questionnaire, and signing out outside Telegram. */
-export function QuestionnairePage({ onSignOut }: { onSignOut?: () => void }) {
+/**
+ * The client's profile: their photo, the questionnaire, and signing out
+ * outside Telegram.
+ */
+export function QuestionnairePage({
+  client,
+  onSignOut,
+}: {
+  client: Schemas['ClientProfile']
+  onSignOut?: () => void
+}) {
   const questionnaire = useQuestionnaire()
-  const back = <BackLink to="/app" label="Головна" />
+  const top = (
+    <>
+      <BackLink to="/app" label="Головна" />
+      <AvatarSection client={client} />
+    </>
+  )
   if (!questionnaire.data) {
     return (
       <Screen>
-        {back}
+        {top}
         <p className={questionnaire.isError ? 'error' : 'muted'}>
           {questionnaire.isError ? 'Не вдалося завантажити анкету.' : 'Завантаження…'}
         </p>
@@ -49,7 +65,7 @@ export function QuestionnairePage({ onSignOut }: { onSignOut?: () => void }) {
   }
   return (
     <Screen>
-      {back}
+      {top}
       <header className="exercise-head">
         <h1>Анкета для Даші</h1>
         <p className="muted small">
@@ -185,6 +201,86 @@ function photoFailure(err: unknown): string {
     return 'Фото ще не налаштовані.'
   }
   return 'Не вдалося додати фото. Перевір зв’язок і спробуй ще раз.'
+}
+
+/**
+ * The client's photo, which Dasha sees in her list: their own, or else their
+ * Telegram photo. Only the client changes it.
+ */
+function AvatarSection({ client }: { client: Schemas['ClientProfile'] }) {
+  const queryClient = useQueryClient()
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const avatar = client.avatar ?? null
+  const own = avatar !== null && !avatar.from_telegram
+
+  const choose = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+    setError(null)
+    setBusy(true)
+    try {
+      showAvatar(queryClient, await uploadAvatar(file))
+    } catch (err) {
+      console.error('avatar upload failed', err)
+      setError(photoFailure(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const remove = async () => {
+    if (!(await confirmAction('Прибрати фото профілю?'))) return
+    setError(null)
+    setBusy(true)
+    try {
+      await removeAvatar()
+      showAvatar(queryClient, null)
+    } catch {
+      setError('Не вдалося прибрати фото. Перевір зв’язок і спробуй ще раз.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <section className="profile-photo" aria-label="Фото профілю">
+      <Avatar name={client.name} url={avatar?.url} large />
+      <div className="profile-photo-text">
+        <strong>{client.name}</strong>
+        <span className="muted small">
+          {own
+            ? 'Це фото бачить Даша.'
+            : avatar
+              ? 'Фото з Telegram. Можеш поставити інше.'
+              : 'Додай фото, щоб Даша бачила тебе у своєму списку.'}
+        </span>
+        <div className="profile-photo-actions">
+          <label className="button small file-button">
+            {busy ? 'Зберігаю…' : own ? 'Змінити фото' : 'Додати фото'}
+            <input
+              type="file"
+              accept="image/*"
+              disabled={busy}
+              onChange={(event) => void choose(event)}
+            />
+          </label>
+          {own && (
+            <button
+              type="button"
+              className="link-button"
+              disabled={busy}
+              onClick={() => void remove()}
+            >
+              Прибрати
+            </button>
+          )}
+        </div>
+      </div>
+      {error && <p className="error">{error}</p>}
+    </section>
+  )
 }
 
 /** Photos and videos of the gym, so Dasha knows what the client can train with. */

@@ -563,6 +563,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/avatar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * The client's own photo, a square JPEG the phone already shrank. It
+         *     replaces their avatar, a copy of their Telegram photo included.
+         */
+        put: operations["set_avatar"];
+        post?: never;
+        /**
+         * Removes the client's own photo; their Telegram photo comes back if bots
+         *     may see it.
+         */
+        delete: operations["remove_avatar"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/me/bot-allowed": {
         parameters: {
             query?: never;
@@ -910,6 +934,12 @@ export interface components {
             role: "client";
             token: string;
         };
+        Avatar: {
+            /** @description A copy of their Telegram profile photo, not one they added here. */
+            from_telegram: boolean;
+            /** @description Signed for a few hours. */
+            url: string;
+        };
         BotLoginPoll: {
             /** @enum {string} */
             status: "pending";
@@ -978,6 +1008,7 @@ export interface components {
              *     version stops offering it.
              */
             app_installed: boolean;
+            avatar?: components["schemas"]["Avatar"] | null;
             /**
              * @description The bot may message them. Joining through an app link skips the bot's
              *     Start, so until they allow it the app asks (`requestWriteAccess`).
@@ -1060,6 +1091,8 @@ export interface components {
         CoachClient: {
             /** @description Hidden from the list; the client cannot open the app until restored. */
             archived: boolean;
+            /** @description The client's photo, or their Telegram photo; signed for a few hours. */
+            avatar_url?: string | null;
             /**
              * Format: int32
              * @description From the questionnaire the client fills in; each answer may be missing.
@@ -3095,6 +3128,80 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ClientProfile"];
                 };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    set_avatar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "image/jpeg": components["schemas"]["PhotoFile"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Avatar"];
+                };
+            };
+            /** @description `invalid_photo`: not a JPEG, or too big */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description `photos_not_configured` */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    remove_avatar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             401: {
                 headers: {

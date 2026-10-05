@@ -3,8 +3,9 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 
 import { ApiError, type Schemas, api, unwrap } from '../api/client'
+import { Avatar } from '../shared/Avatar'
 import { BackLink } from '../shared/BackLink'
-import { formatDay, initials } from '../shared/format'
+import { formatDay } from '../shared/format'
 import { nutritionSummary } from '../shared/nutrition'
 import { weightSummary } from '../shared/weight'
 import { ChevronIcon, CopyIcon, EditIcon, PlusIcon } from '../shared/icons'
@@ -105,9 +106,7 @@ export function ClientPage() {
     <section className="page">
       {back}
       <header className="client-head">
-        <span className="avatar large" aria-hidden="true">
-          {initials(person.name)}
-        </span>
+        <Avatar name={person.name} url={person.avatar_url} large />
         <div className="client-text">
           <h1>{person.name}</h1>
           <span className="client-status">

@@ -48,7 +48,10 @@ export function ClientApp({
         <Route path="workouts/:id" element={<WorkoutPage />} />
         <Route path="workouts/:id/exercises/:exerciseId" element={<ExerciseScreen />} />
         <Route path="workouts/:id/finish" element={<FinishPage />} />
-        <Route path="questionnaire" element={<QuestionnairePage onSignOut={onSignOut} />} />
+        <Route
+          path="questionnaire"
+          element={<QuestionnairePage client={client} onSignOut={onSignOut} />}
+        />
         <Route path="weight" element={<WeightPage />} />
         <Route path="nutrition" element={<NutritionPage />} />
       </Routes>

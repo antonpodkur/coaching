@@ -3,6 +3,7 @@
 
 pub mod api;
 pub mod auth;
+pub mod avatars;
 pub mod bot;
 pub mod cdn_token;
 pub mod coaches;

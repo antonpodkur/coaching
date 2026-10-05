@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, name, timezone, bot_allowed_at IS NOT NULL AS \"bot_allowed!\",\n                  (birth_year IS NOT NULL OR sex IS NOT NULL OR height_cm IS NOT NULL\n                   OR EXISTS (SELECT 1 FROM gym_media m WHERE m.client_id = clients.id))\n                  AS \"questionnaire_started!\",\n                  app_installed_at IS NOT NULL AS \"app_installed!\"\n           FROM clients WHERE id = $1 AND archived_at IS NULL",
+  "query": "SELECT id, name, timezone, bot_allowed_at IS NOT NULL AS \"bot_allowed!\",\n                  (birth_year IS NOT NULL OR sex IS NOT NULL OR height_cm IS NOT NULL\n                   OR EXISTS (SELECT 1 FROM gym_media m WHERE m.client_id = clients.id))\n                  AS \"questionnaire_started!\",\n                  app_installed_at IS NOT NULL AS \"app_installed!\",\n                  avatar_path, avatar_from_telegram\n           FROM clients WHERE id = $1 AND archived_at IS NULL",
   "describe": {
     "columns": [
       {
@@ -53,6 +53,28 @@
         "name": "app_installed!",
         "type_info": "Bool",
         "origin": "Expression"
+      },
+      {
+        "ordinal": 6,
+        "name": "avatar_path",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "clients",
+            "name": "avatar_path"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "avatar_from_telegram",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "clients",
+            "name": "avatar_from_telegram"
+          }
+        }
       }
     ],
     "parameters": {
@@ -66,8 +88,10 @@
       true,
       null,
       null,
-      null
+      null,
+      true,
+      false
     ]
   },
-  "hash": "a0e8093d256b15e30cfb6ae4952fd37275a953f067cd3c4dfcfd4d4ebe3c074e"
+  "hash": "f789449af838de63f0e8edf9fb12d958c8f08ddad3a8896dcf6df2b38537ee74"
 }

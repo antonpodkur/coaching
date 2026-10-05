@@ -1,4 +1,4 @@
-use axum::{Json, extract::State, http::StatusCode};
+use axum::{Json, body::Bytes, extract::State, http::StatusCode};
 use serde::Deserialize;
 use sqlx::PgPool;
 use utoipa::ToSchema;
@@ -6,8 +6,10 @@ use utoipa::ToSchema;
 use crate::{
     api::auth::{self, ClientProfile},
     auth::CurrentClient,
+    avatars::{self, Avatar},
     bot,
     error::{AppError, AppResult, ErrorBody},
+    photos::PhotoFile,
     state::AppState,
     timezone,
 };
@@ -27,8 +29,55 @@ pub async fn me(
     State(state): State<AppState>,
     CurrentClient(client_id): CurrentClient,
 ) -> AppResult<Json<ClientProfile>> {
-    let profile = auth::client_profile(&state.db, client_id).await?;
+    let profile = auth::client_profile(&state, client_id).await?;
     Ok(Json(profile.ok_or(AppError::NotFound)?))
+}
+
+/// The client's own photo, a square JPEG the phone already shrank. It
+/// replaces their avatar, a copy of their Telegram photo included.
+#[utoipa::path(
+    put,
+    operation_id = "set_avatar",
+    path = "/me/avatar",
+    tag = "client",
+    security(("bearer" = [])),
+    request_body(content = PhotoFile, content_type = "image/jpeg"),
+    responses(
+        (status = 200, body = Avatar),
+        (status = 400, body = ErrorBody, description = "`invalid_photo`: not a JPEG, or too big"),
+        (status = 401, body = ErrorBody),
+        (status = 503, body = ErrorBody, description = "`photos_not_configured`"),
+    )
+)]
+pub async fn set_avatar(
+    State(state): State<AppState>,
+    CurrentClient(client_id): CurrentClient,
+    jpeg: Bytes,
+) -> AppResult<Json<Avatar>> {
+    Ok(Json(
+        avatars::upload(&state, client_id, jpeg.to_vec()).await?,
+    ))
+}
+
+/// Removes the client's own photo; their Telegram photo comes back if bots
+/// may see it.
+#[utoipa::path(
+    delete,
+    operation_id = "remove_avatar",
+    path = "/me/avatar",
+    tag = "client",
+    security(("bearer" = [])),
+    responses(
+        (status = 204),
+        (status = 401, body = ErrorBody),
+    )
+)]
+pub async fn remove_avatar(
+    State(state): State<AppState>,
+    CurrentClient(client_id): CurrentClient,
+) -> AppResult<StatusCode> {
+    avatars::remove(&state, client_id).await?;
+    Ok(StatusCode::NO_CONTENT)
 }
 
 /// The client allowed the bot to message them, in Telegram's popup in the app.

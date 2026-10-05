@@ -12,6 +12,7 @@ use crate::{
         jwt::{BROWSER_TOKEN_TTL, MINI_APP_TOKEN_TTL},
         telegram::verify_web_app_init_data,
     },
+    avatars::{self, Avatar},
     bot,
     error::{AppError, AppResult, ErrorBody},
     invites::{self, Accepted},
@@ -39,6 +40,8 @@ pub struct ClientProfile {
     /// They use the app installed on a phone's home screen, so the Telegram
     /// version stops offering it.
     pub app_installed: bool,
+    /// The photo they added in their profile, or else their Telegram photo.
+    pub avatar: Option<Avatar>,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -96,19 +99,36 @@ async fn client_by_telegram(db: &PgPool, telegram_id: i64) -> sqlx::Result<Optio
 }
 
 /// A client's profile, unless they were archived.
-pub async fn client_profile(db: &PgPool, client_id: Uuid) -> sqlx::Result<Option<ClientProfile>> {
-    sqlx::query_as!(
-        ClientProfile,
+pub async fn client_profile(
+    state: &AppState,
+    client_id: Uuid,
+) -> sqlx::Result<Option<ClientProfile>> {
+    let row = sqlx::query!(
         r#"SELECT id, name, timezone, bot_allowed_at IS NOT NULL AS "bot_allowed!",
                   (birth_year IS NOT NULL OR sex IS NOT NULL OR height_cm IS NOT NULL
                    OR EXISTS (SELECT 1 FROM gym_media m WHERE m.client_id = clients.id))
                   AS "questionnaire_started!",
-                  app_installed_at IS NOT NULL AS "app_installed!"
+                  app_installed_at IS NOT NULL AS "app_installed!",
+                  avatar_path, avatar_from_telegram
            FROM clients WHERE id = $1 AND archived_at IS NULL"#,
         client_id,
     )
-    .fetch_optional(db)
-    .await
+    .fetch_optional(&state.db)
+    .await?;
+    Ok(row.map(|row| ClientProfile {
+        avatar: avatars::avatar(
+            state,
+            row.id,
+            row.avatar_path.as_deref(),
+            row.avatar_from_telegram,
+        ),
+        id: row.id,
+        name: row.name,
+        timezone: row.timezone,
+        bot_allowed: row.bot_allowed,
+        questionnaire_started: row.questionnaire_started,
+        app_installed: row.app_installed,
+    }))
 }
 
 fn coach_session(state: &AppState, coach: CoachProfile, ttl: Duration) -> AppResult<AppSession> {
@@ -185,7 +205,7 @@ pub async fn telegram_webapp(
 
     let client_id = client_by_telegram(&state.db, telegram_id).await?;
     let client = match client_id {
-        Some(client_id) => client_profile(&state.db, client_id).await?,
+        Some(client_id) => client_profile(&state, client_id).await?,
         None => None,
     };
     let mut client = client.ok_or_else(|| {
@@ -284,7 +304,7 @@ pub async fn bot_login_poll(
             let session = if let Some(coach) = coach_by_telegram(&state.db, telegram_id).await? {
                 Some(coach_session(&state, coach, BROWSER_TOKEN_TTL)?)
             } else if let Some(client_id) = client_by_telegram(&state.db, telegram_id).await?
-                && let Some(client) = client_profile(&state.db, client_id).await?
+                && let Some(client) = client_profile(&state, client_id).await?
             {
                 Some(client_session(&state, client, BROWSER_TOKEN_TTL)?)
             } else {
@@ -322,7 +342,7 @@ pub async fn refresh(
             coach_session(&state, coach.ok_or(AppError::Unauthorized)?, ttl)?
         }
         Role::Client => {
-            let client = client_profile(&state.db, claims.sub).await?;
+            let client = client_profile(&state, claims.sub).await?;
             client_session(&state, client.ok_or(AppError::Unauthorized)?, ttl)?
         }
     };

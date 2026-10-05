@@ -31,6 +31,46 @@ export async function shrinkPhoto(file: File): Promise<Blob> {
   }
 }
 
+/** Avatars are a square this many px wide: sharp even in the largest circle. */
+const AVATAR_SIDE = 512
+
+/** A photo cut to the square in its middle, `AVATAR_SIDE` px wide, as a JPEG. */
+export async function squarePhoto(file: File): Promise<Blob> {
+  const url = URL.createObjectURL(file)
+  try {
+    const image = new Image()
+    image.src = url
+    await image.decode()
+    const crop = Math.min(image.naturalWidth, image.naturalHeight)
+    const side = Math.min(AVATAR_SIDE, crop)
+    const canvas = document.createElement('canvas')
+    canvas.width = side
+    canvas.height = side
+    const context = canvas.getContext('2d')
+    if (!context) throw new Error('no canvas')
+    context.drawImage(
+      image,
+      (image.naturalWidth - crop) / 2,
+      (image.naturalHeight - crop) / 2,
+      crop,
+      crop,
+      0,
+      0,
+      side,
+      side,
+    )
+    return await new Promise((resolve, reject) =>
+      canvas.toBlob(
+        (blob) => (blob ? resolve(blob) : reject(new Error('could not encode the photo'))),
+        'image/jpeg',
+        PHOTO_QUALITY,
+      ),
+    )
+  } finally {
+    URL.revokeObjectURL(url)
+  }
+}
+
 /** Request options that send a JPEG as the body itself, not as JSON. */
 export function jpegBody(jpeg: Blob) {
   return {

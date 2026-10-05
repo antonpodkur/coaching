@@ -10,6 +10,7 @@ use uuid::Uuid;
 
 use crate::{
     auth::CurrentCoach,
+    avatars,
     error::{AppError, AppResult, ErrorBody},
     invites,
     questionnaire::Sex,
@@ -42,6 +43,8 @@ pub struct CoachClient {
     /// Gym photos, and gym videos that arrived (encoding or ready).
     pub gym_photos: i64,
     pub gym_videos: i64,
+    /// The client's photo, or their Telegram photo; signed for a few hours.
+    pub avatar_url: Option<String>,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -127,7 +130,9 @@ pub async fn list(
                   (SELECT count(*) FROM gym_media m WHERE m.client_id = c.id AND m.kind = 'photo')
                    AS "gym_photos!",
                   (SELECT count(*) FROM gym_media m WHERE m.client_id = c.id AND m.kind = 'video'
-                   AND m.status IN ('processing', 'ready')) AS "gym_videos!"
+                   AND m.status IN ('processing', 'ready')) AS "gym_videos!",
+                  -- The storage path, replaced with a signed link below.
+                  c.avatar_path AS avatar_url
            FROM clients c
            WHERE c.coach_id = $1 AND (c.archived_at IS NOT NULL) = $2
            ORDER BY c.archived_at DESC NULLS LAST, c.created_at DESC"#,
@@ -136,7 +141,18 @@ pub async fn list(
     )
     .fetch_all(&state.db)
     .await?;
-    Ok(Json(clients))
+    Ok(Json(
+        clients
+            .into_iter()
+            .map(|client| signed(&state, client))
+            .collect(),
+    ))
+}
+
+/// Turns the avatar's storage path into a signed link.
+fn signed(state: &AppState, mut client: CoachClient) -> CoachClient {
+    client.avatar_url = avatars::signed_url(state, client.id, client.avatar_url.as_deref());
+    client
 }
 
 /// Adds a client and returns their first invite link.
@@ -347,12 +363,15 @@ async fn fetch_client(state: &AppState, coach_id: Uuid, client_id: Uuid) -> AppR
                   (SELECT count(*) FROM gym_media m WHERE m.client_id = c.id AND m.kind = 'photo')
                    AS "gym_photos!",
                   (SELECT count(*) FROM gym_media m WHERE m.client_id = c.id AND m.kind = 'video'
-                   AND m.status IN ('processing', 'ready')) AS "gym_videos!"
+                   AND m.status IN ('processing', 'ready')) AS "gym_videos!",
+                  -- The storage path, replaced with a signed link below.
+                  c.avatar_path AS avatar_url
            FROM clients c WHERE c.id = $1 AND c.coach_id = $2"#,
         client_id,
         coach_id,
     )
     .fetch_optional(&state.db)
     .await?
+    .map(|client| signed(state, client))
     .ok_or(AppError::NotFound)
 }

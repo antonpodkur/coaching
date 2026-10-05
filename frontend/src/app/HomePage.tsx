@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router'
 
 import type { Schemas } from '../api/client'
+import { Avatar } from '../shared/Avatar'
 import { formatShortDate, formatToday, localDate, parseDate, plural } from '../shared/format'
 import {
   CalendarIcon,
@@ -51,8 +52,12 @@ export function HomePage({ client }: { client: Schemas['ClientProfile'] }) {
           <p className="muted small">{formatToday()}</p>
           <h1>Привіт, {firstName}</h1>
         </div>
-        <Link className="icon-button" to="/app/questionnaire" aria-label="Анкета для Даші">
-          <PersonIcon />
+        <Link className="icon-button" to="/app/questionnaire" aria-label="Профіль і анкета">
+          {client.avatar ? (
+            <Avatar name={client.name} url={client.avatar.url} />
+          ) : (
+            <PersonIcon />
+          )}
         </Link>
       </header>
 

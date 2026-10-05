@@ -3,7 +3,8 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 
 import { api, unwrap } from '../api/client'
-import { formatDay, formatToday, initials } from '../shared/format'
+import { Avatar } from '../shared/Avatar'
+import { formatDay, formatToday } from '../shared/format'
 import { InstallCard } from '../shared/InstallCard'
 import { PushCard } from '../shared/PushCard'
 import { PlusIcon, SearchIcon } from '../shared/icons'
@@ -109,9 +110,7 @@ export function ClientsPage() {
         {shown.map((client) => (
           <li key={client.id} className="client-row">
             <Link className="client-link" to={`${base}/clients/${client.id}`}>
-              <span className="avatar" aria-hidden="true">
-                {initials(client.name)}
-              </span>
+              <Avatar name={client.name} url={client.avatar_url} />
               <span className="client-text">
                 <span className="client-name">{client.name}</span>
                 <ClientStatus client={client} />
@@ -170,9 +169,7 @@ function Archive() {
           {archived.data?.map((client) => (
             <li key={client.id} className="client-row">
               <Link className="client-link" to={`${base}/clients/${client.id}`}>
-                <span className="avatar" aria-hidden="true">
-                  {initials(client.name)}
-                </span>
+                <Avatar name={client.name} url={client.avatar_url} />
                 <span className="client-text">
                   <span className="client-name">{client.name}</span>
                   <span className="client-status">В архіві</span>

@@ -6,7 +6,7 @@ use std::{
     time::Duration,
 };
 
-use anyhow::{Context, bail};
+use anyhow::{Context, bail, ensure};
 use serde::Deserialize;
 use serde_json::{Value, json};
 
@@ -114,6 +114,10 @@ pub enum Sent {
         chat_id: i64,
         message_id: i64,
     },
+    /// A file downloaded through the Bot API, e.g. a profile photo.
+    Downloaded {
+        file_id: String,
+    },
     /// A message card prepared for `user_id` to share from the Mini App.
     Prepared {
         user_id: i64,
@@ -152,7 +156,21 @@ pub enum TelegramClient {
 pub struct Recorder {
     sent: Mutex<Vec<Sent>>,
     failing: std::sync::atomic::AtomicBool,
+    /// Profile photos by user: Telegram's unique ID and the JPEG.
+    profile_photos: Mutex<std::collections::HashMap<i64, (String, Vec<u8>)>>,
 }
+
+/// A user's current profile photo, in the size the app keeps.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProfilePhoto {
+    /// For `download_file`.
+    pub file_id: String,
+    /// Stays the same for the same photo, so an unchanged one is not fetched again.
+    pub unique_id: String,
+}
+
+/// Profile photo sizes go up to 640 px; this one is enough for an avatar.
+const AVATAR_PHOTO_WIDTH: u32 = 320;
 
 impl TelegramClient {
     pub fn live(bot_token: &str) -> anyhow::Result<Self> {
@@ -176,6 +194,20 @@ impl TelegramClient {
             recorder
                 .failing
                 .store(failing, std::sync::atomic::Ordering::SeqCst);
+        }
+    }
+
+    /// Test hook: the user's profile photo, or none (hidden or removed).
+    pub fn set_profile_photo(&self, user_id: i64, photo: Option<(&str, Vec<u8>)>) {
+        if let Self::Recording(recorder) = self {
+            let mut photos = recorder
+                .profile_photos
+                .lock()
+                .expect("lock is never poisoned");
+            match photo {
+                Some((unique_id, jpeg)) => photos.insert(user_id, (unique_id.to_owned(), jpeg)),
+                None => photos.remove(&user_id),
+            };
         }
     }
 
@@ -311,6 +343,121 @@ impl TelegramClient {
         Ok(())
     }
 
+    /// The user's current profile photo, or `None` if they have none or their
+    /// privacy settings hide it from bots.
+    pub async fn profile_photo(&self, user_id: i64) -> anyhow::Result<Option<ProfilePhoto>> {
+        let (http, base_url) = match self {
+            Self::Recording(recorder) => {
+                if recorder.failing.load(std::sync::atomic::Ordering::SeqCst) {
+                    bail!("getUserProfilePhotos failed: Telegram is unreachable (test)");
+                }
+                let photos = recorder
+                    .profile_photos
+                    .lock()
+                    .expect("lock is never poisoned");
+                return Ok(photos.get(&user_id).map(|(unique_id, _)| ProfilePhoto {
+                    file_id: format!("file-{user_id}-{unique_id}"),
+                    unique_id: unique_id.clone(),
+                }));
+            }
+            Self::Live { http, base_url } => (http, base_url),
+        };
+
+        #[derive(Deserialize)]
+        struct Photos {
+            photos: Vec<Vec<PhotoSize>>,
+        }
+        #[derive(Deserialize)]
+        struct PhotoSize {
+            file_id: String,
+            file_unique_id: String,
+            width: u32,
+        }
+        let result = call_api(
+            http,
+            base_url,
+            "getUserProfilePhotos",
+            json!({ "user_id": user_id, "limit": 1 }),
+        )
+        .await?;
+        let photos: Photos = serde_json::from_value(result).context("reading profile photos")?;
+        let Some(mut sizes) = photos.photos.into_iter().next() else {
+            return Ok(None);
+        };
+        // The smallest size wide enough for an avatar, or else the largest.
+        sizes.sort_by_key(|size| size.width);
+        let index = sizes
+            .iter()
+            .position(|size| size.width >= AVATAR_PHOTO_WIDTH)
+            .unwrap_or(sizes.len().saturating_sub(1));
+        Ok(sizes.into_iter().nth(index).map(|size| ProfilePhoto {
+            file_id: size.file_id,
+            unique_id: size.file_unique_id,
+        }))
+    }
+
+    /// Downloads a file the Bot API knows, e.g. a profile photo, up to `max_bytes`.
+    /// Its link carries the bot token, so files are copied, never linked.
+    pub async fn download_file(&self, file_id: &str, max_bytes: usize) -> anyhow::Result<Vec<u8>> {
+        let (http, base_url) = match self {
+            Self::Recording(recorder) => {
+                let photos = recorder
+                    .profile_photos
+                    .lock()
+                    .expect("lock is never poisoned");
+                let jpeg = photos
+                    .iter()
+                    .find(|(user_id, (unique_id, _))| {
+                        file_id == format!("file-{user_id}-{unique_id}")
+                    })
+                    .map(|(_, (_, jpeg))| jpeg.clone())
+                    .context("no such file (test)")?;
+                drop(photos);
+                recorder
+                    .sent
+                    .lock()
+                    .expect("lock is never poisoned")
+                    .push(Sent::Downloaded {
+                        file_id: file_id.to_owned(),
+                    });
+                return Ok(jpeg);
+            }
+            Self::Live { http, base_url } => (http, base_url),
+        };
+
+        #[derive(Deserialize)]
+        struct File {
+            file_path: String,
+        }
+        let result = call_api(http, base_url, "getFile", json!({ "file_id": file_id })).await?;
+        let file: File = serde_json::from_value(result).context("reading the file's path")?;
+        // https://api.telegram.org/bot<token> → https://api.telegram.org/file/bot<token>
+        let url = format!(
+            "{}/{}",
+            base_url.replacen("/bot", "/file/bot", 1),
+            file.file_path
+        );
+        let response = http
+            .get(url)
+            .send()
+            .await
+            .map_err(reqwest::Error::without_url)
+            .context("downloading a file")?
+            .error_for_status()
+            .map_err(reqwest::Error::without_url)
+            .context("downloading a file")?;
+        let bytes = response
+            .bytes()
+            .await
+            .map_err(reqwest::Error::without_url)
+            .context("downloading a file")?;
+        ensure!(
+            bytes.len() <= max_bytes,
+            "the file is larger than {max_bytes} bytes"
+        );
+        Ok(bytes.to_vec())
+    }
+
     /// Calls a Bot API method and returns its `result`.
     async fn call(&self, method: &str, body: Value, record: Sent) -> anyhow::Result<Value> {
         let (http, base_url) = match self {
@@ -331,30 +478,39 @@ impl TelegramClient {
             }
             Self::Live { http, base_url } => (http, base_url),
         };
-
-        #[derive(Deserialize)]
-        struct Reply {
-            ok: bool,
-            description: Option<String>,
-            #[serde(default)]
-            result: Value,
-        }
-
-        // `without_url` keeps the bot token out of error messages and logs.
-        let reply: Reply = http
-            .post(format!("{base_url}/{method}"))
-            .json(&body)
-            .send()
-            .await
-            .map_err(reqwest::Error::without_url)
-            .with_context(|| format!("calling {method}"))?
-            .json()
-            .await
-            .map_err(reqwest::Error::without_url)
-            .with_context(|| format!("reading the {method} reply"))?;
-        if !reply.ok {
-            bail!("{method} failed: {}", reply.description.unwrap_or_default());
-        }
-        Ok(reply.result)
+        call_api(http, base_url, method, body).await
     }
+}
+
+/// Calls a Bot API method over the network and returns its `result`.
+async fn call_api(
+    http: &reqwest::Client,
+    base_url: &str,
+    method: &str,
+    body: Value,
+) -> anyhow::Result<Value> {
+    #[derive(Deserialize)]
+    struct Reply {
+        ok: bool,
+        description: Option<String>,
+        #[serde(default)]
+        result: Value,
+    }
+
+    // `without_url` keeps the bot token out of error messages and logs.
+    let reply: Reply = http
+        .post(format!("{base_url}/{method}"))
+        .json(&body)
+        .send()
+        .await
+        .map_err(reqwest::Error::without_url)
+        .with_context(|| format!("calling {method}"))?
+        .json()
+        .await
+        .map_err(reqwest::Error::without_url)
+        .with_context(|| format!("reading the {method} reply"))?;
+    if !reply.ok {
+        bail!("{method} failed: {}", reply.description.unwrap_or_default());
+    }
+    Ok(reply.result)
 }
