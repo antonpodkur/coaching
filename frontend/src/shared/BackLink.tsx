@@ -2,9 +2,28 @@ import { useEffect } from 'react'
 import { Link, useNavigate } from 'react-router'
 
 import { setSwipeBack } from '../app/gestures'
-import { telegramWebApp } from '../app/telegram'
+import { type TelegramWebApp, telegramWebApp } from '../app/telegram'
 import { BackIcon } from './icons'
 import { goingBack } from './screenMotion'
+
+/** Back links on the screen now; Telegram's back arrow shows while there is one. */
+let backLinks = 0
+let arrowShown = false
+
+/**
+ * Shows or hides Telegram's back arrow once the new screen is in. Going from
+ * one screen with a back arrow to another, the old one's goes before the new
+ * one's comes; told both, Telegram would animate the arrow away and back.
+ */
+function syncBackButton(webApp: TelegramWebApp) {
+  queueMicrotask(() => {
+    const show = backLinks > 0
+    if (show === arrowShown) return
+    arrowShown = show
+    if (show) webApp.BackButton.show()
+    else webApp.BackButton.hide()
+  })
+}
 
 /**
  * Way back from a sub-page. Inside Telegram this is the back arrow in
@@ -23,10 +42,12 @@ export function BackLink({ to, label }: { to: string; label: string }) {
     const releaseSwipe = setSwipeBack(back)
     if (!webApp) return releaseSwipe
     webApp.BackButton.onClick(back)
-    webApp.BackButton.show()
+    backLinks += 1
+    syncBackButton(webApp)
     return () => {
       webApp.BackButton.offClick(back)
-      webApp.BackButton.hide()
+      backLinks -= 1
+      syncBackButton(webApp)
       releaseSwipe()
     }
   }, [webApp, navigate, to])

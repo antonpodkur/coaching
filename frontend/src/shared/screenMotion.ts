@@ -16,7 +16,7 @@ export type ScreenMotion = 'forward' | 'back' | 'fade' | 'none'
 type Router = ReturnType<typeof createBrowserRouter>
 
 /** Dasha's sections behind the tab bar. */
-const TABS = new Set(['/app', '/app/workouts', '/app/exercises', '/app/import'])
+const TABS = new Set(['/app', '/app/workouts', '/app/exercises'])
 
 /** How the last navigation was asked for: replacing its screen (a new exercise's form with its page), or going back. */
 let intent = { replace: false, back: false }
@@ -48,24 +48,50 @@ export function screenMotion(from: string, to: string, historyStep = false): Scr
 /**
  * Every navigation, from links, back arrows and notifications alike, notes
  * where the screen it leaves was scrolled, and plays a screen transition
- * where the phone can. Not after a swipe back: the page already slid away
- * under the finger.
+ * where the phone can. Not when the screen stays (a filter in its address, a
+ * tap on the tab already open), after a swipe back (the page already slid
+ * away under the finger), or after a step back the browser animated itself
+ * (Safari's swipe from the edge): playing one then shows the old screen again
+ * and slides it away a second time.
  */
 export function playScreenTransitions(router: Router) {
   const navigate = router.navigate.bind(router)
+  const subscribe = router.subscribe.bind(router)
   const canPlay = typeof document.startViewTransition === 'function'
   const lessMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
+  let browserAnimated = false
+
+  // Before React Router's own listener, which starts the step.
+  window.addEventListener(
+    'popstate',
+    (event) => {
+      // Not known to older phones, which then animate nothing themselves.
+      browserAnimated = event.hasUAVisualTransition === true
+    },
+    { capture: true },
+  )
+
   router.navigate = ((to: Parameters<Router['navigate']>[0], options?: Parameters<Router['navigate']>[1]) => {
     // A step through history, e.g. Android's back gesture: React Router plays
     // it if the step forward to there played one.
     if (typeof to === 'number') return navigate(to)
+    browserAnimated = false
     scrolled.set(window.location.pathname, window.scrollY)
     intent = { replace: options?.replace === true, back: backRequested }
     backRequested = false
-    const swiped = document.documentElement.classList.contains('swiping-back')
-    return navigate(to, {
-      ...options,
-      viewTransition: options?.viewTransition ?? (canPlay && !swiped && !lessMotion.matches),
-    })
+    return navigate(to, { ...options, viewTransition: options?.viewTransition ?? canPlay })
   }) as Router['navigate']
+
+  // Whether it plays is decided here, once the router knows both screens.
+  router.subscribe = (subscriber) =>
+    subscribe((state, opts) => {
+      const transition = opts.viewTransitionOpts
+      const plays =
+        transition !== undefined &&
+        transition.currentLocation.pathname !== transition.nextLocation.pathname &&
+        !browserAnimated &&
+        !lessMotion.matches &&
+        !document.documentElement.classList.contains('swiping-back')
+      subscriber(state, plays ? opts : { ...opts, viewTransitionOpts: undefined })
+    })
 }
