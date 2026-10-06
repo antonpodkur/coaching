@@ -17,7 +17,7 @@ const SEARCH_FROM = 7
 
 /** Dasha's home screen: everyone she coaches, and who still has to join. */
 export function ClientsPage() {
-  const { base, onUnauthorized } = useCoach()
+  const { base, coach, onUnauthorized } = useCoach()
   const queryClient = useQueryClient()
   const [query, setQuery] = useState('')
   const [invite, setInvite] = useState<ShownInvite | null>(null)
@@ -60,7 +60,7 @@ export function ClientsPage() {
       <div className="page-top">
         <p className="muted small">{formatToday()}</p>
         <Link className="icon-button" to={`${base}/profile`} aria-label="Профіль">
-          <PersonIcon />
+          {coach.avatar_url ? <Avatar name={coach.name} url={coach.avatar_url} /> : <PersonIcon />}
         </Link>
       </div>
       <header className="page-head">

@@ -1,15 +1,23 @@
+import type { Schemas } from '../api/client'
+import { CoachNote } from './CoachNote'
 import { formatDate, localDate } from './format'
 import { type NutritionTarget, macros } from './nutrition'
 
-/** A daily target: calories, the three macros, and Dasha's note. */
-export function NutritionCard({ target }: { target: NutritionTarget }) {
+/** A daily target: calories, the three macros, and the coach's note. */
+export function NutritionCard({
+  target,
+  coach,
+}: {
+  target: NutritionTarget
+  coach: Schemas['CoachCard'] | null
+}) {
   return (
     <>
       <div className="weight-now">
         <span className="weight-value">
           {target.kcal} <span>ккал на день</span>
         </span>
-        <span className="muted small">Від Даші · з {formatDate(localDate(new Date(target.set_at)))}</span>
+        <span className="muted small">Діє з {formatDate(localDate(new Date(target.set_at)))}</span>
       </div>
       <ul className="macros">
         {macros(target).map((macro) => (
@@ -20,12 +28,7 @@ export function NutritionCard({ target }: { target: NutritionTarget }) {
           </li>
         ))}
       </ul>
-      {target.note && (
-        <div className="notice pink coach-note">
-          <span>Коментар від Даші</span>
-          <p>{target.note}</p>
-        </div>
-      )}
+      {target.note && <CoachNote coach={coach} text={target.note} />}
     </>
   )
 }

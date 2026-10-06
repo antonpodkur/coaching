@@ -1,10 +1,12 @@
 import { createContext, useContext } from 'react'
 
-import { ApiError } from '../api/client'
+import { ApiError, type Schemas } from '../api/client'
 
 export interface CoachContextValue {
   /** Where the workspace is mounted: `/app`. */
   base: string
+  /** Who is signed in. */
+  coach: Schemas['CoachProfile']
   /** The session was rejected: sign out in a browser, ask to reopen in the Mini App. */
   onUnauthorized: () => void
 }

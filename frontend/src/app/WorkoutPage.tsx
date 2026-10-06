@@ -1,9 +1,11 @@
 import { Link, useParams } from 'react-router'
 
+import { Avatar } from '../shared/Avatar'
 import { BackLink } from '../shared/BackLink'
 import { formatShortDate, formatTarget, plural } from '../shared/format'
 import { CheckIcon } from '../shared/icons'
 import { Screen } from '../shared/Screen'
+import { useCoachCard } from './coachCard'
 import { useNoSwipeToClose } from './gestures'
 import { EFFORT_TEXT, progress, useMyWorkout } from './workouts'
 
@@ -12,6 +14,7 @@ export function WorkoutPage() {
   useNoSwipeToClose()
   const { id = '' } = useParams()
   const workout = useMyWorkout(id)
+  const coach = useCoachCard()
   const back = <BackLink to="/app" label="Головна" />
 
   if (!workout.data) {
@@ -41,7 +44,13 @@ export function WorkoutPage() {
     <Screen>
       {back}
       <header className="workout-head">
-        <p className="muted small">{formatShortDate(data.date)} · від Даші</p>
+        <p className="coach-line">
+          {coach && <Avatar name={coach.name} url={coach.avatar_url} small />}
+          <span className="muted small">
+            {coach ? `${coach.name} · ` : ''}
+            {formatShortDate(data.date)}
+          </span>
+        </p>
         <h1>{data.title || 'Тренування'}</h1>
         <p className="muted small">
           {data.exercises.length} {plural(data.exercises.length, 'вправа', 'вправи', 'вправ')} ·{' '}

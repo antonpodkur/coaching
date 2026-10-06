@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, name, timezone, bot_allowed_at IS NOT NULL AS \"bot_allowed!\",\n                  (birth_year IS NOT NULL OR sex IS NOT NULL OR height_cm IS NOT NULL\n                   OR EXISTS (SELECT 1 FROM gym_media m WHERE m.client_id = clients.id))\n                  AS \"questionnaire_started!\",\n                  app_installed_at IS NOT NULL AS \"app_installed!\",\n                  avatar_path, avatar_from_telegram\n           FROM clients WHERE id = $1 AND archived_at IS NULL",
+  "query": "SELECT c.id, c.name, c.timezone, c.bot_allowed_at IS NOT NULL AS \"bot_allowed!\",\n                  (c.birth_year IS NOT NULL OR c.sex IS NOT NULL OR c.height_cm IS NOT NULL\n                   OR EXISTS (SELECT 1 FROM gym_media m WHERE m.client_id = c.id))\n                  AS \"questionnaire_started!\",\n                  c.app_installed_at IS NOT NULL AS \"app_installed!\",\n                  c.avatar_path, c.avatar_from_telegram,\n                  co.id AS coach_id, co.name AS coach_name, co.avatar_path AS coach_avatar_path\n           FROM clients c JOIN coaches co ON co.id = c.coach_id\n           WHERE c.id = $1 AND c.archived_at IS NULL",
   "describe": {
     "columns": [
       {
@@ -75,6 +75,39 @@
             "name": "avatar_from_telegram"
           }
         }
+      },
+      {
+        "ordinal": 8,
+        "name": "coach_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "coaches",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "coach_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "coaches",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "coach_avatar_path",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "coaches",
+            "name": "avatar_path"
+          }
+        }
       }
     ],
     "parameters": {
@@ -90,8 +123,11 @@
       null,
       null,
       true,
-      false
+      false,
+      false,
+      false,
+      true
     ]
   },
-  "hash": "f789449af838de63f0e8edf9fb12d958c8f08ddad3a8896dcf6df2b38537ee74"
+  "hash": "b8aeef72c5af370433af5a5631038704a08ff59dc30335f1d7fb41fdddcc3971"
 }

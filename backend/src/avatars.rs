@@ -1,7 +1,8 @@
-//! Clients' avatars: a photo the client adds in their profile, or else a copy
-//! of their Telegram profile photo. Both live in the private photo storage
-//! and are shown through signed links; Telegram's own file links carry the
-//! bot token, so its photos are copied, never linked.
+//! Avatars. A client's is a photo they add in their profile, or else a copy
+//! of their Telegram profile photo; a coach's is a photo she adds, which her
+//! clients see. All live in the private photo storage and are shown through
+//! signed links; Telegram's own file links carry the bot token, so its photos
+//! are copied, never linked.
 
 use chrono::{DateTime, Duration, Utc};
 use serde::Serialize;
@@ -94,6 +95,55 @@ pub async fn remove(state: &AppState, client_id: Uuid) -> AppResult<()> {
          WHERE c.id = $1 AND old.id = c.id
          RETURNING old.avatar_path",
         client_id,
+    )
+    .fetch_one(&state.db)
+    .await?;
+    if let Some(storage) = &state.storage {
+        forget(storage, old).await;
+    }
+    Ok(())
+}
+
+fn coach_avatar_dir(coach_id: Uuid) -> String {
+    format!("coaches/{coach_id}/avatar/")
+}
+
+/// A signed link to the coach's photo stored at `path`; `None` without one.
+pub fn coach_url(state: &AppState, coach_id: Uuid, path: Option<&str>) -> Option<String> {
+    let storage = state.storage.as_ref()?;
+    let expires = cdn_token::link_expiry(Utc::now());
+    Some(storage.signed_url(&coach_avatar_dir(coach_id), path?, expires))
+}
+
+/// The coach's photo, a square JPEG the phone already shrank, replacing hers.
+pub async fn upload_coach(state: &AppState, coach_id: Uuid, jpeg: Vec<u8>) -> AppResult<String> {
+    let storage = photos::storage(state)?;
+    photos::check(&jpeg)?;
+    let path = format!("{}{}.jpg", coach_avatar_dir(coach_id), Uuid::new_v4());
+    storage.put(&path, jpeg, "image/jpeg").await?;
+    // Joined with itself, the row gives back the path it had before.
+    let old = sqlx::query_scalar!(
+        "UPDATE coaches c SET avatar_path = $2
+         FROM coaches old
+         WHERE c.id = $1 AND old.id = c.id
+         RETURNING old.avatar_path",
+        coach_id,
+        path,
+    )
+    .fetch_one(&state.db)
+    .await?;
+    forget(storage, old).await;
+    coach_url(state, coach_id, Some(&path)).ok_or(AppError::NotFound)
+}
+
+/// Removes the coach's photo; her clients see her initials again.
+pub async fn remove_coach(state: &AppState, coach_id: Uuid) -> AppResult<()> {
+    let old = sqlx::query_scalar!(
+        "UPDATE coaches c SET avatar_path = NULL
+         FROM coaches old
+         WHERE c.id = $1 AND old.id = c.id
+         RETURNING old.avatar_path",
+        coach_id,
     )
     .fetch_one(&state.db)
     .await?;

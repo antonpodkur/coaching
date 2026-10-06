@@ -27,6 +27,8 @@ import { POP } from '../shared/motion'
 import { useNoSwipeToClose } from './gestures'
 import { logSet } from './outbox'
 import { VideoSendCards } from './VideoSendCards'
+import { CoachNote } from '../shared/CoachNote'
+import { useCoachCard } from './coachCard'
 import { exerciseTarget, sendVideo, useVideoSends } from './videoSends'
 import { type ClientSet, MY_WORKOUTS_KEY, useMyWorkout } from './workouts'
 
@@ -39,6 +41,7 @@ export function ExerciseScreen() {
   useNoSwipeToClose()
   const { id = '', exerciseId = '' } = useParams()
   const workout = useMyWorkout(id)
+  const coach = useCoachCard()
   const back = <BackLink to={`/app/workouts/${id}`} label="Тренування" />
 
   const exercises = workout.data?.exercises ?? []
@@ -90,12 +93,7 @@ export function ExerciseScreen() {
       {/* Workouts cached on the phone before photos existed have no list. */}
       <PhotoGrid photos={exercise.photos ?? []} strip />
 
-      {exercise.note && (
-        <div className="notice pink coach-note">
-          <span>Коментар від Даші</span>
-          <p>{exercise.note}</p>
-        </div>
-      )}
+      {exercise.note && <CoachNote coach={coach} text={exercise.note} />}
       {exercise.last_time.length > 0 && (
         <p className="last-time">
           Минулого разу:{' '}

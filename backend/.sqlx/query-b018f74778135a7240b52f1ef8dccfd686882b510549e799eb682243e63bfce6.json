@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, name, timezone, app_installed_at IS NOT NULL AS \"app_installed!\"\n           FROM coaches WHERE id = $1",
+  "query": "SELECT id, name, timezone, app_installed_at IS NOT NULL AS \"app_installed!\",\n                  avatar_path AS avatar_url\n           FROM coaches WHERE id = $1",
   "describe": {
     "columns": [
       {
@@ -41,6 +41,17 @@
         "name": "app_installed!",
         "type_info": "Bool",
         "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "avatar_url",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "coaches",
+            "name": "avatar_path"
+          }
+        }
       }
     ],
     "parameters": {
@@ -52,8 +63,9 @@
       false,
       false,
       false,
-      null
+      null,
+      true
     ]
   },
-  "hash": "f1476ada4073eca2b40e01c1bbbabd0fb64913f434a7644872a4854fd41e4c66"
+  "hash": "b018f74778135a7240b52f1ef8dccfd686882b510549e799eb682243e63bfce6"
 }

@@ -12,6 +12,7 @@ import { NutritionPage } from './NutritionPage'
 import { QuestionnairePage } from './QuestionnairePage'
 import { WeightPage } from './WeightPage'
 import { WorkoutPage } from './WorkoutPage'
+import { CoachCardContext } from './coachCard'
 import { flush, onDrained, useOutboxStatus } from './outbox'
 import { MY_WORKOUTS_KEY } from './workouts'
 
@@ -41,8 +42,11 @@ export function ClientApp({
     return () => holdClosing('outbox', false)
   }, [waiting])
 
+  // A session saved before the coach card existed has none until it renews.
+  const coach = (client as Partial<Schemas['ClientProfile']>).coach ?? null
+
   return (
-    <>
+    <CoachCardContext value={coach}>
       <Routes>
         <Route index element={<HomePage client={client} />} />
         <Route path="workouts/:id" element={<WorkoutPage />} />
@@ -56,7 +60,7 @@ export function ClientApp({
         <Route path="nutrition" element={<NutritionPage />} />
       </Routes>
       <OfflineNote />
-    </>
+    </CoachCardContext>
   )
 }
 

@@ -42,6 +42,15 @@ pub struct ClientProfile {
     pub app_installed: bool,
     /// The photo they added in their profile, or else their Telegram photo.
     pub avatar: Option<Avatar>,
+    /// Their coach, as the app shows her next to workouts and comments.
+    pub coach: CoachCard,
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct CoachCard {
+    pub name: String,
+    /// Her photo, signed for a few hours; `null` until she adds one.
+    pub avatar_url: Option<String>,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -52,6 +61,8 @@ pub struct CoachProfile {
     pub timezone: String,
     /// She uses the app installed on a phone's home screen.
     pub app_installed: bool,
+    /// Her photo, signed for a few hours; `null` until she adds one.
+    pub avatar_url: Option<String>,
 }
 
 /// Who signed in decides which screens they get.
@@ -66,26 +77,40 @@ pub enum AppSession {
     },
 }
 
-async fn coach_by_telegram(db: &PgPool, telegram_id: i64) -> sqlx::Result<Option<CoachProfile>> {
-    sqlx::query_as!(
+async fn coach_by_telegram(
+    state: &AppState,
+    telegram_id: i64,
+) -> sqlx::Result<Option<CoachProfile>> {
+    let coach = sqlx::query_as!(
         CoachProfile,
-        r#"SELECT id, name, timezone, app_installed_at IS NOT NULL AS "app_installed!"
+        r#"SELECT id, name, timezone, app_installed_at IS NOT NULL AS "app_installed!",
+                  -- The storage path, replaced with a signed link below.
+                  avatar_path AS avatar_url
            FROM coaches WHERE telegram_id = $1"#,
         telegram_id,
     )
-    .fetch_optional(db)
-    .await
+    .fetch_optional(&state.db)
+    .await?;
+    Ok(coach.map(|coach| signed_coach(state, coach)))
 }
 
-async fn coach_by_id(db: &PgPool, coach_id: Uuid) -> sqlx::Result<Option<CoachProfile>> {
-    sqlx::query_as!(
+async fn coach_by_id(state: &AppState, coach_id: Uuid) -> sqlx::Result<Option<CoachProfile>> {
+    let coach = sqlx::query_as!(
         CoachProfile,
-        r#"SELECT id, name, timezone, app_installed_at IS NOT NULL AS "app_installed!"
+        r#"SELECT id, name, timezone, app_installed_at IS NOT NULL AS "app_installed!",
+                  avatar_path AS avatar_url
            FROM coaches WHERE id = $1"#,
         coach_id,
     )
-    .fetch_optional(db)
-    .await
+    .fetch_optional(&state.db)
+    .await?;
+    Ok(coach.map(|coach| signed_coach(state, coach)))
+}
+
+/// Turns the photo's storage path into a signed link.
+fn signed_coach(state: &AppState, mut coach: CoachProfile) -> CoachProfile {
+    coach.avatar_url = avatars::coach_url(state, coach.id, coach.avatar_url.as_deref());
+    coach
 }
 
 /// The client who joined with this Telegram account, unless archived.
@@ -104,13 +129,15 @@ pub async fn client_profile(
     client_id: Uuid,
 ) -> sqlx::Result<Option<ClientProfile>> {
     let row = sqlx::query!(
-        r#"SELECT id, name, timezone, bot_allowed_at IS NOT NULL AS "bot_allowed!",
-                  (birth_year IS NOT NULL OR sex IS NOT NULL OR height_cm IS NOT NULL
-                   OR EXISTS (SELECT 1 FROM gym_media m WHERE m.client_id = clients.id))
+        r#"SELECT c.id, c.name, c.timezone, c.bot_allowed_at IS NOT NULL AS "bot_allowed!",
+                  (c.birth_year IS NOT NULL OR c.sex IS NOT NULL OR c.height_cm IS NOT NULL
+                   OR EXISTS (SELECT 1 FROM gym_media m WHERE m.client_id = c.id))
                   AS "questionnaire_started!",
-                  app_installed_at IS NOT NULL AS "app_installed!",
-                  avatar_path, avatar_from_telegram
-           FROM clients WHERE id = $1 AND archived_at IS NULL"#,
+                  c.app_installed_at IS NOT NULL AS "app_installed!",
+                  c.avatar_path, c.avatar_from_telegram,
+                  co.id AS coach_id, co.name AS coach_name, co.avatar_path AS coach_avatar_path
+           FROM clients c JOIN coaches co ON co.id = c.coach_id
+           WHERE c.id = $1 AND c.archived_at IS NULL"#,
         client_id,
     )
     .fetch_optional(&state.db)
@@ -128,6 +155,10 @@ pub async fn client_profile(
         bot_allowed: row.bot_allowed,
         questionnaire_started: row.questionnaire_started,
         app_installed: row.app_installed,
+        coach: CoachCard {
+            avatar_url: avatars::coach_url(state, row.coach_id, row.coach_avatar_path.as_deref()),
+            name: row.coach_name,
+        },
     }))
 }
 
@@ -171,7 +202,7 @@ pub async fn telegram_webapp(
     })?;
     let telegram_id = init_data.user.id;
 
-    let coach = coach_by_telegram(&state.db, telegram_id).await?;
+    let coach = coach_by_telegram(&state, telegram_id).await?;
     // Dasha opening an invite link herself, to check it, must not use it up.
     if let Some(coach) = coach {
         // Kept for the clients' "Написати Даші" button.
@@ -301,7 +332,7 @@ pub async fn bot_login_poll(
         Polled::Refused => BotLoginPoll::Refused,
         Polled::Expired => BotLoginPoll::Expired,
         Polled::Approved { telegram_id } => {
-            let session = if let Some(coach) = coach_by_telegram(&state.db, telegram_id).await? {
+            let session = if let Some(coach) = coach_by_telegram(&state, telegram_id).await? {
                 Some(coach_session(&state, coach, BROWSER_TOKEN_TTL)?)
             } else if let Some(client_id) = client_by_telegram(&state.db, telegram_id).await?
                 && let Some(client) = client_profile(&state, client_id).await?
@@ -338,7 +369,7 @@ pub async fn refresh(
     let ttl = Duration::seconds(claims.exp - claims.iat);
     let session = match claims.role {
         Role::Coach => {
-            let coach = coach_by_id(&state.db, claims.sub).await?;
+            let coach = coach_by_id(&state, claims.sub).await?;
             coach_session(&state, coach.ok_or(AppError::Unauthorized)?, ttl)?
         }
         Role::Client => {

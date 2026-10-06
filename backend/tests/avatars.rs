@@ -38,9 +38,18 @@ fn jpeg(tag: u8) -> Vec<u8> {
 }
 
 async fn put_avatar(app: &axum::Router, token: &str, body: Vec<u8>) -> (StatusCode, Value) {
+    put_photo(app, "/me/avatar", token, body).await
+}
+
+async fn put_photo(
+    app: &axum::Router,
+    uri: &str,
+    token: &str,
+    body: Vec<u8>,
+) -> (StatusCode, Value) {
     let request = Request::builder()
         .method("PUT")
-        .uri("/me/avatar")
+        .uri(uri)
         .header(header::AUTHORIZATION, format!("Bearer {token}"))
         .header(header::CONTENT_TYPE, "image/jpeg")
         .body(Body::from(body))
@@ -270,4 +279,61 @@ async fn telegram_failing_is_tried_again_a_day_later(db: PgPool) {
     .await
     .unwrap();
     assert!(from_telegram);
+}
+
+#[sqlx::test]
+async fn the_coach_adds_her_photo_and_her_clients_see_it(db: PgPool) {
+    let (coach_id, client_id) = setup(&db).await;
+    let state = with_storage(db);
+    let app = coaching_backend::router(state.clone());
+    let coach = coach_token(&state, coach_id);
+    let client = state
+        .jwt
+        .issue(Role::Client, client_id, BROWSER_TOKEN_TTL)
+        .unwrap();
+
+    let (_, me) = call(&app, "GET", "/me", Some(&client), None).await;
+    assert_eq!(me["coach"]["name"], "Даша");
+    assert!(
+        me["coach"]["avatar_url"].is_null(),
+        "initials until she adds one"
+    );
+
+    let (status, avatar) = put_photo(&app, "/coach/me/avatar", &coach, jpeg(1)).await;
+    assert_eq!(status, StatusCode::OK);
+    let stored = files(&state);
+    assert_eq!(stored.len(), 1);
+    assert!(stored[0].starts_with(&format!("coaches/{coach_id}/avatar/")));
+    assert!(avatar["url"].as_str().unwrap().contains(&stored[0]));
+
+    // Her own session carries it, and so does every client's.
+    let (_, session) = call(&app, "POST", "/auth/refresh", Some(&coach), None).await;
+    assert!(
+        session["coach"]["avatar_url"]
+            .as_str()
+            .unwrap()
+            .contains(&stored[0])
+    );
+    let (_, me) = call(&app, "GET", "/me", Some(&client), None).await;
+    assert!(
+        me["coach"]["avatar_url"]
+            .as_str()
+            .unwrap()
+            .contains(&stored[0])
+    );
+
+    // A new photo replaces the old file.
+    put_photo(&app, "/coach/me/avatar", &coach, jpeg(2)).await;
+    assert_eq!(files(&state).len(), 1);
+    assert_ne!(files(&state), stored);
+
+    // Only the coach sets it.
+    let (status, _) = put_photo(&app, "/coach/me/avatar", &client, jpeg(3)).await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+
+    let (status, _) = call(&app, "DELETE", "/coach/me/avatar", Some(&coach), None).await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    assert!(files(&state).is_empty());
+    let (_, me) = call(&app, "GET", "/me", Some(&client), None).await;
+    assert!(me["coach"]["avatar_url"].is_null());
 }

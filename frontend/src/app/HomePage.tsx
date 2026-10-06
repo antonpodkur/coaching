@@ -26,6 +26,7 @@ import { Screen } from '../shared/Screen'
 import type { NutritionTarget } from '../shared/nutrition'
 import { type WeightEntry, formatChange, weeklyAverages, weightTrend } from '../shared/weight'
 import { BotMessagesCard } from './BotMessagesCard'
+import { useCoachCard } from './coachCard'
 import { QuestionnaireCard } from './QuestionnaireCard'
 import { questionnaireCardDismissed } from './questionnaire'
 import { useMyNutrition } from './nutrition'
@@ -196,13 +197,22 @@ function MainCard({ workout, today }: { workout: ClientWorkoutSummary; today: st
       : workout.date > today
         ? `Наступне · ${formatShortDate(workout.date)}`
         : formatShortDate(workout.date)
+  const coach = useCoachCard()
   const started = workout.done_set_count > 0
   const allDone = workout.set_count > 0 && workout.done_set_count === workout.set_count
   return (
     <section className="today-card" aria-label="Тренування">
       {workout.thumbnail_url && <img className="today-image" src={workout.thumbnail_url} alt="" />}
       <div className="today-body">
-        <span className="today-when">{when}</span>
+        <div className="today-top">
+          <span className="today-when">{when}</span>
+          {coach && (
+            <span className="today-from">
+              <Avatar name={coach.name} url={coach.avatar_url} small />
+              {coach.name}
+            </span>
+          )}
+        </div>
         <h2>{workout.title || 'Тренування'}</h2>
         <span className="muted small">
           {workout.exercise_count} {plural(workout.exercise_count, 'вправа', 'вправи', 'вправ')} ·{' '}

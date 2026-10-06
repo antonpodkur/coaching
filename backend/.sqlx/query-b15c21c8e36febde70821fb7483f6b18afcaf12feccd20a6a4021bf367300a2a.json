@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE coaches c SET avatar_path = NULL\n         FROM coaches old\n         WHERE c.id = $1 AND old.id = c.id\n         RETURNING old.avatar_path",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "avatar_path",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "coaches",
+            "name": "avatar_path"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "b15c21c8e36febde70821fb7483f6b18afcaf12feccd20a6a4021bf367300a2a"
+}

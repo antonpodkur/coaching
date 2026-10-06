@@ -1152,7 +1152,8 @@ a.button {
   gap: 14px;
 }
 
-.prompt-actions .link-button {
+.prompt-actions .link-button,
+.profile-photo-actions .link-button {
   align-self: center;
 }
 
@@ -1216,6 +1217,13 @@ a.button {
 .archive .avatar,
 .archive .client-name {
   opacity: 0.6;
+}
+
+.avatar.small {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  font-size: var(--fs-xs);
 }
 
 .avatar.large {
@@ -2075,6 +2083,31 @@ button.save-status {
   padding: 16px;
 }
 
+/* The day on the left, who the workout is from on the right. */
+.today-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.today-from,
+.coach-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.today-from {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+
+.coach-line {
+  margin: 0;
+}
+
 .today-when {
   font-size: var(--fs-sm);
   font-weight: 700;
@@ -2318,10 +2351,12 @@ button.save-status {
   gap: 4px;
 }
 
-.coach-note span {
-  color: var(--muted);
+/* Signed like a message: her photo and name, then what she wrote. */
+.coach-note-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: var(--fs-sm);
-  font-weight: 600;
 }
 
 .coach-note p {

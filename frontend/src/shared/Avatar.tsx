@@ -10,15 +10,18 @@ export function Avatar({
   name,
   url,
   large = false,
+  small = false,
 }: {
   name: string
   url?: string | null
   large?: boolean
+  /** Next to a line of text, as a signature. */
+  small?: boolean
 }) {
   const [failed, setFailed] = useState<string | null>(null)
   const photo = url && failed !== url ? url : null
   return (
-    <span className={large ? 'avatar large' : 'avatar'} aria-hidden="true">
+    <span className={large ? 'avatar large' : small ? 'avatar small' : 'avatar'} aria-hidden="true">
       {photo ? <img src={photo} alt="" onError={() => setFailed(photo)} /> : initials(name)}
     </span>
   )

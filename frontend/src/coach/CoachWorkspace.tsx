@@ -36,7 +36,7 @@ interface Props {
  * the person button on the clients page.
  */
 export function CoachWorkspace({ base, coach, onUnauthorized, onSignOut }: Props) {
-  const context = useMemo(() => ({ base, onUnauthorized }), [base, onUnauthorized])
+  const context = useMemo(() => ({ base, coach, onUnauthorized }), [base, coach, onUnauthorized])
   const { pathname } = useLocation()
   const section = pathname.startsWith(`${base}/exercises`)
     ? 'exercises'

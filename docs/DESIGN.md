@@ -60,8 +60,21 @@ Each color has one job.
 - **A disabled button is quiet:** dark fill, faint text. Prefer keeping it enabled and explaining on tap.
 - **Deleting is a red `link-button danger`** at the bottom of the page, behind a confirm.
 
+## The coach in the client's app
+
+Clients see who their workouts come from. The coach's photo and name (`CoachCard` on the client's profile) appear in three places:
+
+- On today's card.
+- Above a workout.
+- At the top of her comments, which read like a message.
+
+Her name comes from the data, never typed into the text.
+
+The coach adds her photo on her profile page. Until she does, clients see her initials.
+
 ## Still to do
 
-From the design review of 6 October 2026, after this pass:
+From the design review of 6 October 2026, everything has been done. Next ideas, not decided:
 
-- **The coach in the client's app:** the coach's photo on the client home and next to the coach's comments.
+- **Coach names in the text:** the hardcoded "Даша/Даші" left in the client texts, for other coaches (docs/MANY_COACHES.md).
+- **The Telegram import:** make it fill a workout instead of only previewing.

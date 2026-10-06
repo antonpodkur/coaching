@@ -373,6 +373,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/coach/me/avatar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * The coach's photo, a square JPEG the phone already shrank. Her clients see
+         *     it next to her workouts and comments.
+         */
+        put: operations["set_coach_avatar"];
+        post?: never;
+        /** Removes the coach's photo. */
+        delete: operations["remove_coach_avatar"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/coach/me/timezone": {
         parameters: {
             query?: never;
@@ -1014,6 +1035,8 @@ export interface components {
              *     Start, so until they allow it the app asks (`requestWriteAccess`).
              */
             bot_allowed: boolean;
+            /** @description Their coach, as the app shows her next to workouts and comments. */
+            coach: components["schemas"]["CoachCard"];
             /** Format: uuid */
             id: string;
             name: string;
@@ -1088,6 +1111,15 @@ export interface components {
             thumbnail_url?: string | null;
             title: string;
         };
+        CoachAvatar: {
+            /** @description Signed for a few hours. */
+            url: string;
+        };
+        CoachCard: {
+            /** @description Her photo, signed for a few hours; `null` until she adds one. */
+            avatar_url?: string | null;
+            name: string;
+        };
         CoachClient: {
             /** @description Hidden from the list; the client cannot open the app until restored. */
             archived: boolean;
@@ -1147,6 +1179,8 @@ export interface components {
         CoachProfile: {
             /** @description She uses the app installed on a phone's home screen. */
             app_installed: boolean;
+            /** @description Her photo, signed for a few hours; `null` until she adds one. */
+            avatar_url?: string | null;
             /** Format: uuid */
             id: string;
             name: string;
@@ -2643,6 +2677,80 @@ export interface operations {
             };
             /** @description `wrong_role` */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    set_coach_avatar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "image/jpeg": components["schemas"]["PhotoFile"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CoachAvatar"];
+                };
+            };
+            /** @description `invalid_photo`: not a JPEG, or too big */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description `photos_not_configured` */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    remove_coach_avatar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -78,6 +78,8 @@ use crate::state::AppState;
         coach::clients::update,
         coach::clients::reinvite,
         coach::me::set_timezone,
+        coach::me::set_avatar,
+        coach::me::remove_avatar,
         coach::exercises::list,
         coach::exercises::create,
         coach::exercises::get,
@@ -206,6 +208,12 @@ pub fn router(state: AppState) -> Router {
             get(nutrition::history).post(nutrition::set),
         )
         .route("/coach/me/timezone", put(coach::me::set_timezone))
+        .route(
+            "/coach/me/avatar",
+            put(coach::me::set_avatar)
+                .delete(coach::me::remove_avatar)
+                .layer(DefaultBodyLimit::max(crate::photos::MAX_BYTES)),
+        )
         .route(
             "/coach/clients/{id}/workouts",
             get(coach::workouts::list_for_client),
