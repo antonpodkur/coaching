@@ -150,7 +150,7 @@ async fn an_app_link_joins_and_the_bot_waits_for_permission(db: PgPool) {
 #[sqlx::test]
 async fn permission_given_in_telegrams_dialog_brings_the_welcome_at_once(db: PgPool) {
     let s = setup(db).await;
-    // Dasha opened the app once, so her username is known for "Написати Даші".
+    // Dasha opened the app once, so her username is known for "Даша в Telegram".
     sqlx::query("UPDATE coaches SET username = 'daria_coach'")
         .execute(&s.state.db)
         .await
@@ -165,7 +165,7 @@ async fn permission_given_in_telegrams_dialog_brings_the_welcome_at_once(db: PgP
     assert!(welcome.text.starts_with("Вітаю, Максим!"));
     assert!(matches!(
         &welcome.keyboard[1][0],
-        Button::Url { url, .. } if url == "https://t.me/daria_coach"
+        Button::Url { text, url } if text == "Даша в Telegram" && url == "https://t.me/daria_coach"
     ));
     assert_eq!(pinned(&s.state, CLIENT_TG), 1);
 }
@@ -256,7 +256,7 @@ async fn a_client_who_writes_to_the_bot_lets_it_write_back(db: PgPool) {
     // Anything typed later gets a pointer to the app and to Dasha.
     webhook(&s.app, text_update(CLIENT_TG, "Привіт, а можна питання?")).await;
     let reply = last_message_to(&s.state, CLIENT_TG);
-    assert!(reply.text.contains("пиши Даші особисто"));
+    assert!(reply.text.contains("пиши в особисті повідомлення"));
     assert!(matches!(&reply.keyboard[0][0], Button::WebApp { .. }));
     assert_eq!(pinned(&s.state, CLIENT_TG), 1);
 }

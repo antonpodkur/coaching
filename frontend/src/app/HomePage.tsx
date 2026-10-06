@@ -26,7 +26,7 @@ import { Screen } from '../shared/Screen'
 import type { NutritionTarget } from '../shared/nutrition'
 import { type WeightEntry, formatChange, weeklyAverages, weightTrend } from '../shared/weight'
 import { BotMessagesCard } from './BotMessagesCard'
-import { useCoachCard } from './coachCard'
+import { useCoachCard, useCoachName } from './coachCard'
 import { QuestionnaireCard } from './QuestionnaireCard'
 import { questionnaireCardDismissed } from './questionnaire'
 import { useMyNutrition } from './nutrition'
@@ -43,6 +43,7 @@ export function HomePage({ client }: { client: Schemas['ClientProfile'] }) {
   const workouts = useMyWorkouts()
   const weight = useMyWeight()
   const nutrition = useMyNutrition()
+  const coachName = useCoachName()
   const today = localDate(new Date())
   const all = workouts.data ?? []
 
@@ -82,8 +83,8 @@ export function HomePage({ client }: { client: Schemas['ClientProfile'] }) {
       {workouts.data && all.length === 0 && (
         <p className="notice">
           {botAllowed
-            ? 'Даша ще не надіслала тренувань. Коли надішле, бот напише тобі.'
-            : 'Даша ще не надіслала тренувань. Коли надішле, вони з’являться тут.'}
+            ? `Тренувань ще немає. Коли ${coachName} надішле перше, бот напише тобі.`
+            : `Тренувань ще немає. Коли ${coachName} надішле перше, воно з’явиться тут.`}
         </p>
       )}
 

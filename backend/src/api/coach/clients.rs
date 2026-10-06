@@ -242,18 +242,22 @@ async fn invite_link(
     let url = state
         .config
         .app_start_url(&format!("{}{}", invites::START_PREFIX, invite.code));
-    let coach_telegram_id =
-        sqlx::query_scalar!("SELECT telegram_id FROM coaches WHERE id = $1", coach_id)
-            .fetch_one(&state.db)
-            .await?;
+    let coach = sqlx::query!(
+        "SELECT telegram_id, name FROM coaches WHERE id = $1",
+        coach_id
+    )
+    .fetch_one(&state.db)
+    .await?;
+    // The name stays as written: Ukrainian would change it by case.
     let card = ShareableMessage {
         title: "Запрошення до тренувань".to_owned(),
-        description: "Онлайн-тренування з Дарією Хижняк".to_owned(),
+        description: format!("{} запрошує на онлайн-тренування", coach.name),
         text: format!(
-            "Запрошення до онлайн-тренувань з Дарією Хижняк.\n\n\
+            "{} запрошує тебе на онлайн-тренування.\n\n\
              У застосунку — твої тренування, відео техніки до вправ і звіт після кожного \
              тренування. Натисни «Відкрити», і він відкриється просто в Telegram.\n\n\
              Посилання особисте й діє {} днів.",
+            coach.name,
             invites::INVITE_TTL.num_days()
         ),
         button: Button::Url {
@@ -264,7 +268,7 @@ async fn invite_link(
     // The plain link still works without the card, so a failure only logs.
     let prepared_message_id = match state
         .telegram
-        .save_prepared_message(coach_telegram_id, card)
+        .save_prepared_message(coach.telegram_id, card)
         .await
     {
         Ok(id) => Some(id),

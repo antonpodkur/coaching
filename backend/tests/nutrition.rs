@@ -57,7 +57,7 @@ async fn dasha_sets_targets_and_the_client_hears_of_each_change(db: PgPool) {
     let first = &messages_to(&state, CLIENT_TG)[0];
     assert_eq!(
         first.text,
-        "Даша склала тобі норму харчування на день:\nбілки — 100 г\nжири — 50 г\n\
+        "Твоя норма харчування на день:\nбілки — 100 г\nжири — 50 г\n\
          вуглеводи — 200 г\nРазом близько 1650 ккал.\n\n«2 л води на день»"
     );
     assert!(matches!(
@@ -76,7 +76,7 @@ async fn dasha_sets_targets_and_the_client_hears_of_each_change(db: PgPool) {
     assert!(
         messages[1]
             .text
-            .starts_with("Даша оновила твою норму харчування на день:")
+            .starts_with("Твоя норма харчування на день оновилася:")
     );
     assert!(messages[1].text.ends_with("Разом близько 1650 ккал."));
     let (_, history) = call(&app, "GET", &path, Some(&coach), None).await;

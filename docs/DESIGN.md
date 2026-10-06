@@ -68,7 +68,12 @@ Clients see who their workouts come from. The coach's photo and name (`CoachCard
 - Above a workout.
 - At the top of her comments, which read like a message.
 
-Her name comes from the data, never typed into the text.
+Her name comes from the data, never typed into the text. Ukrainian changes a name by case and a past-tense verb by gender, so her name appears only:
+
+- **As a label:** "Даша: нове тренування", "Даша в Telegram".
+- **As the subject of a present or future verb:** "Даша побачить", "бачить лише Даша".
+
+Anything else is worded without it, for example "Звіт надіслано".
 
 The coach adds her photo on her profile page. Until she does, clients see her initials.
 
@@ -76,5 +81,4 @@ The coach adds her photo on her profile page. Until she does, clients see her in
 
 From the design review of 6 October 2026, everything has been done. Next ideas, not decided:
 
-- **Coach names in the text:** the hardcoded "Даша/Даші" left in the client texts, for other coaches (docs/MANY_COACHES.md).
 - **The Telegram import:** make it fill a workout instead of only previewing.

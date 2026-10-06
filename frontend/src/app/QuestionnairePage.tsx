@@ -12,6 +12,7 @@ import { confirmAction } from '../shared/dialogs'
 import { CameraIcon, PhotoIcon } from '../shared/icons'
 import { VideoSendCards } from './VideoSendCards'
 import { removeAvatar, showAvatar, uploadAvatar } from './avatar'
+import { useCoachName } from './coachCard'
 import {
   GYM_VIDEOS,
   MAX_PHOTOS,
@@ -47,6 +48,7 @@ export function QuestionnairePage({
   onSignOut?: () => void
 }) {
   const questionnaire = useQuestionnaire()
+  const coachName = useCoachName()
   const top = (
     <>
       <BackLink to="/app" label="Головна" />
@@ -67,9 +69,9 @@ export function QuestionnairePage({
     <Screen>
       {top}
       <header className="exercise-head">
-        <h1>Анкета для Даші</h1>
+        <h1>Анкета</h1>
         <p className="muted small">
-          Необов’язково, але так Даша точніше складе програму під тебе. Бачить лише вона.
+          Необов’язково, але так програма буде точніше під тебе. Бачить лише {coachName}.
         </p>
       </header>
       <AnswersForm saved={questionnaire.data} />
@@ -209,6 +211,7 @@ function photoFailure(err: unknown): string {
  */
 function AvatarSection({ client }: { client: Schemas['ClientProfile'] }) {
   const queryClient = useQueryClient()
+  const coachName = useCoachName()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const avatar = client.avatar ?? null
@@ -251,10 +254,10 @@ function AvatarSection({ client }: { client: Schemas['ClientProfile'] }) {
         <strong>{client.name}</strong>
         <span className="muted small">
           {own
-            ? 'Це фото бачить Даша.'
+            ? `Це фото бачить ${coachName}.`
             : avatar
               ? 'Фото з Telegram. Можеш поставити інше.'
-              : 'Додай фото, щоб Даша бачила тебе у своєму списку.'}
+              : `Додай фото — ${coachName} бачитиме його у своєму списку.`}
         </span>
         <div className="profile-photo-actions">
           <label className="button small file-button">
@@ -286,6 +289,7 @@ function AvatarSection({ client }: { client: Schemas['ClientProfile'] }) {
 /** Photos and videos of the gym, so Dasha knows what the client can train with. */
 function GymSection({ questionnaire }: { questionnaire: Questionnaire }) {
   const queryClient = useQueryClient()
+  const coachName = useCoachName()
   const [uploading, setUploading] = useState(0)
   const [photoError, setPhotoError] = useState<string | null>(null)
   const sends = useVideoSends().filter((send) => send.target === GYM_VIDEOS.key)
@@ -333,7 +337,7 @@ function GymSection({ questionnaire }: { questionnaire: Questionnaire }) {
   }
 
   const remove = async (id: string, what: string) => {
-    if (!(await confirmAction(`Видалити ${what}? Даша його більше не побачить.`))) return
+    if (!(await confirmAction(`Видалити ${what}? ${coachName} його більше не побачить.`))) return
     await api.DELETE('/me/gym/{id}', { params: { path: { id } } }).catch(() => undefined)
     void queryClient.invalidateQueries({ queryKey: QUESTIONNAIRE_KEY })
   }
@@ -344,7 +348,7 @@ function GymSection({ questionnaire }: { questionnaire: Questionnaire }) {
         Твій зал
       </h2>
       <p className="muted small">
-        Сфотографуй тренажери, стійки й гантелі — Даша побачить, з чим ти працюєш.
+        Сфотографуй тренажери, стійки й гантелі — {coachName} побачить, з чим ти працюєш.
       </p>
       <PhotoGrid
         photos={photos}

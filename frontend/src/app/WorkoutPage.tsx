@@ -66,7 +66,7 @@ export function WorkoutPage() {
 
       {finished && data.report && (
         <section className="report-card" aria-label="Звіт">
-          <strong>Звіт надіслано Даші</strong>
+          <strong>Звіт надіслано</strong>
           <span className="muted small">
             {EFFORT_TEXT[data.report.effort]}
             {data.report.duration_min != null && ` · ${data.report.duration_min} хв`}

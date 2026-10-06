@@ -289,12 +289,14 @@ fn quoted_title(title: &str, fallback: &str) -> String {
     }
 }
 
-/// "Нове тренування від Даші", while the workout is visible and the client linked.
+/// "Даша: нове тренування", while the workout is visible and the client linked.
+/// The coach's name stays as written: Ukrainian would change it by case.
 async fn published(state: &AppState, workout_id: Uuid) -> anyhow::Result<Option<Notice>> {
     let Some(workout) = sqlx::query!(
         r#"SELECT w.title, w.date AS "date!", c.id AS client_id, c.telegram_id AS "telegram_id!",
-                  c.bot_allowed_at IS NOT NULL AS "bot_allowed!"
+                  c.bot_allowed_at IS NOT NULL AS "bot_allowed!", co.name AS coach_name
            FROM workouts w JOIN clients c ON c.id = w.client_id
+           JOIN coaches co ON co.id = c.coach_id
            WHERE w.id = $1 AND w.date IS NOT NULL AND c.telegram_id IS NOT NULL
              AND w.status IN ('published', 'done')"#,
         workout_id,
@@ -305,10 +307,11 @@ async fn published(state: &AppState, workout_id: Uuid) -> anyhow::Result<Option<
         return Ok(None);
     };
     let when = short_date(workout.date);
+    let coach = &workout.coach_name;
     let text = if workout.title.is_empty() {
-        format!("Нове тренування від Даші на {when}.")
+        format!("{coach}: нове тренування на {when}.")
     } else {
-        format!("Нове тренування від Даші: «{}», {when}.", workout.title)
+        format!("{coach}: нове тренування «{}», {when}.", workout.title)
     };
     let body = if workout.title.is_empty() {
         format!("На {when}")
@@ -340,7 +343,7 @@ async fn reminder(state: &AppState, workout_id: Uuid) -> anyhow::Result<Option<N
         return Ok(None);
     };
     let text = if workout.title.is_empty() {
-        "Нагадування: сьогодні тренування від Даші.".to_owned()
+        "Нагадування: сьогодні тренування.".to_owned()
     } else {
         format!("Нагадування: сьогодні тренування «{}».", workout.title)
     };
@@ -563,9 +566,9 @@ async fn nutrition(state: &AppState, target_id: Uuid) -> anyhow::Result<Option<N
         return Ok(None);
     };
     let opening = if target.changed {
-        "Даша оновила твою норму харчування на день:"
+        "Твоя норма харчування на день оновилася:"
     } else {
-        "Даша склала тобі норму харчування на день:"
+        "Твоя норма харчування на день:"
     };
     let kcal = nutrition::kcal(target.protein_g, target.fat_g, target.carbs_g);
     let mut text = format!(

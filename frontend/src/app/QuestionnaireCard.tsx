@@ -6,8 +6,8 @@ import { dismissQuestionnaireCard } from './questionnaire'
 export function QuestionnaireCard({ onDismiss }: { onDismiss: () => void }) {
   return (
     <div className="prompt-card">
-      <strong>Анкета для Даші</strong>
-      <p className="muted small">Вік, зріст і фото твого залу — щоб Даша склала програму під тебе.</p>
+      <strong>Анкета</strong>
+      <p className="muted small">Вік, зріст і фото твого залу — щоб програма була саме під тебе.</p>
       <div className="prompt-actions">
         <Link className="button small" to="/app/questionnaire">
           Заповнити

@@ -36,10 +36,17 @@ Today's texts use Dasha's name in several cases, with feminine verbs:
 - "Напиши **Даші**" (давальний)
 - "Онлайн-тренування з **Дарією Хижняк**" (орудний)
 
-Two ways out, probably mixed:
+Two ways out:
 
-1. **Store the forms** the texts need (називний, родовий, давальний, орудний) and the coach's gender in their profile. The coach fills them in at sign-up, with suggestions. Best where the name matters: the invite and the welcome.
-2. **Reword** to avoid the cases: "Тренер: Даша", "Нове тренування на завтра", "Написати тренеру".
+1. **Store the forms** the texts need (називний, родовий, давальний, орудний) and the coach's gender in their profile. The coach fills them in at sign-up, with suggestions.
+2. **Reword** to avoid the cases.
+
+**Done (6 October 2026), the second way.** No client text, bot message or invite has a hardcoded name any more. The name comes from `coaches.name` and is used only in two ways:
+
+- **As a label:** "Даша: нове тренування «Спина»", "Даша в Telegram", a comment signed with her photo and name.
+- **As the subject of a verb in the present or future**, which Ukrainian does not change by gender: "Даша побачить", "бачить лише Даша", "Даша запрошує тебе".
+
+Everything else is worded without a name: "Звіт надіслано", "Твоя норма харчування на день оновилася". Before sign-in, when the coach is unknown, texts speak of "той, хто тебе запросив". Name forms and gender are not needed for now.
 
 ## Decisions to make
 
@@ -55,7 +62,7 @@ No new hardcoded coach names. New texts take the name from the coach's profile (
 
 ## Possible order
 
-1. A coach profile with name forms and gender; replace the hardcoded names. Nothing changes for Dasha.
+1. ~~Replace the hardcoded names~~ (done by rewording, see above).
 2. Coach sign-up behind an allow-list you control, with no billing yet, to try it with one or two coaches by hand.
 3. An admin page and usage per coach.
 4. Billing and plans.

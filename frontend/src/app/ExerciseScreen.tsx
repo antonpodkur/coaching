@@ -28,7 +28,7 @@ import { useNoSwipeToClose } from './gestures'
 import { logSet } from './outbox'
 import { VideoSendCards } from './VideoSendCards'
 import { CoachNote } from '../shared/CoachNote'
-import { useCoachCard } from './coachCard'
+import { useCoachCard, useCoachName } from './coachCard'
 import { exerciseTarget, sendVideo, useVideoSends } from './videoSends'
 import { type ClientSet, MY_WORKOUTS_KEY, useMyWorkout } from './workouts'
 
@@ -74,7 +74,7 @@ export function ExerciseScreen() {
         <VideoPlayer
           src={exercise.video.hls_url}
           poster={exercise.video.thumbnail_url}
-          label={`Техніка від Даші: ${exercise.name}`}
+          label={`Техніка: ${exercise.name}`}
         />
       )}
 
@@ -168,6 +168,7 @@ function FormVideos({
   enabled: boolean
 }) {
   const queryClient = useQueryClient()
+  const coachName = useCoachName()
   const target = exerciseTarget(workoutId, exercise.id)
   const sends = useVideoSends().filter((send) => send.target === target.key)
   // Workouts cached before videos existed have no list.
@@ -184,7 +185,7 @@ function FormVideos({
     if (file) void sendVideo(target, file, queryClient)
   }
   const remove = async (videoId: string) => {
-    if (!(await confirmAction('Видалити це відео? Даша його більше не побачить.'))) return
+    if (!(await confirmAction(`Видалити це відео? ${coachName} його більше не побачить.`))) return
     await api.DELETE('/form-videos/{id}', { params: { path: { id: videoId } } }).catch(() => undefined)
     void queryClient.invalidateQueries({ queryKey: [...MY_WORKOUTS_KEY, workoutId] })
   }
@@ -192,7 +193,7 @@ function FormVideos({
   return (
     <section className="form-videos" aria-labelledby={`videos-${exercise.id}`}>
       <h2 id={`videos-${exercise.id}`} className="section-title">
-        Відео для Даші
+        Відео на перевірку
       </h2>
       {videos.map((video, index) => (
         <FormVideoTile
@@ -206,14 +207,14 @@ function FormVideos({
       {enabled && counted < MAX_VIDEOS && (
         <label className="button block file-button">
           <CameraIcon />
-          Надіслати відео Даші
+          Надіслати відео
           <input type="file" accept="video/*" onChange={pick} />
         </label>
       )}
       {enabled && (
         <p className="muted small">
           Зніми підхід збоку, щоб було видно все тіло. До 3 хвилин і до 3 відео на вправу. Відео
-          бачить лише Даша.
+          бачить лише {coachName}.
         </p>
       )}
     </section>

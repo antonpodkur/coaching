@@ -172,7 +172,7 @@ async fn messages_telegram_refused_are_retried(db: PgPool) {
         .unwrap();
     assert_eq!(
         texts(&state, KYIV_TG),
-        ["Нове тренування від Даші: «Спина», вт, 6 жовтня."]
+        ["Даша: нове тренування «Спина», вт, 6 жовтня."]
     );
     jobs::tick(&state, Utc::now() + Duration::minutes(25))
         .await

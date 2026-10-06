@@ -147,13 +147,13 @@ async fn accept_invite(
         )),
         Accepted::Invalid => Reply::plain(OutgoingMessage::text(
             chat_id,
-            "Посилання недійсне або застаріло. Попроси в Даші нове.",
+            "Посилання недійсне або застаріло. Попроси нове.",
         )),
     })
 }
 
-pub const LINKED_ELSEWHERE: &str =
-    "Цей Telegram-акаунт уже прив’язаний до іншого профілю. Напиши Даші — вона допоможе.";
+pub const LINKED_ELSEWHERE: &str = "Цей Telegram-акаунт уже прив’язаний до іншого профілю. \
+     Якщо це помилка, напиши тому, хто тебе запросив.";
 
 /// Tells Dasha that a client joined, with a button to their page. Losing this
 /// message must not fail the join.
@@ -214,7 +214,7 @@ pub async fn welcome_client(
     }
 }
 
-/// What the chat is for, the button into the app, and where to ask Dasha.
+/// What the chat is for, the button into the app, and where to ask the coach.
 async fn welcome(
     state: &AppState,
     client_id: Uuid,
@@ -226,32 +226,40 @@ async fn welcome(
         None => "Вітаю!".to_owned(),
     };
     let text = format!(
-        "{hello} Тут з’являтимуться нові тренування від Даші й нагадування в день тренування.\n\n\
+        "{hello} Тут з’являтимуться нові тренування й нагадування в день тренування.\n\n\
          Застосунок відкривається кнопкою нижче або «{MENU_BUTTON_TEXT}» біля поля повідомлення. \
-         Питання щодо тренувань пиши Даші особисто — цей чат вона не читає."
+         {NOBODY_READS}"
     );
     let message = open_app(state, chat_id, text);
     Ok(with_coach_contact(state, client_id, message).await?)
 }
 
-/// Adds "Написати Даші" when her Telegram username is known.
+/// The chat with the bot is not where to ask the coach anything.
+const NOBODY_READS: &str =
+    "Цей чат ніхто не читає: з питаннями щодо тренувань пиши в особисті повідомлення.";
+
+/// Adds a button to the coach's own Telegram, "Даша в Telegram", when her
+/// username is known. Her name stays as written: Ukrainian would change it by case.
 async fn with_coach_contact(
     state: &AppState,
     client_id: Uuid,
     message: OutgoingMessage,
 ) -> sqlx::Result<OutgoingMessage> {
-    let username = sqlx::query_scalar!(
-        "SELECT co.username FROM clients c JOIN coaches co ON co.id = c.coach_id WHERE c.id = $1",
+    let coach = sqlx::query!(
+        "SELECT co.name, co.username FROM clients c JOIN coaches co ON co.id = c.coach_id
+         WHERE c.id = $1",
         client_id,
     )
     .fetch_optional(&state.db)
-    .await?
-    .flatten();
-    Ok(match username {
-        Some(username) => message.with_row(vec![Button::Url {
-            text: "Написати Даші".to_owned(),
-            url: format!("https://t.me/{username}"),
-        }]),
+    .await?;
+    Ok(match coach {
+        Some(coach) => match coach.username {
+            Some(username) => message.with_row(vec![Button::Url {
+                text: format!("{} в Telegram", coach.name),
+                url: format!("https://t.me/{username}"),
+            }]),
+            None => message,
+        },
         None => message,
     })
 }
@@ -337,9 +345,7 @@ async fn greet(state: &AppState, from: &User, chat_id: i64) -> anyhow::Result<Re
         let message = open_app(
             state,
             chat_id,
-            "Тренування — у застосунку, кнопка нижче. Питання щодо тренувань пиши Даші особисто — \
-             цей чат вона не читає."
-                .to_owned(),
+            format!("Тренування — у застосунку, кнопка нижче. {NOBODY_READS}"),
         );
         return Ok(Reply::plain(
             with_coach_contact(state, client_id, message).await?,
@@ -369,7 +375,7 @@ async fn greet(state: &AppState, from: &User, chat_id: i64) -> anyhow::Result<Re
     );
     Ok(Reply::plain(OutgoingMessage::text(
         chat_id,
-        "Щоб почати, попроси в Даші посилання-запрошення.",
+        "Щоб почати, відкрий своє посилання-запрошення. Якщо його немає — попроси.",
     )))
 }
 

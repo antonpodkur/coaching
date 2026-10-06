@@ -5,15 +5,18 @@ import { telegramSupporting, telegramWebApp } from '../app/telegram'
 import { onPhone } from '../shared/device'
 import { formatDay } from '../shared/format'
 import { SendIcon } from '../shared/icons'
+import { useCoach } from './context'
 
 export type ShownInvite = Schemas['InviteLink'] & { name: string }
 
-const SHARE_TEXT =
-  'Запрошення до онлайн-тренувань з Дарією Хижняк. Відкрий посилання — застосунок відкриється в Telegram.'
+/** What goes with the link. The name stays as written: Ukrainian would change it by case. */
+function shareText(coachName: string) {
+  return `${coachName} запрошує тебе на онлайн-тренування. Відкрий посилання — застосунок відкриється в Telegram.`
+}
 
 /** Telegram's "share to a chat" screen with the invite filled in. */
-function shareUrl(inviteUrl: string) {
-  return `https://t.me/share/url?url=${encodeURIComponent(inviteUrl)}&text=${encodeURIComponent(SHARE_TEXT)}`
+function shareUrl(inviteUrl: string, text: string) {
+  return `https://t.me/share/url?url=${encodeURIComponent(inviteUrl)}&text=${encodeURIComponent(text)}`
 }
 
 /**
@@ -25,7 +28,8 @@ export function InviteCard({ invite, onClose }: { invite: ShownInvite; onClose?:
   const [copied, setCopied] = useState(false)
   const [sent, setSent] = useState(false)
   const webApp = telegramWebApp()
-  const share = shareUrl(invite.url)
+  const text = shareText(useCoach().coach.name)
+  const share = shareUrl(invite.url, text)
   const cardSharer = invite.prepared_message_id ? telegramSupporting('8.0') : null
   const preparedId = invite.prepared_message_id
   const shareSheet = !webApp && onPhone() && typeof navigator.share === 'function'
@@ -75,7 +79,7 @@ export function InviteCard({ invite, onClose }: { invite: ShownInvite; onClose?:
           type="button"
           className="button primary block"
           onClick={() =>
-            void navigator.share({ text: SHARE_TEXT, url: invite.url }).catch(() => undefined)
+            void navigator.share({ text, url: invite.url }).catch(() => undefined)
           }
         >
           <SendIcon />

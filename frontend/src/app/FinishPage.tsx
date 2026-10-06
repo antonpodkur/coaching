@@ -9,6 +9,7 @@ import { CheckIcon } from '../shared/icons'
 import { Screen } from '../shared/Screen'
 import { successFeedback } from '../shared/haptics'
 import { SPRING } from '../shared/motion'
+import { useCoachName } from './coachCard'
 import { useNoSwipeToClose } from './gestures'
 import { finishWorkout, useOutboxStatus } from './outbox'
 import { EFFORT_TEXT, progress, useMyWorkout } from './workouts'
@@ -20,6 +21,7 @@ export function FinishPage() {
   useNoSwipeToClose()
   const { id = '' } = useParams()
   const workout = useMyWorkout(id)
+  const coachName = useCoachName()
   const { waiting, failing } = useOutboxStatus()
   const [effort, setEffort] = useState<Schemas['Effort'] | null>(null)
   const [comment, setComment] = useState('')
@@ -74,11 +76,11 @@ export function FinishPage() {
             )}
             <CheckIcon size={28} />
           </m.span>
-          <m.h1 {...rise(0.15)}>{queued ? 'Звіт збережено' : 'Звіт надіслано Даші'}</m.h1>
+          <m.h1 {...rise(0.15)}>{queued ? 'Звіт збережено' : 'Звіт надіслано'}</m.h1>
           <m.p className="muted" {...rise(0.22)}>
             {queued
               ? 'Немає зв’язку, тож звіт надішлеться сам, щойно телефон підключиться.'
-              : 'Вона подивиться результати й напише, якщо щось треба змінити.'}
+              : `${coachName} подивиться результати й напише, якщо щось треба змінити.`}
           </m.p>
           <m.div className="finish-action" {...rise(0.3)}>
             <Link className="button primary block" to="/app">
@@ -161,7 +163,7 @@ export function FinishPage() {
           {asked && <p className="error">Обери, як було.</p>}
         </fieldset>
         <label className="field">
-          <span>Коментар для Даші</span>
+          <span>Коментар</span>
           <textarea
             rows={4}
             maxLength={2000}
@@ -175,7 +177,8 @@ export function FinishPage() {
         </button>
         {done < total && (
           <p className="muted small">
-            Невиконані підходи Даша побачить як пропущені. Можна повернутися й позначити їх.
+            Невиконані підходи {coachName} побачить як пропущені. Можна повернутися й позначити
+            їх.
           </p>
         )}
       </form>

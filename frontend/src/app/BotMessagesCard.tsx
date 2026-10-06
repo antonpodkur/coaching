@@ -29,7 +29,7 @@ export function BotMessagesCard({ onAllowed }: { onAllowed: () => void }) {
     <div className="prompt-card">
       <strong>Повідомлення від бота</strong>
       <p className="muted small">
-        Дозволь боту надсилати нові тренування від Даші й нагадування в день тренування.
+        Дозволь боту надсилати нові тренування й нагадування в день тренування.
       </p>
       <div className="prompt-actions">
         <button type="button" className="button primary small" onClick={allow}>

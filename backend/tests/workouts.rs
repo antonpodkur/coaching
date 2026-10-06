@@ -392,7 +392,7 @@ async fn publishing_tells_the_client_once(db: PgPool) {
     assert_eq!(messages.len(), 1);
     assert_eq!(
         messages[0].text,
-        "Нове тренування від Даші: «Спина», вт, 6 жовтня."
+        "Даша: нове тренування «Спина», вт, 6 жовтня."
     );
 
     // Publishing again, e.g. after an edit, does not message the client again.

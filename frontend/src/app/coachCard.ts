@@ -14,3 +14,12 @@ export const CoachCardContext = createContext<CoachCard | null>(null)
 export function useCoachCard(): CoachCard | null {
   return useContext(CoachCardContext)
 }
+
+/**
+ * The coach's name for a sentence. Ukrainian changes a name by case and a
+ * past-tense verb by gender, so texts use it only as the subject of a verb in
+ * the present or future ("Даша побачить"), which fits any coach.
+ */
+export function useCoachName(): string {
+  return useCoachCard()?.name ?? 'Тренер'
+}
