@@ -53,23 +53,40 @@ function whenScreenLeft(left: string | undefined, then: () => void) {
   requestAnimationFrame(check)
 }
 
+/** Kept once the phone has shown it swipes back by itself all the same. */
+const SYSTEM_SWIPE_KEY = 'system_swipe_back'
+
+function systemSwipesBack(): boolean {
+  try {
+    return localStorage.getItem(SYSTEM_SWIPE_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
 /**
  * Going back with a swipe from the left edge, as iPhone apps do: the page
  * follows the finger over the screen it goes back to and goes back past a
- * third of the screen or on a quick flick, otherwise it springs back. Telegram gives Mini Apps no such gesture
- * on iPhones, and neither does an iPhone to an app installed on the home
- * screen; on Android the system one already goes back.
- * Returns a function that removes it.
+ * third of the screen or on a quick flick, otherwise it springs back.
+ * Telegram gives Mini Apps no such gesture on iPhones; newer iPhones give apps
+ * on the home screen one, which this turns off while it is on. On Android the
+ * system one already goes back. Returns a function that removes it.
  */
 export function installSwipeBack(): () => void {
   const root = document.getElementById('root')
-  if (!root) return () => undefined
+  if (!root || systemSwipesBack()) return () => undefined
   const html = document.documentElement
   let start: { x: number; y: number } | null = null
   let swiping = false
   let offset = 0
   let last = { x: 0, time: 0 }
   let speed = 0
+  // Set when the phone went back with its own swipe anyway: two swipes show
+  // two screens behind the page and go back twice, so the app's steps aside.
+  let systemSwiped = false
+  // Asks the phone to leave the swipe to the app.
+  html.style.overscrollBehaviorX = 'none'
+  document.body.style.overscrollBehaviorX = 'none'
 
   // `left`, not a transform, so fixed parts (the tab bar, the set editor) stay put.
   const place = (x: number, animate: boolean) => {
@@ -90,7 +107,7 @@ export function installSwipeBack(): () => void {
   const onStart = (event: TouchEvent) => {
     start = null
     const touch = event.touches.item(0)
-    if (!swipeBack || !touch || event.touches.length > 1 || touch.clientX > EDGE_PX) return
+    if (systemSwiped || !swipeBack || !touch || event.touches.length > 1 || touch.clientX > EDGE_PX) return
     // A sheet or dialog on top has its own way out.
     if (document.querySelector('[aria-modal="true"]')) return
     start = { x: touch.clientX, y: touch.clientY }
@@ -136,6 +153,7 @@ export function installSwipeBack(): () => void {
     const goBack = back !== null && event.type === 'touchend' && !changedMind && (far || flick)
     place(goBack ? width : 0, true)
     window.setTimeout(() => {
+      if (systemSwiped) return remove()
       if (!goBack || back === null) return reset()
       const left = html.dataset.screen
       back.back()
@@ -145,16 +163,33 @@ export function installSwipeBack(): () => void {
     }, SETTLE_MS)
   }
 
+  const onPop = (event: PopStateEvent) => {
+    if (!event.hasUAVisualTransition) return
+    systemSwiped = true
+    try {
+      localStorage.setItem(SYSTEM_SWIPE_KEY, '1')
+    } catch {
+      // Found out again next time.
+    }
+    // Mid-swipe, the swipe's own timer finishes and removes it.
+    if (!swiping && !html.classList.contains('swipe-settling')) remove()
+  }
+
   document.addEventListener('touchstart', onStart, { passive: true })
   // Not passive: a swipe stops the page from scrolling under it.
   document.addEventListener('touchmove', onMove, { passive: false })
   document.addEventListener('touchend', onEnd)
   document.addEventListener('touchcancel', onEnd)
-  return () => {
+  window.addEventListener('popstate', onPop)
+  function remove() {
     document.removeEventListener('touchstart', onStart)
     document.removeEventListener('touchmove', onMove)
     document.removeEventListener('touchend', onEnd)
     document.removeEventListener('touchcancel', onEnd)
+    window.removeEventListener('popstate', onPop)
+    html.style.overscrollBehaviorX = ''
+    document.body.style.overscrollBehaviorX = ''
     reset()
   }
+  return remove
 }
