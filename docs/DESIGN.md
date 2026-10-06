@@ -50,6 +50,8 @@ Each color has one job.
 ## Lists and sheets
 
 - **Rows that belong together share one card** (`list-group`), with lines between them, like an iPhone's settings.
+- **The client's home puts the workout first.** Anything the app asks for (messages, the questionnaire, installing, notifications) goes below the content, and is drawn with it.
+- **An exercise without a video shows its number** in the workout, not an empty frame.
 - **Choices with a consequence go in a bottom sheet** (`shared/Sheet.tsx`): one row per choice, each with a line saying what happens.
 
 ## Buttons
@@ -62,11 +64,4 @@ Each color has one job.
 
 From the design review of 6 October 2026, after this pass:
 
-- **The coach in the client's app:** the coach's photo on the client home and next to the coach's comments. Muscle-group tiles instead of empty video boxes.
-- **Client home:**
-  - Today's workout first.
-  - Workouts listed together.
-  - Weight and nutrition as two tiles.
-- **Workout flow:**
-  - "Завершити" becomes the main button when every set is done.
-  - The finish screen leads with the result.
+- **The coach in the client's app:** the coach's photo on the client home and next to the coach's comments.

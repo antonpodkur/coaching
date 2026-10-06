@@ -4,7 +4,7 @@ import { Link, useParams } from 'react-router'
 
 import type { Schemas } from '../api/client'
 import { BackLink } from '../shared/BackLink'
-import { plural } from '../shared/format'
+import { formatShortDate } from '../shared/format'
 import { CheckIcon } from '../shared/icons'
 import { Screen } from '../shared/Screen'
 import { successFeedback } from '../shared/haptics'
@@ -24,6 +24,9 @@ export function FinishPage() {
   const [effort, setEffort] = useState<Schemas['Effort'] | null>(null)
   const [comment, setComment] = useState('')
   const [sent, setSent] = useState(false)
+  // Sending without saying how it was asks for that first.
+  const [asked, setAsked] = useState(false)
+  const [openedAt] = useState(() => Date.now())
   const back = <BackLink to={`/app/workouts/${id}`} label="Тренування" />
 
   if (!workout.data) {
@@ -35,7 +38,10 @@ export function FinishPage() {
     )
   }
 
-  const { total, done, different, firstDoneAt } = progress(workout.data)
+  const { total, done, firstDoneAt } = progress(workout.data)
+  // From the first ✓; a first ✓ from another day says nothing about this session.
+  const minutes = firstDoneAt === null ? null : Math.round((openedAt - firstDoneAt) / 60_000)
+  const sessionMinutes = minutes !== null && minutes <= 6 * 60 ? Math.max(minutes, 1) : null
 
   if (sent || workout.data.status === 'done') {
     const queued = waiting > 0 && failing
@@ -86,7 +92,10 @@ export function FinishPage() {
 
   const submit = (event: FormEvent) => {
     event.preventDefault()
-    if (!effort) return
+    if (!effort) {
+      setAsked(true)
+      return
+    }
     const minutes = firstDoneAt === null ? null : Math.round((Date.now() - firstDoneAt) / 60_000)
     finishWorkout(id, {
       effort,
@@ -102,12 +111,33 @@ export function FinishPage() {
     <Screen>
       {back}
       <header className="workout-head">
-        <h1>Завершити тренування</h1>
-        <p className="muted">
-          Виконано {done} з {total} {plural(total, 'підходу', 'підходів', 'підходів')}
-          {different > 0 && ` · ${different} інакше, ніж у плані`}
+        <p className="muted small">
+          {workout.data.title || 'Тренування'} · {formatShortDate(workout.data.date)}
         </p>
+        <h1>Завершити тренування</h1>
       </header>
+
+      {/* What was done leads; the questions come after. */}
+      <ul className="stats">
+        <li>
+          <span className="muted small">Підходи</span>
+          <strong>
+            {done} <small>з {total}</small>
+          </strong>
+        </li>
+        <li>
+          <span className="muted small">Вправи</span>
+          <strong>{workout.data.exercises.length}</strong>
+        </li>
+        {sessionMinutes !== null && (
+          <li>
+            <span className="muted small">Час</span>
+            <strong>
+              {sessionMinutes} <small>хв</small>
+            </strong>
+          </li>
+        )}
+      </ul>
 
       <form className="stack" onSubmit={submit}>
         <fieldset className="effort">
@@ -119,12 +149,16 @@ export function FinishPage() {
                 type="button"
                 className="effort-option"
                 aria-pressed={effort === value}
-                onClick={() => setEffort(value)}
+                onClick={() => {
+                  setEffort(value)
+                  setAsked(false)
+                }}
               >
                 {EFFORT_TEXT[value]}
               </button>
             ))}
           </div>
+          {asked && <p className="error">Обери, як було.</p>}
         </fieldset>
         <label className="field">
           <span>Коментар для Даші</span>
@@ -136,7 +170,7 @@ export function FinishPage() {
             onChange={(event) => setComment(event.target.value)}
           />
         </label>
-        <button type="submit" className="button primary block" disabled={!effort}>
+        <button type="submit" className="button primary block">
           Надіслати звіт
         </button>
         {done < total && (

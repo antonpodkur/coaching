@@ -2,7 +2,7 @@ import { Link, useParams } from 'react-router'
 
 import { BackLink } from '../shared/BackLink'
 import { formatShortDate, formatTarget, plural } from '../shared/format'
-import { CameraIcon, CheckIcon } from '../shared/icons'
+import { CheckIcon } from '../shared/icons'
 import { Screen } from '../shared/Screen'
 import { useNoSwipeToClose } from './gestures'
 import { EFFORT_TEXT, progress, useMyWorkout } from './workouts'
@@ -67,7 +67,7 @@ export function WorkoutPage() {
       )}
 
       <ol className="client-exercises">
-        {data.exercises.map((exercise) => {
+        {data.exercises.map((exercise, index) => {
           const doneSets = exercise.sets.filter((set) => set.completed).length
           const complete = exercise.sets.length > 0 && doneSets === exercise.sets.length
           return (
@@ -76,8 +76,9 @@ export function WorkoutPage() {
                 {exercise.video ? (
                   <img className="thumb" src={exercise.video.thumbnail_url} alt="" loading="lazy" />
                 ) : (
-                  <span className="thumb thumb-empty" aria-hidden="true">
-                    <CameraIcon />
+                  // No video: its place in the workout instead of an empty frame.
+                  <span className="thumb thumb-number" aria-hidden="true">
+                    {index + 1}
                   </span>
                 )}
                 <span className="exercise-text">
@@ -108,12 +109,24 @@ export function WorkoutPage() {
 
       {!finished && next && (
         <div className="stack">
-          <Link className="button primary block" to={`/app/workouts/${id}/exercises/${next.id}`}>
-            {done > 0 ? 'Продовжити' : 'Почати тренування'}
-          </Link>
-          <Link className="button block" to={`/app/workouts/${id}/finish`}>
-            Завершити й надіслати звіт
-          </Link>
+          {/* Every set ticked: finishing is the step left, so it is the main button. */}
+          {total > 0 && done === total ? (
+            <Link className="button primary block" to={`/app/workouts/${id}/finish`}>
+              Завершити й надіслати звіт
+            </Link>
+          ) : (
+            <>
+              <Link
+                className="button primary block"
+                to={`/app/workouts/${id}/exercises/${next.id}`}
+              >
+                {done > 0 ? 'Продовжити' : 'Почати тренування'}
+              </Link>
+              <Link className="button block" to={`/app/workouts/${id}/finish`}>
+                Завершити й надіслати звіт
+              </Link>
+            </>
+          )}
         </div>
       )}
     </Screen>

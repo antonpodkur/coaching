@@ -9,7 +9,7 @@ export function QuestionnaireCard({ onDismiss }: { onDismiss: () => void }) {
       <strong>Анкета для Даші</strong>
       <p className="muted small">Вік, зріст і фото твого залу — щоб Даша склала програму під тебе.</p>
       <div className="prompt-actions">
-        <Link className="button primary small" to="/app/questionnaire">
+        <Link className="button small" to="/app/questionnaire">
           Заповнити
         </Link>
         <button

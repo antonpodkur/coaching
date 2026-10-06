@@ -219,7 +219,8 @@ a.button {
     .client-link,
     .client-exercise,
     .exercise-row,
-    .other-workout,
+    .list-row,
+    .tile,
     .sheet-item,
     .upload-name
   ):active {
@@ -511,6 +512,92 @@ a.button {
 .list-title {
   font-size: var(--fs-md);
   font-weight: 700;
+}
+
+.list-icon.done {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+/* Two numbers side by side: weight and nutrition on the client's home. */
+.tiles {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+
+.tile {
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.tile-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+
+.tile-value,
+.stats strong {
+  font-family: var(--font-display);
+  font-size: var(--fs-xl);
+  font-weight: 600;
+}
+
+.tile-value small,
+.stats strong small {
+  color: var(--muted);
+  font-family: var(--font-body);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+
+.sparkline {
+  width: 100%;
+  height: 28px;
+  margin-top: auto;
+  overflow: visible;
+}
+
+.sparkline polyline {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
+/* The finish screen's result: what was done, before how it felt. */
+.stats {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+
+.stats li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px;
+  border-radius: var(--r-lg);
+  background: var(--surface);
 }
 
 .page-title {
@@ -898,6 +985,18 @@ a.button {
   flex: none;
   border-radius: var(--r-sm);
   object-fit: cover;
+}
+
+/* An exercise without a video, shown by its place in the workout. */
+.thumb-number {
+  background: var(--surface-2);
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: var(--fs-md);
+  font-weight: 600;
 }
 
 .thumb-empty {
@@ -2000,26 +2099,6 @@ button.save-status {
   text-align: center;
 }
 
-.other-workouts {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.other-workout {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
-  border-radius: var(--r-lg);
-  background: var(--surface);
-  color: var(--text);
-  text-decoration: none;
-}
-
 .round-icon {
   width: 32px;
   height: 32px;
@@ -2042,18 +2121,6 @@ button.save-status {
   width: 64px;
   height: 64px;
   border-radius: 50%;
-}
-
-.other-text {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.other-title {
-  font-size: var(--fs-md);
-  font-weight: 700;
 }
 
 /* Notes over the bottom of the screen (BottomNote), stacked. Taps pass

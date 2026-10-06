@@ -3,7 +3,14 @@ import { Link } from 'react-router'
 
 import type { Schemas } from '../api/client'
 import { Avatar } from '../shared/Avatar'
-import { formatShortDate, formatToday, localDate, parseDate, plural } from '../shared/format'
+import {
+  formatKg,
+  formatShortDate,
+  formatToday,
+  localDate,
+  parseDate,
+  plural,
+} from '../shared/format'
 import {
   CalendarIcon,
   CheckIcon,
@@ -16,8 +23,8 @@ import { Collapse } from '../shared/Collapse'
 import { InstallCard } from '../shared/InstallCard'
 import { PushCard } from '../shared/PushCard'
 import { Screen } from '../shared/Screen'
-import { nutritionSummary } from '../shared/nutrition'
-import { weightSummary } from '../shared/weight'
+import type { NutritionTarget } from '../shared/nutrition'
+import { type WeightEntry, formatChange, weeklyAverages, weightTrend } from '../shared/weight'
 import { BotMessagesCard } from './BotMessagesCard'
 import { QuestionnaireCard } from './QuestionnaireCard'
 import { questionnaireCardDismissed } from './questionnaire'
@@ -27,7 +34,10 @@ import { type ClientWorkoutSummary, useMyWorkouts } from './workouts'
 
 const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд']
 
-/** Today: this week at a glance, and the workout to do now or next. */
+/**
+ * Today: this week at a glance, the workout to do now or next, the others
+ * around it, weight and nutrition, and only then anything the app asks for.
+ */
 export function HomePage({ client }: { client: Schemas['ClientProfile'] }) {
   const workouts = useMyWorkouts()
   const weight = useMyWeight()
@@ -62,21 +72,6 @@ export function HomePage({ client }: { client: Schemas['ClientProfile'] }) {
         </Link>
       </header>
 
-      {/* One ask at a time: messages first (they bring the reminders), then the questionnaire. */}
-      <Collapse show={!botAllowed}>
-        <BotMessagesCard onAllowed={() => setBotAllowed(true)} />
-      </Collapse>
-      <Collapse show={botAllowed && !client.questionnaire_started && !questionnaireLater}>
-        <QuestionnaireCard onDismiss={() => setQuestionnaireLater(true)} />
-      </Collapse>
-      {botAllowed && (client.questionnaire_started || questionnaireLater) && (
-        <>
-          {/* Inside Telegram the first offers the installed app; outside, the second its notifications. */}
-          <InstallCard />
-          <PushCard />
-        </>
-      )}
-
       <WeekStrip workouts={all} today={today} />
 
       {workouts.isPending && <p className="muted">Завантаження…</p>}
@@ -94,51 +89,52 @@ export function HomePage({ client }: { client: Schemas['ClientProfile'] }) {
       {main && <MainCard workout={main} today={today} />}
 
       {(recent.length > 0 || upcoming.length > 0) && (
-        <ul className="other-workouts">
+        <ul className="list-group" aria-label="Інші тренування">
           {[...recent, ...upcoming].map((workout) => (
             <li key={workout.id}>
-              <Link className="other-workout" to={`/app/workouts/${workout.id}`}>
-                <span className={workout.status === 'done' ? 'round-icon done' : 'round-icon'}>
+              <Link className="list-row" to={`/app/workouts/${workout.id}`}>
+                <span
+                  className={workout.status === 'done' ? 'list-icon done' : 'list-icon'}
+                  aria-hidden="true"
+                >
                   {workout.status === 'done' ? <CheckIcon /> : <CalendarIcon />}
                 </span>
-                <span className="other-text">
-                  <span className="other-title">
+                <span className="list-text">
+                  <span className="list-title">
                     {workout.title || 'Тренування'} · {formatShortDate(workout.date)}
                   </span>
                   <span className="muted small">{statusLine(workout, today)}</span>
                 </span>
+                <ChevronIcon />
               </Link>
             </li>
           ))}
         </ul>
       )}
 
-      {/* Below the workouts and drawn with them, so they never push anything down. */}
-      {!workouts.isPending && !nutrition.isPending && nutrition.data?.current && (
-        <Link className="other-workout" to="/app/nutrition">
-          <span className="round-icon">
-            <PlateIcon />
-          </span>
-          <span className="other-text">
-            <span className="other-title">Харчування</span>
-            <span className="muted small">{nutritionSummary(nutrition.data.current)}</span>
-          </span>
-          <ChevronIcon />
-        </Link>
-      )}
-      {!workouts.isPending && !nutrition.isPending && (
-        <Link className="other-workout" to="/app/weight">
-          <span className="round-icon">
-            <ScaleIcon />
-          </span>
-          <span className="other-text">
-            <span className="other-title">Вага</span>
-            <span className="muted small">
-              {weight.isPending ? '…' : (weightSummary(weight.data ?? []) ?? 'Записати вагу')}
-            </span>
-          </span>
-          <ChevronIcon />
-        </Link>
+      {/* Everything below is drawn with the workouts, so it never pushes them down. */}
+      {!workouts.isPending && !weight.isPending && !nutrition.isPending && (
+        <>
+          <div className="tiles">
+            <WeightTile entries={weight.data ?? []} />
+            {nutrition.data?.current && <NutritionTile target={nutrition.data.current} />}
+          </div>
+
+          {/* One ask at a time: messages first (they bring the reminders), then the questionnaire. */}
+          <Collapse show={!botAllowed}>
+            <BotMessagesCard onAllowed={() => setBotAllowed(true)} />
+          </Collapse>
+          <Collapse show={botAllowed && !client.questionnaire_started && !questionnaireLater}>
+            <QuestionnaireCard onDismiss={() => setQuestionnaireLater(true)} />
+          </Collapse>
+          {botAllowed && (client.questionnaire_started || questionnaireLater) && (
+            <>
+              {/* Inside Telegram the first offers the installed app; outside, the second its notifications. */}
+              <InstallCard />
+              <PushCard />
+            </>
+          )}
+        </>
       )}
     </Screen>
   )
@@ -201,6 +197,7 @@ function MainCard({ workout, today }: { workout: ClientWorkoutSummary; today: st
         ? `Наступне · ${formatShortDate(workout.date)}`
         : formatShortDate(workout.date)
   const started = workout.done_set_count > 0
+  const allDone = workout.set_count > 0 && workout.done_set_count === workout.set_count
   return (
     <section className="today-card" aria-label="Тренування">
       {workout.thumbnail_url && <img className="today-image" src={workout.thumbnail_url} alt="" />}
@@ -212,14 +209,21 @@ function MainCard({ workout, today }: { workout: ClientWorkoutSummary; today: st
           {workout.set_count} {plural(workout.set_count, 'підхід', 'підходи', 'підходів')}
           {started && workout.status !== 'done' && ` · виконано ${workout.done_set_count}`}
         </span>
-        <Link className="button primary block" to={`/app/workouts/${workout.id}`}>
-          {workout.status === 'done'
-            ? 'Переглянути'
-            : started
-              ? 'Продовжити тренування'
-              : 'Відкрити тренування'}
-          <ChevronIcon />
-        </Link>
+        {workout.status !== 'done' && allDone ? (
+          <Link className="button primary block" to={`/app/workouts/${workout.id}/finish`}>
+            Завершити тренування
+            <ChevronIcon />
+          </Link>
+        ) : (
+          <Link className="button primary block" to={`/app/workouts/${workout.id}`}>
+            {workout.status === 'done'
+              ? 'Переглянути'
+              : started
+                ? 'Продовжити тренування'
+                : 'Відкрити тренування'}
+            <ChevronIcon />
+          </Link>
+        )}
         {workout.status === 'done' && <span className="done-line">Виконано, звіт надіслано</span>}
       </div>
     </section>
@@ -232,4 +236,68 @@ function statusLine(workout: ClientWorkoutSummary, today: string): string {
   return workout.done_set_count > 0
     ? `Виконано ${workout.done_set_count} з ${workout.set_count}`
     : 'Ще не почато'
+}
+
+/** Weight at a glance: the latest weigh-in, how the trend moved, and its line. */
+function WeightTile({ entries }: { entries: WeightEntry[] }) {
+  const trend = weightTrend(entries)
+  const change = trend && formatChange(trend)
+  return (
+    <Link className="tile" to="/app/weight">
+      <span className="tile-label">
+        <ScaleIcon />
+        Вага
+      </span>
+      {trend ? (
+        <>
+          <span className="tile-value">
+            {formatKg(trend.latest.kg)} <small>кг</small>
+          </span>
+          <span className="muted small">{change ?? 'Перший запис'}</span>
+          <Sparkline entries={entries} />
+        </>
+      ) : (
+        <span className="muted small">Записати вагу</span>
+      )}
+    </Link>
+  )
+}
+
+/** The weekly average over the last month, as a small line. */
+function Sparkline({ entries }: { entries: WeightEntry[] }) {
+  const points = weeklyAverages(entries).slice(-30)
+  if (points.length < 2) return null
+  const kgs = points.map((point) => point.kg)
+  const low = Math.min(...kgs)
+  const span = Math.max(Math.max(...kgs) - low, 1)
+  const path = points
+    .map((point, index) => {
+      const x = (index / (points.length - 1)) * 100
+      const y = 26 - ((point.kg - low) / span) * 22
+      return `${x.toFixed(1)},${y.toFixed(1)}`
+    })
+    .join(' ')
+  return (
+    <svg className="sparkline" viewBox="0 0 100 28" preserveAspectRatio="none" aria-hidden="true">
+      <polyline points={path} />
+    </svg>
+  )
+}
+
+/** The daily target from the coach: calories, with the grams under them. */
+function NutritionTile({ target }: { target: NutritionTarget }) {
+  return (
+    <Link className="tile" to="/app/nutrition">
+      <span className="tile-label">
+        <PlateIcon />
+        Харчування
+      </span>
+      <span className="tile-value">
+        {target.kcal} <small>ккал</small>
+      </span>
+      <span className="muted small">
+        Б {target.protein_g} · Ж {target.fat_g} · В {target.carbs_g}
+      </span>
+    </Link>
+  )
 }
