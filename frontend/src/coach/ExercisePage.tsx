@@ -298,7 +298,7 @@ function ServerUploadNote({
       : 'Відео обробляється, зазвичай кілька хвилин.',
     failed: 'Bunny не зміг обробити це відео. Спробуй інший файл.',
   }[upload.status]
-  return <p className={upload.status === 'processing' ? 'notice' : 'notice warn'}>{text}</p>
+  return <p className={upload.status === 'processing' ? 'notice' : 'notice danger'}>{text}</p>
 }
 
 function ArchiveButton({ exercise }: { exercise: Exercise }) {

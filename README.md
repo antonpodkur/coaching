@@ -3,6 +3,7 @@
 Dasha's online coaching app. She builds workouts from her exercise library and publishes them to clients. Clients open them in a Telegram Mini App, log each set and send a short report. Dasha works in the same Mini App from her phone; a browser version is there for a computer.
 
 - Design and decisions: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- How the app looks (colors, type, rules): [docs/DESIGN.md](docs/DESIGN.md)
 - Clickable prototype: https://claude.ai/artifact/WaTHWZpJ27qQq8HDozxSr5 (source in the `dashas-inst` repo, `app-prototype/`)
 
 | Folder | What |

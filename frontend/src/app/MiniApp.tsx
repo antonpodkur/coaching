@@ -60,8 +60,8 @@ export function MiniApp() {
   useEffect(() => {
     webApp?.ready()
     webApp?.expand()
-    webApp?.setHeaderColor('#121212')
-    webApp?.setBackgroundColor('#121212')
+    webApp?.setHeaderColor('#0e0d0d')
+    webApp?.setBackgroundColor('#0e0d0d')
   }, [])
   // On Android the system back gesture already presses Telegram's back arrow.
   useEffect(() => (webApp?.platform === 'ios' ? installSwipeBack() : undefined), [])

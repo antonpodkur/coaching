@@ -231,7 +231,7 @@ export function SetEditor({
           {exercise.per_side_label ?? sideLabel}
         </button>
         {exercise.sets.length > 1 && (
-          <button type="button" className="chip" onClick={onCopyToAll}>
+          <button type="button" className="chip action" onClick={onCopyToAll}>
             Скопіювати в усі
           </button>
         )}

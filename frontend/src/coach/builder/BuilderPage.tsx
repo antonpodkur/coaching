@@ -187,7 +187,7 @@ function Builder({ workout, onReload }: { workout: Workout; onReload: () => void
       <div className="builder-top">
         <BackLink to={back.to} label={back.label} />
         {isPublished ? (
-          <span className="tag tag-ok publish-state">
+          <span className="tag tag-new publish-state">
             <CheckIcon size={12} />
             Опубліковано
           </span>

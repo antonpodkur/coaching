@@ -28,7 +28,7 @@ import { useNoSwipeToClose } from './gestures'
 import { logSet } from './outbox'
 import { VideoSendCards } from './VideoSendCards'
 import { exerciseTarget, sendVideo, useVideoSends } from './videoSends'
-import { type ClientSet, MY_WORKOUTS_KEY, differs, useMyWorkout } from './workouts'
+import { type ClientSet, MY_WORKOUTS_KEY, useMyWorkout } from './workouts'
 
 /**
  * One exercise in the gym: Dasha's video and note, last time's numbers, and
@@ -63,7 +63,6 @@ export function ExerciseScreen() {
   // Times are typed in the unit the plan reads best in: `60` for 60 хв.
   const unit = timeUnitFor(...exercise.sets.flatMap((set) => [set.target_reps_min, set.target_reps_max]))
   const done = exercise.sets.filter((set) => set.completed).length
-  const different = exercise.sets.filter((set) => set.completed && differs(set)).length
 
   return (
     <Screen>
@@ -130,7 +129,7 @@ export function ExerciseScreen() {
       <p className="muted small">
         {done === 0
           ? '✓ — зроблено як у плані. Було інакше — зміни цифри, а тоді натисни ✓.'
-          : `Виконано ${done} з ${exercise.sets.length}.${different > 0 ? ` Інакше, ніж у плані: ${different} — Даша побачить це у звіті.` : ''}`}
+          : `Виконано ${done} з ${exercise.sets.length}.`}
       </p>
 
       <FormVideos
@@ -295,9 +294,6 @@ function SetRow({ workoutId, set, number, measure, unit, showKg }: SetRowProps) 
     if (set.completed) send(true, kg, readCount(text))
   }
 
-  const kgDiffers = kg !== undefined && (kg ?? null) !== (set.target_kg ?? null)
-  const repsDiffer =
-    reps !== undefined && reps !== null && (reps < set.target_reps_min || reps > set.target_reps_max)
   const target = formatTarget(set.target_kg, set.target_reps_min, set.target_reps_max, measure)
 
   return (
@@ -306,7 +302,7 @@ function SetRow({ workoutId, set, number, measure, unit, showKg }: SetRowProps) 
       <span className="set-target">{target}</span>
       {showKg && (
         <input
-          className={kg === undefined ? 'bad' : kgDiffers ? 'differs' : undefined}
+          className={kg === undefined ? 'bad' : undefined}
           inputMode="decimal"
           aria-label={`Підхід ${number}: ${measure === 'weight' ? 'вага' : 'додаткова вага'}, кг`}
           placeholder="—"
@@ -315,7 +311,7 @@ function SetRow({ workoutId, set, number, measure, unit, showKg }: SetRowProps) 
         />
       )}
       <input
-        className={reps === undefined ? 'bad' : repsDiffer ? 'differs' : undefined}
+        className={reps === undefined ? 'bad' : undefined}
         // Decimal, so `1,5` minutes can be typed.
         inputMode={timed ? 'decimal' : 'numeric'}
         aria-label={timed ? `Підхід ${number}: час, ${UNIT_WORD[unit]}` : `Підхід ${number}: повтори`}

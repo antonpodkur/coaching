@@ -1,20 +1,62 @@
-/* Graphite: dark gym tones, white actions, a little pink. Matches the prototype. */
+/* Graphite: dark gym tones, white actions, one accent color. Every color,
+   size and corner comes from here; docs/DESIGN.md says what each is for. */
 :root {
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-ios: cubic-bezier(0.32, 0.72, 0, 1);
-  --bg: #121212;
-  --surface: #1b1b1b;
-  --surface-sunken: #161616;
-  --line: #2a2a2a;
-  --line-strong: #3a3836;
+
+  /* Surfaces, darkest to lightest. The page's color is also set in
+     index.html, the manifest and MiniApp.tsx (Telegram's header). */
+  --bg: #0e0d0d;
+  --surface-sunken: #161514;
+  --surface: #1e1d1c;
+  --surface-2: #292726;
+  --surface-3: #353331;
+  --line: rgba(255, 244, 236, 0.07);
+  --line-strong: rgba(255, 244, 236, 0.16);
+
   --text: #f4f2ef;
-  --muted: #a19d98;
-  --pink: #f4b9c9;
-  --pink-soft: #f6d9e1;
-  --lilac: #cbc6f6;
-  --radius: 14px;
+  --muted: #a8a39e;
+  --faint: #8a8580;
+
+  /* The coach's color: today, progress, done, what is selected. Its tints
+     are mixed from it, so a coach with another color changes only this. */
+  --accent: #f4b9c9;
+  --accent-soft: color-mix(in srgb, var(--accent) 55%, #fff);
+  --accent-line: color-mix(in srgb, var(--accent) 45%, transparent);
+  --accent-tint: color-mix(in srgb, var(--accent) 14%, transparent);
+  --accent-wash: color-mix(in srgb, var(--accent) 7%, transparent);
+  --on-accent: #1a1014;
+
+  /* The app's own signals, the same for every coach. */
+  --info: #cbc6f6; /* published, new, waiting on someone */
+  --info-tint: color-mix(in srgb, var(--info) 14%, transparent);
+  --warn: #f2c879; /* worth a look: a new report, off the plan, payment due */
+  --warn-line: color-mix(in srgb, var(--warn) 40%, transparent);
+  --warn-tint: color-mix(in srgb, var(--warn) 12%, transparent);
+  --danger: #ff8f86; /* errors, deleting */
+  --danger-line: color-mix(in srgb, var(--danger) 40%, transparent);
+  --danger-tint: color-mix(in srgb, var(--danger) 12%, transparent);
+
+  /* Type: Unbounded for titles and big numbers only, Manrope for the rest. */
   --font-body: 'Manrope Variable', system-ui, sans-serif;
   --font-display: 'Unbounded', var(--font-body);
+  --fs-xs: 12px;
+  --fs-sm: 13px;
+  --fs-md: 15px;
+  --fs-body: 16px; /* also every field: iPhone zooms into text under 16px */
+  --fs-lg: 17px;
+  --fs-xl: 20px;
+  --fs-2xl: 24px;
+  --fs-3xl: 32px;
+  --fs-4xl: 44px;
+
+  /* Corners: a control inside a card takes the next size down. */
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-xl: 24px;
+  --r-pill: 999px;
+
   /* The phone's home bar; inside Telegram, Telegram's own bottom inset. */
   --safe-bottom: max(env(safe-area-inset-bottom), var(--tg-safe-area-inset-bottom, 0px));
   --tab-bar-height: 64px;
@@ -37,7 +79,7 @@ body {
 h1 {
   margin: 0;
   font-family: var(--font-display);
-  font-size: 24px;
+  font-size: var(--fs-2xl);
   font-weight: 600;
   line-height: 1.2;
 }
@@ -52,18 +94,18 @@ p {
 }
 
 .error {
-  color: var(--pink);
+  color: var(--danger);
 }
 
 .button {
   height: 44px;
   padding: 0 18px;
-  border-radius: 12px;
+  border-radius: var(--r-md);
   border: 1px solid var(--line-strong);
   background: transparent;
   color: var(--text);
   font: inherit;
-  font-weight: 800;
+  font-weight: 700;
   white-space: nowrap;
   cursor: pointer;
 }
@@ -74,9 +116,16 @@ p {
   color: var(--bg);
 }
 
+/* Not ready yet: quiet, so it is never the loudest thing on the screen. */
 .button:disabled {
-  opacity: 0.5;
+  border-color: var(--line);
+  color: var(--faint);
   cursor: default;
+}
+
+.button.primary:disabled {
+  border-color: var(--surface-2);
+  background: var(--surface-2);
 }
 
 .button,
@@ -91,7 +140,7 @@ a.button {
 .button.small {
   height: 40px;
   padding: 0 12px;
-  font-size: 13px;
+  font-size: var(--fs-sm);
 }
 
 .button.block {
@@ -99,8 +148,8 @@ a.button {
   height: auto;
   min-height: 52px;
   padding-block: 8px;
-  border-radius: 14px;
-  font-size: 15px;
+  border-radius: var(--r-md);
+  font-size: var(--fs-md);
   line-height: 1.25;
   /* A long label, e.g. a workout's title, wraps instead of widening the page. */
   white-space: normal;
@@ -111,16 +160,19 @@ a.button {
   flex: none;
 }
 
+/* A button without a frame, for the quieter choice next to a real one. The
+   padding gives the finger 44px; the margin takes it back from the layout. */
 .link-button {
   align-self: flex-start;
-  padding: 0;
+  margin: -12px 0;
+  padding: 12px 0;
   border: 0;
   background: transparent;
-  color: var(--muted);
+  color: var(--text);
   font: inherit;
-  font-size: 13px;
-  font-weight: 700;
-  text-decoration: underline;
+  font-size: var(--fs-md);
+  font-weight: 600;
+  text-decoration: none;
   cursor: pointer;
 }
 
@@ -133,13 +185,13 @@ a.button {
 .field input {
   height: 44px;
   padding: 0 14px;
-  border-radius: 12px;
+  border-radius: var(--r-md);
   border: 1px solid var(--line);
   background: var(--surface-sunken);
   color: var(--text);
   font: inherit;
   /* iPhone zooms into any field with text under 16px. */
-  font-size: 16px;
+  font-size: var(--fs-body);
 }
 
 /* Touch: everything tappable gives under the finger and springs back, and
@@ -227,7 +279,7 @@ a.button {
 
 .login-code {
   font-family: var(--font-display);
-  font-size: 44px;
+  font-size: var(--fs-4xl);
   letter-spacing: 0.12em;
 }
 
@@ -237,7 +289,7 @@ a.button {
 
 .sign-out {
   align-self: center;
-  margin-top: 12px;
+  margin-top: 0;
 }
 
 /* Putting the app on a phone's home screen (InstallPage) */
@@ -250,7 +302,7 @@ a.button {
 
 /* The icon's dark square, outlined so it reads as an app icon on the dark page. */
 .install-icon {
-  border-radius: 16px;
+  border-radius: var(--r-lg);
   border: 1px solid var(--line-strong);
 }
 
@@ -275,7 +327,7 @@ a.button {
   align-items: flex-start;
   gap: 12px;
   padding: 12px 14px;
-  border-radius: var(--radius);
+  border-radius: var(--r-lg);
   border: 1px solid var(--line);
   background: var(--surface);
   line-height: 1.45;
@@ -287,13 +339,13 @@ a.button {
   width: 20px;
   height: 20px;
   margin-top: 1px;
-  color: var(--pink);
+  color: var(--accent);
 }
 
 .install-step-mark {
   display: inline-flex;
   justify-content: center;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 /* Coach workspace */
@@ -302,13 +354,13 @@ a.button {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  font-size: 12px;
+  font-size: var(--fs-xs);
   font-weight: 600;
 }
 
 .wordmark span:first-child {
   font-family: var(--font-display);
-  font-size: 15px;
+  font-size: var(--fs-md);
 }
 
 /* The workspace is laid out for a phone: pages above a bottom tab bar. */
@@ -350,7 +402,7 @@ a.button {
   gap: 4px;
   padding: 6px 12px calc(6px + var(--safe-bottom));
   background: var(--bg);
-  border-top: 1px solid #222222;
+  border-top: 1px solid var(--line);
 }
 
 .tab-bar a {
@@ -361,8 +413,8 @@ a.button {
   justify-content: center;
   gap: 4px;
   color: var(--muted);
-  font-size: 11.5px;
-  font-weight: 800;
+  font-size: var(--fs-xs);
+  font-weight: 700;
   text-decoration: none;
 }
 
@@ -371,7 +423,7 @@ a.button {
 }
 
 .tab-bar a[aria-current='page'] .icon {
-  stroke: var(--pink);
+  stroke: var(--accent);
 }
 
 /* A computer: tabs sit at the top, like a normal site. */
@@ -398,8 +450,8 @@ a.button {
     flex-direction: row;
     gap: 8px;
     padding: 0 14px;
-    border-radius: 10px;
-    font-size: 14px;
+    border-radius: var(--r-sm);
+    font-size: var(--fs-md);
   }
 
   .tab-bar a[aria-current='page'] {
@@ -434,13 +486,13 @@ a.button {
 
 .count {
   font-family: var(--font-body);
-  font-size: 15px;
+  font-size: var(--fs-md);
   font-weight: 600;
   color: var(--muted);
 }
 
 .small {
-  font-size: 13px;
+  font-size: var(--fs-sm);
 }
 
 .stack {
@@ -457,7 +509,7 @@ a.button {
   align-items: center;
   gap: 4px;
   color: var(--muted);
-  font-size: 14px;
+  font-size: var(--fs-md);
   font-weight: 700;
   text-decoration: none;
 }
@@ -468,7 +520,7 @@ a.button {
   gap: 8px;
   height: 44px;
   padding: 0 12px;
-  border-radius: 12px;
+  border-radius: var(--r-md);
   border: 1px solid var(--line);
   background: var(--surface);
   color: var(--muted);
@@ -481,7 +533,7 @@ a.button {
   background: transparent;
   color: var(--text);
   font: inherit;
-  font-size: 16px;
+  font-size: var(--fs-body);
   outline: none;
 }
 
@@ -516,15 +568,15 @@ a.button {
   width: 40px;
   height: 40px;
   flex: none;
-  border-radius: 20px;
+  border-radius: 50%;
   border: 1px solid var(--line);
-  background: #1f1f1f;
+  background: var(--surface-2);
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  font-size: 12px;
-  font-weight: 800;
+  font-size: var(--fs-xs);
+  font-weight: 700;
 }
 
 .client-text {
@@ -536,19 +588,19 @@ a.button {
 }
 
 .client-name {
-  font-size: 15px;
+  font-size: var(--fs-md);
   font-weight: 700;
 }
 
 .client-status {
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 600;
   color: var(--muted);
 }
 
 .client-status .warn,
 .client-status.warn {
-  color: var(--pink);
+  color: var(--warn);
 }
 
 .invite-card {
@@ -556,9 +608,9 @@ a.button {
   flex-direction: column;
   gap: 12px;
   padding: 16px;
-  border-radius: 20px;
-  border: 1px solid var(--pink);
-  background: #1f1a1c;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--accent-line);
+  background: var(--surface);
 }
 
 .invite-head {
@@ -571,12 +623,12 @@ a.button {
 .invite-url {
   height: 40px;
   padding: 0 12px;
-  border-radius: 10px;
+  border-radius: var(--r-sm);
   border: 1px solid var(--line);
   background: var(--bg);
-  color: #d8d5d1;
+  color: var(--text);
   font: inherit;
-  font-size: 16px;
+  font-size: var(--fs-body);
 }
 
 .import {
@@ -611,23 +663,21 @@ a.button {
 }
 
 .field > span {
-  font-size: 12px;
-  font-weight: 800;
+  font-size: var(--fs-sm);
+  font-weight: 600;
   color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
 }
 
 .field textarea {
   width: 100%;
   resize: vertical;
   padding: 12px 14px;
-  border-radius: var(--radius);
+  border-radius: var(--r-md);
   border: 1px solid var(--line);
   background: var(--surface-sunken);
   color: var(--text);
   font: inherit;
-  font-size: 16px;
+  font-size: var(--fs-body);
   line-height: 1.45;
 }
 
@@ -636,17 +686,15 @@ a.button {
   flex-direction: column;
   gap: 10px;
   padding: 16px;
-  border-radius: 20px;
+  border-radius: var(--r-lg);
   border: 1px solid var(--line);
   background: var(--surface);
 }
 
 .preview-summary {
-  font-size: 12px;
-  font-weight: 800;
+  font-size: var(--fs-sm);
+  font-weight: 600;
   color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
 }
 
 .warning {
@@ -654,11 +702,11 @@ a.button {
   flex-direction: column;
   gap: 4px;
   padding: 10px 12px;
-  border-radius: 12px;
-  border: 1px solid #5a3a45;
-  background: #2a1e22;
-  color: var(--pink-soft);
-  font-size: 13px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--warn-line);
+  background: var(--warn-tint);
+  color: var(--warn);
+  font-size: var(--fs-sm);
 }
 
 .preview-list {
@@ -675,7 +723,7 @@ a.button {
   flex-direction: column;
   gap: 4px;
   padding: 10px 12px;
-  border-radius: 12px;
+  border-radius: var(--r-md);
   border: 1px solid var(--line);
   background: var(--surface-sunken);
 }
@@ -692,38 +740,38 @@ a.button {
 }
 
 .preview-sets {
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 700;
 }
 
 .preview-note {
-  font-size: 12.5px;
-  color: var(--pink);
+  font-size: var(--fs-sm);
+  color: var(--muted);
 }
 
 .tag {
   flex: none;
   padding: 3px 8px;
-  border-radius: 999px;
-  background: #262626;
-  color: #d8d5d1;
-  font-size: 11px;
-  font-weight: 800;
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: var(--fs-xs);
+  font-weight: 700;
 }
 
 .tag-new {
-  background: #2b2433;
-  color: var(--lilac);
+  background: var(--info-tint);
+  color: var(--info);
 }
 
 .tag-ok {
-  background: #1f2320;
-  color: #cfe8d6;
+  background: var(--accent-tint);
+  color: var(--accent);
 }
 
 .tag-warn {
-  background: #3a2a30;
-  color: var(--pink-soft);
+  background: var(--warn-tint);
+  color: var(--warn);
 }
 
 .import-actions {
@@ -736,10 +784,14 @@ a.button {
 
 .section-title {
   margin: 0;
-  font-size: 12px;
-  font-weight: 800;
+  font-size: var(--fs-md);
+  font-weight: 700;
   color: var(--muted);
-  letter-spacing: 0.06em;
+}
+
+/* Dates come lowercase ("вт, 6 жовтня"); a heading starts with a capital. */
+.section-title::first-letter,
+.today-when::first-letter {
   text-transform: uppercase;
 }
 
@@ -762,13 +814,13 @@ a.button {
   flex: none;
   height: 36px;
   padding: 0 12px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   border: 1px solid var(--line-strong);
   background: transparent;
   color: var(--text);
   font: inherit;
-  font-size: 13px;
-  font-weight: 800;
+  font-size: var(--fs-sm);
+  font-weight: 700;
   cursor: pointer;
 }
 
@@ -793,7 +845,7 @@ a.button {
   gap: 12px;
   min-height: 60px;
   padding: 6px;
-  border-radius: 14px;
+  border-radius: var(--r-lg);
   background: var(--surface);
   color: var(--text);
   text-decoration: none;
@@ -803,13 +855,13 @@ a.button {
   width: 48px;
   height: 48px;
   flex: none;
-  border-radius: 10px;
+  border-radius: var(--r-sm);
   object-fit: cover;
 }
 
 .thumb-empty {
-  border: 1px dashed #4a4744;
-  color: #8e8a85;
+  background: var(--surface-2);
+  color: var(--faint);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -823,18 +875,18 @@ a.button {
 }
 
 .exercise-name {
-  font-size: 14.5px;
+  font-size: var(--fs-md);
   font-weight: 700;
 }
 
 .exercise-meta {
-  font-size: 12.5px;
+  font-size: var(--fs-sm);
   font-weight: 600;
   color: var(--muted);
 }
 
 .exercise-meta.busy {
-  color: var(--pink);
+  color: var(--info);
 }
 
 .upload-card {
@@ -842,9 +894,9 @@ a.button {
   flex-direction: column;
   gap: 10px;
   padding: 14px;
-  border-radius: 16px;
-  border: 1px solid var(--pink);
-  background: #1f1a1c;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--accent-line);
+  background: var(--surface);
 }
 
 .upload-head {
@@ -857,9 +909,9 @@ a.button {
   width: 40px;
   height: 40px;
   flex: none;
-  border-radius: 10px;
-  background: #2e2227;
-  color: var(--pink);
+  border-radius: var(--r-sm);
+  background: var(--accent-tint);
+  color: var(--accent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -873,15 +925,15 @@ a.button {
 }
 
 .upload-name {
-  font-size: 14px;
-  font-weight: 800;
+  font-size: var(--fs-md);
+  font-weight: 700;
   color: var(--text);
 }
 
 .upload-phase {
-  font-size: 12.5px;
+  font-size: var(--fs-sm);
   font-weight: 600;
-  color: var(--pink-soft);
+  color: var(--muted);
 }
 
 .upload-actions {
@@ -892,15 +944,15 @@ a.button {
 
 .progress {
   height: 6px;
-  border-radius: 3px;
-  background: #3a2a30;
+  border-radius: var(--r-pill);
+  background: var(--accent-tint);
   overflow: hidden;
 }
 
 .progress > div {
   height: 100%;
-  border-radius: 3px;
-  background: var(--pink);
+  border-radius: var(--r-pill);
+  background: var(--accent);
   transition: width 0.3s ease;
 }
 
@@ -920,7 +972,7 @@ a.button {
   width: 100%;
   aspect-ratio: 3 / 4;
   max-height: 70dvh;
-  border-radius: 16px;
+  border-radius: var(--r-lg);
 }
 
 .video {
@@ -945,7 +997,7 @@ a.button {
   flex-direction: column;
   gap: 8px;
   padding: 14px;
-  border-radius: var(--radius);
+  border-radius: var(--r-lg);
   border: 1px solid var(--line);
   background: var(--surface);
 }
@@ -966,25 +1018,30 @@ a.button {
 
 .notice {
   padding: 12px 14px;
-  border-radius: 12px;
+  border-radius: var(--r-md);
   background: var(--surface);
-  font-size: 13.5px;
+  font-size: var(--fs-sm);
   line-height: 1.45;
 }
 
 .notice.warn {
-  background: #2a1e22;
-  color: var(--pink-soft);
+  background: var(--warn-tint);
+  color: var(--warn);
+}
+
+.notice.danger {
+  background: var(--danger-tint);
+  color: var(--danger);
 }
 
 .title-input {
   font-family: var(--font-display);
-  font-size: 18px !important;
+  font-size: var(--fs-xl) !important;
   font-weight: 600;
 }
 
 .link-button.danger {
-  color: var(--pink);
+  color: var(--danger);
 }
 
 /* Client page */
@@ -1005,7 +1062,7 @@ a.button {
 }
 
 .client-head h1 {
-  font-size: 22px;
+  font-size: var(--fs-2xl);
 }
 
 .client-head .client-text {
@@ -1024,9 +1081,9 @@ a.button {
 .avatar.large {
   width: 52px;
   height: 52px;
-  border-radius: 26px;
+  border-radius: 50%;
   font-family: var(--font-display);
-  font-size: 15px;
+  font-size: var(--fs-md);
 }
 
 /* A photo fills the circle; the initials show while there is none. */
@@ -1085,13 +1142,13 @@ a.button {
 .filter-select {
   height: 44px;
   padding: 0 12px;
-  border-radius: 12px;
+  border-radius: var(--r-md);
   border: 1px solid var(--line);
   background: var(--surface-sunken);
   color: var(--text);
   color-scheme: dark;
   font: inherit;
-  font-size: 16px;
+  font-size: var(--fs-body);
 }
 
 .day-group {
@@ -1114,7 +1171,7 @@ a.button {
   align-items: center;
   gap: 10px;
   padding: 12px 14px;
-  border-radius: 14px;
+  border-radius: var(--r-lg);
   background: var(--surface);
   color: var(--text);
   text-decoration: none;
@@ -1129,8 +1186,8 @@ a.button {
 }
 
 .workout-title {
-  font-size: 14.5px;
-  font-weight: 800;
+  font-size: var(--fs-md);
+  font-weight: 700;
 }
 
 /* Workout builder */
@@ -1166,7 +1223,7 @@ a.button {
   align-items: center;
   gap: 5px;
   padding: 6px 10px;
-  font-size: 12.5px;
+  font-size: var(--fs-sm);
 }
 
 .builder-head {
@@ -1184,7 +1241,7 @@ a.button {
   background: transparent;
   color: var(--text);
   font-family: var(--font-display);
-  font-size: 22px;
+  font-size: var(--fs-2xl);
   font-weight: 600;
   outline: none;
 }
@@ -1199,13 +1256,13 @@ a.button {
 .date-chip input {
   height: 40px;
   padding: 0 12px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   border: 1px solid var(--line-strong);
   background: transparent;
   color: var(--text);
   font: inherit;
-  font-size: 16px;
-  font-weight: 800;
+  font-size: var(--fs-body);
+  font-weight: 700;
   color-scheme: dark;
 }
 
@@ -1219,12 +1276,12 @@ a.button {
   background: transparent;
   color: var(--muted);
   font: inherit;
-  font-size: 12.5px;
+  font-size: var(--fs-sm);
   font-weight: 700;
 }
 
 .save-status.warn {
-  color: var(--pink);
+  color: var(--warn);
 }
 
 button.save-status {
@@ -1246,13 +1303,13 @@ button.save-status {
   flex-direction: column;
   gap: 10px;
   padding: 12px;
-  border-radius: 16px;
-  border: 1px solid #262626;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--line);
   background: var(--surface);
 }
 
 .builder-card.active {
-  border-color: var(--pink);
+  border-color: var(--accent);
 }
 
 .builder-card-head {
@@ -1265,8 +1322,8 @@ button.save-status {
   width: 16px;
   flex: none;
   font-family: var(--font-display);
-  font-size: 12px;
-  color: #8e8a85;
+  font-size: var(--fs-xs);
+  color: var(--faint);
 }
 
 .thumb.small {
@@ -1277,7 +1334,7 @@ button.save-status {
 .builder-card-name {
   flex-grow: 1;
   min-width: 0;
-  font-size: 14.5px;
+  font-size: var(--fs-md);
   font-weight: 700;
   line-height: 1.25;
 }
@@ -1285,7 +1342,7 @@ button.save-status {
 .builder-last-time {
   display: block;
   margin-top: 2px;
-  font-size: 11.5px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   color: var(--muted);
 }
@@ -1297,7 +1354,7 @@ button.save-status {
   margin-right: -6px;
   padding: 0;
   border: 0;
-  border-radius: 12px;
+  border-radius: var(--r-md);
   background: transparent;
   color: var(--muted);
   display: flex;
@@ -1308,7 +1365,7 @@ button.save-status {
 
 .icon-button.filled {
   margin: 0;
-  background: #262626;
+  background: var(--surface-2);
   color: var(--text);
 }
 
@@ -1322,13 +1379,13 @@ button.save-status {
 .set-chip {
   height: 44px;
   padding: 0 11px 0 9px;
-  border-radius: 12px;
+  border-radius: var(--r-md);
   border: 1px solid var(--line);
   background: var(--surface-sunken);
   color: var(--text);
   font: inherit;
-  font-size: 14px;
-  font-weight: 800;
+  font-size: var(--fs-md);
+  font-weight: 700;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -1351,8 +1408,8 @@ button.save-status {
 }
 
 .set-chip-number {
-  font-size: 10.5px;
-  color: #8e8a85;
+  font-size: var(--fs-xs);
+  color: var(--faint);
 }
 
 .set-chip.add {
@@ -1360,7 +1417,7 @@ button.save-status {
   justify-content: center;
   padding: 0;
   border-style: dashed;
-  border-color: #4a4744;
+  border-color: var(--line-strong);
   background: transparent;
 }
 
@@ -1369,13 +1426,11 @@ button.save-status {
   flex-direction: column;
   gap: 4px;
   padding: 10px 12px;
-  border-radius: 10px;
-  background: #1f1a1c;
-  color: var(--pink);
-  font-size: 11px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  border-radius: var(--r-sm);
+  background: var(--surface-sunken);
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  font-weight: 600;
 }
 
 .note-field textarea {
@@ -1385,13 +1440,11 @@ button.save-status {
   border: 0;
   resize: none;
   background: transparent;
-  color: var(--pink-soft);
+  color: var(--text);
   font: inherit;
-  font-size: 16px;
-  font-weight: 600;
+  font-size: var(--fs-body);
+  font-weight: 500;
   line-height: 1.4;
-  letter-spacing: normal;
-  text-transform: none;
   outline: none;
 }
 
@@ -1402,12 +1455,12 @@ button.save-status {
   gap: 6px;
   height: 36px;
   padding: 0 12px;
-  border-radius: 10px;
-  border: 1px dashed #4a3a40;
+  border-radius: var(--r-sm);
+  border: 1px dashed var(--line-strong);
   background: transparent;
-  color: var(--pink);
+  color: var(--muted);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 700;
   cursor: pointer;
 }
@@ -1423,23 +1476,23 @@ button.save-status {
   height: 44px;
   padding: 0;
   border: 0;
-  border-radius: 10px;
-  background: #262626;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
   color: var(--text);
   font: inherit;
-  font-size: 12.5px;
-  font-weight: 800;
+  font-size: var(--fs-sm);
+  font-weight: 700;
   cursor: pointer;
 }
 
 .card-menu button:disabled {
-  color: #5a5856;
+  color: var(--faint);
   cursor: default;
 }
 
 .card-menu button.danger {
-  background: #3a2a30;
-  color: var(--pink-soft);
+  background: var(--danger-tint);
+  color: var(--danger);
 }
 
 .builder-footer {
@@ -1472,7 +1525,7 @@ button.save-status {
 
 .builder-add {
   background: var(--bg);
-  border-top: 1px solid #222222;
+  border-top: 1px solid var(--line);
 }
 
 .set-editor {
@@ -1480,8 +1533,8 @@ button.save-status {
   flex-direction: column;
   gap: 12px;
   padding-top: 14px;
-  border-radius: 22px 22px 0 0;
-  border-top: 1px solid #333130;
+  border-radius: var(--r-xl) var(--r-xl) 0 0;
+  border-top: 1px solid var(--line-strong);
   background: var(--surface);
   box-shadow: 0 -14px 30px rgba(0, 0, 0, 0.45);
 }
@@ -1498,7 +1551,7 @@ button.save-status {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-  font-size: 14px;
+  font-size: var(--fs-md);
 }
 
 .steppers {
@@ -1523,11 +1576,9 @@ button.save-status {
 }
 
 .stepper-field > span {
-  font-size: 11.5px;
-  font-weight: 800;
+  font-size: var(--fs-sm);
+  font-weight: 600;
   color: var(--muted);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
 }
 
 .stepper {
@@ -1536,13 +1587,13 @@ button.save-status {
   gap: 4px;
   height: 54px;
   padding: 4px;
-  border-radius: 14px;
+  border-radius: var(--r-md);
   border: 1px solid var(--line);
   background: var(--bg);
 }
 
 .stepper.bad {
-  border-color: var(--pink);
+  border-color: var(--danger);
 }
 
 .stepper button {
@@ -1551,8 +1602,8 @@ button.save-status {
   flex: none;
   padding: 0;
   border: 0;
-  border-radius: 10px;
-  background: #262626;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
   color: var(--text);
   display: flex;
   align-items: center;
@@ -1569,8 +1620,8 @@ button.save-status {
   background: transparent;
   color: var(--text);
   font: inherit;
-  font-size: 20px;
-  font-weight: 800;
+  font-size: var(--fs-xl);
+  font-weight: 700;
   text-align: center;
   outline: none;
 }
@@ -1586,9 +1637,15 @@ button.save-status {
 }
 
 .set-editor-options .chip[aria-pressed='true'] {
-  border-color: var(--pink);
-  background: #2e2227;
-  color: var(--pink);
+  border-color: var(--accent-line);
+  background: var(--accent-tint);
+  color: var(--accent);
+}
+
+/* An action among the switches: filled, so it doesn't read as one more switch. */
+.set-editor-options .chip.action {
+  border-color: transparent;
+  background: var(--surface-2);
 }
 
 /* сек / хв / год for a timed set: one choice, so a segmented control. */
@@ -1596,7 +1653,7 @@ button.save-status {
   display: inline-flex;
   height: 40px;
   padding: 3px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   border: 1px solid var(--line-strong);
 }
 
@@ -1604,12 +1661,12 @@ button.save-status {
   min-width: 44px;
   padding: 0 10px;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: transparent;
   color: var(--muted);
   font: inherit;
-  font-size: 13px;
-  font-weight: 800;
+  font-size: var(--fs-sm);
+  font-weight: 700;
   cursor: pointer;
 }
 
@@ -1626,11 +1683,11 @@ button.save-status {
 
 .set-editor-actions .button {
   height: 50px;
-  border-radius: 14px;
+  border-radius: var(--r-md);
 }
 
 .button.danger-outline {
-  color: var(--pink);
+  color: var(--danger);
 }
 
 .button.dashed {
@@ -1655,8 +1712,8 @@ button.save-status {
   height: min(82dvh, 700px);
   margin: 0 auto;
   padding: 8px 16px calc(16px + var(--safe-bottom));
-  border-radius: 24px 24px 0 0;
-  border-top: 1px solid #333130;
+  border-radius: var(--r-xl) var(--r-xl) 0 0;
+  border-top: 1px solid var(--line-strong);
   background: var(--surface);
   display: flex;
   flex-direction: column;
@@ -1677,7 +1734,7 @@ button.save-status {
   align-self: center;
   width: 40px;
   height: 4px;
-  border-radius: 2px;
+  border-radius: var(--r-pill);
   background: var(--line-strong);
 }
 
@@ -1691,7 +1748,7 @@ button.save-status {
 .sheet-head h2 {
   margin: 0;
   font-family: var(--font-display);
-  font-size: 18px;
+  font-size: var(--fs-xl);
   font-weight: 600;
 }
 
@@ -1742,7 +1799,7 @@ button.save-status {
   gap: 10px;
   padding: 6px 8px 6px 6px;
   border: 0;
-  border-radius: 12px;
+  border-radius: var(--r-md);
   background: var(--surface-sunken);
   color: var(--text);
   font: inherit;
@@ -1758,8 +1815,8 @@ button.save-status {
   width: 32px;
   height: 32px;
   flex: none;
-  border-radius: 10px;
-  background: #262626;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1792,7 +1849,7 @@ button.save-status {
 .week-day {
   min-height: 64px;
   padding: 10px 0 8px;
-  border-radius: 14px;
+  border-radius: var(--r-md);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1802,25 +1859,25 @@ button.save-status {
 }
 
 .week-day.today {
-  background: var(--text);
-  color: var(--bg);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--accent-line);
 }
 
 .week-label {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 700;
   opacity: 0.75;
 }
 
 .week-number {
-  font-size: 16px;
-  font-weight: 800;
+  font-size: var(--fs-body);
+  font-weight: 700;
 }
 
 .week-dot {
   width: 6px;
   height: 6px;
-  border-radius: 3px;
+  border-radius: 50%;
 }
 
 .week-day.has-workout .week-dot {
@@ -1829,13 +1886,13 @@ button.save-status {
 
 .week-day.done .week-dot,
 .week-day.today.has-workout .week-dot {
-  border-color: var(--pink);
-  background: var(--pink);
+  border-color: var(--accent);
+  background: var(--accent);
 }
 
 .today-card {
-  border-radius: 22px;
-  border: 1px solid #262626;
+  border-radius: var(--r-xl);
+  border: 1px solid var(--line);
   background: var(--surface);
   overflow: hidden;
 }
@@ -1855,17 +1912,15 @@ button.save-status {
 }
 
 .today-when {
-  font-size: 12px;
-  font-weight: 800;
-  color: var(--pink);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--accent);
 }
 
 .today-body h2 {
   margin: 0;
   font-family: var(--font-display);
-  font-size: 22px;
+  font-size: var(--fs-2xl);
   font-weight: 600;
 }
 
@@ -1874,9 +1929,9 @@ button.save-status {
 }
 
 .done-line {
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 700;
-  color: #cfe8d6;
+  color: var(--accent);
   text-align: center;
 }
 
@@ -1894,7 +1949,7 @@ button.save-status {
   align-items: center;
   gap: 12px;
   padding: 12px 14px;
-  border-radius: 16px;
+  border-radius: var(--r-lg);
   background: var(--surface);
   color: var(--text);
   text-decoration: none;
@@ -1904,7 +1959,7 @@ button.save-status {
   width: 32px;
   height: 32px;
   flex: none;
-  border-radius: 16px;
+  border-radius: 50%;
   border: 1.5px solid var(--muted);
   color: var(--muted);
   display: flex;
@@ -1913,15 +1968,15 @@ button.save-status {
 }
 
 .round-icon.done {
-  border-color: var(--pink);
-  background: var(--pink);
-  color: #1a1014;
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
 }
 
 .round-icon.big {
   width: 64px;
   height: 64px;
-  border-radius: 32px;
+  border-radius: 50%;
 }
 
 .other-text {
@@ -1932,7 +1987,7 @@ button.save-status {
 }
 
 .other-title {
-  font-size: 14px;
+  font-size: var(--fs-md);
   font-weight: 700;
 }
 
@@ -1967,10 +2022,10 @@ button.save-status {
   justify-content: space-between;
   gap: 12px;
   padding: 8px 8px 8px 14px;
-  border-radius: 12px;
+  border-radius: var(--r-md);
   border: 1px solid var(--line-strong);
   background: var(--surface);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 600;
 }
 
@@ -1981,11 +2036,11 @@ button.save-status {
 
 .offline-note {
   padding: 10px 14px;
-  border-radius: 12px;
-  border: 1px solid #5a3a45;
-  background: #2a1e22;
-  color: var(--pink-soft);
-  font-size: 13px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--warn-line);
+  background: var(--surface);
+  color: var(--warn);
+  font-size: var(--fs-sm);
   font-weight: 600;
 }
 
@@ -2001,13 +2056,13 @@ button.save-status {
   flex-direction: column;
   gap: 4px;
   padding: 14px;
-  border-radius: 16px;
-  border: 1px solid #3f5a47;
-  background: #1f2320;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--accent-line);
+  background: var(--accent-wash);
 }
 
 .report-card strong {
-  color: #cfe8d6;
+  color: var(--accent);
 }
 
 .client-exercises {
@@ -2024,7 +2079,7 @@ button.save-status {
   align-items: center;
   gap: 12px;
   padding: 8px 12px 8px 8px;
-  border-radius: 16px;
+  border-radius: var(--r-lg);
   background: var(--surface);
   color: var(--text);
   text-decoration: none;
@@ -2035,8 +2090,8 @@ button.save-status {
 }
 
 .exercise-note {
-  font-size: 12.5px;
-  color: var(--pink);
+  font-size: var(--fs-sm);
+  color: var(--text);
 }
 
 .form-videos {
@@ -2072,13 +2127,13 @@ button.save-status {
   width: 56px;
   height: 56px;
   margin: auto;
-  border-radius: 28px;
+  border-radius: 50%;
   background: rgba(0, 0, 0, 0.55);
   color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
+  font-size: var(--fs-xl);
 }
 
 .form-video-state {
@@ -2089,11 +2144,11 @@ button.save-status {
   text-align: center;
   background: var(--surface);
   color: var(--muted);
-  font-size: 13.5px;
+  font-size: var(--fs-sm);
 }
 
 .form-video-state.failed {
-  color: var(--pink);
+  color: var(--danger);
 }
 
 .form-video-meta {
@@ -2108,13 +2163,13 @@ button.save-status {
   flex-direction: column;
   gap: 8px;
   padding: 12px 14px;
-  border-radius: 14px;
-  border: 1px solid var(--pink);
+  border-radius: var(--r-lg);
+  border: 1px solid var(--accent-line);
 }
 
 .video-send.failed {
-  border-color: var(--line);
-  color: var(--pink-soft);
+  border-color: var(--danger-line);
+  color: var(--danger);
 }
 
 .video-send-head {
@@ -2132,11 +2187,9 @@ button.save-status {
 }
 
 .coach-note span {
-  font-size: 11px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  opacity: 0.8;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  font-weight: 600;
 }
 
 .coach-note p {
@@ -2147,27 +2200,22 @@ button.save-status {
 .set-count {
   flex: none;
   min-width: 32px;
-  font-size: 13px;
-  font-weight: 800;
+  font-size: var(--fs-sm);
+  font-weight: 700;
   color: var(--muted);
   text-align: right;
 }
 
 .set-count.complete {
-  color: var(--pink);
-}
-
-.notice.pink {
-  background: #1f1a1c;
-  color: var(--pink-soft);
+  color: var(--accent);
 }
 
 .last-time {
   margin: 0;
   padding: 10px 14px;
-  border-radius: 12px;
+  border-radius: var(--r-md);
   background: var(--surface-sunken);
-  font-size: 13.5px;
+  font-size: var(--fs-sm);
   color: var(--muted);
 }
 
@@ -2196,33 +2244,31 @@ button.save-status {
 
 .set-table-head {
   padding: 0 8px;
-  font-size: 11px;
-  font-weight: 800;
+  font-size: var(--fs-sm);
+  font-weight: 600;
   color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 
 .set-row {
   padding: 6px 8px;
-  border-radius: 14px;
+  border-radius: var(--r-md);
   background: var(--surface);
   transition: background-color 250ms ease;
 }
 
 .set-row.completed {
-  background: #221c1e;
+  background: var(--accent-wash);
 }
 
 .set-number {
-  font-size: 13px;
-  font-weight: 800;
-  color: #8e8a85;
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--faint);
   text-align: center;
 }
 
 .set-target {
-  font-size: 14px;
+  font-size: var(--fs-md);
   font-weight: 700;
   color: var(--muted);
 }
@@ -2231,34 +2277,29 @@ button.save-status {
   width: 100%;
   height: 44px;
   padding: 0 6px;
-  border-radius: 10px;
+  border-radius: var(--r-sm);
   border: 1px solid var(--line);
   background: var(--bg);
   color: var(--text);
   font: inherit;
-  font-size: 16px;
-  font-weight: 800;
+  font-size: var(--fs-body);
+  font-weight: 700;
   text-align: center;
 }
 
-.set-row input.differs {
-  border-color: var(--pink);
-  color: var(--pink);
-}
-
 .set-row input.bad {
-  border-color: var(--pink);
-  background: #2a1e22;
+  border-color: var(--danger);
+  background: var(--danger-tint);
 }
 
 .set-check {
   width: 44px;
   height: 44px;
   padding: 0;
-  border-radius: 22px;
-  border: 1.5px solid #4a4744;
+  border-radius: 50%;
+  border: 1.5px solid var(--line-strong);
   background: transparent;
-  color: #4a4744;
+  color: var(--line-strong);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2283,9 +2324,9 @@ button.save-status {
 }
 
 .set-check[aria-pressed='true'] {
-  border-color: var(--pink);
-  background: var(--pink);
-  color: #1a1014;
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
 }
 
 .set-check:disabled {
@@ -2300,7 +2341,7 @@ button.save-status {
 
 .exercise-nav .button {
   height: 52px;
-  border-radius: 14px;
+  border-radius: var(--r-md);
 }
 
 .finish-done {
@@ -2331,7 +2372,7 @@ button.save-status {
   position: absolute;
   inset: -1.5px;
   border-radius: 50%;
-  border: 2px solid var(--pink);
+  border: 2px solid var(--accent);
   pointer-events: none;
 }
 
@@ -2346,11 +2387,9 @@ button.save-status {
 
 .effort legend {
   margin-bottom: 8px;
-  font-size: 12px;
-  font-weight: 800;
+  font-size: var(--fs-sm);
+  font-weight: 600;
   color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
 }
 
 .effort-options {
@@ -2361,13 +2400,13 @@ button.save-status {
 
 .effort-option {
   height: 52px;
-  border-radius: 14px;
+  border-radius: var(--r-md);
   border: 1px solid var(--line-strong);
   background: transparent;
   color: var(--text);
   font: inherit;
-  font-size: 14px;
-  font-weight: 800;
+  font-size: var(--fs-md);
+  font-weight: 700;
   cursor: pointer;
 }
 
@@ -2384,13 +2423,13 @@ button.save-status {
   flex-direction: column;
   gap: 14px;
   padding: 16px;
-  border-radius: 20px;
-  border: 1px solid #262626;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--line);
   background: var(--surface);
 }
 
 .report.new {
-  border-color: var(--pink);
+  border-color: var(--warn-line);
 }
 
 .report-head {
@@ -2401,21 +2440,19 @@ button.save-status {
 
 .report-head h2 {
   margin: 0;
-  font-family: var(--font-display);
-  font-size: 18px;
-  font-weight: 600;
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  line-height: 1.3;
 }
 
 .report-label {
-  font-size: 12px;
-  font-weight: 800;
+  font-size: var(--fs-sm);
+  font-weight: 600;
   color: var(--muted);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
 }
 
 .report.new .report-label {
-  color: var(--pink);
+  color: var(--warn);
 }
 
 .report-feedback {
@@ -2424,12 +2461,12 @@ button.save-status {
   align-items: flex-start;
   gap: 8px;
   padding: 12px;
-  border-radius: 14px;
+  border-radius: var(--r-md);
   background: var(--surface-sunken);
 }
 
 .report-feedback p {
-  font-size: 14px;
+  font-size: var(--fs-md);
 }
 
 .report-rows {
@@ -2446,11 +2483,11 @@ button.save-status {
   flex-direction: column;
   gap: 6px;
   padding: 10px 0;
-  border-bottom: 1px solid #242424;
+  border-bottom: 1px solid var(--line);
 }
 
 .report-exercise {
-  font-size: 14px;
+  font-size: var(--fs-md);
   font-weight: 700;
 }
 
@@ -2462,25 +2499,25 @@ button.save-status {
 
 .result-chip {
   padding: 5px 9px;
-  border-radius: 9px;
-  background: #262626;
-  font-size: 13px;
-  font-weight: 800;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  font-size: var(--fs-sm);
+  font-weight: 700;
 }
 
 .result-chip.differs {
-  background: #3a2a30;
-  color: var(--pink);
+  background: var(--warn-tint);
+  color: var(--warn);
 }
 
 .result-chip.skipped {
-  border: 1px dashed #4a4744;
+  border: 1px dashed var(--line-strong);
   background: transparent;
-  color: #8e8a85;
+  color: var(--faint);
 }
 
 .report-rows .link-button {
-  margin-top: 10px;
+  margin-top: -2px;
 }
 
 .report-actions {
@@ -2497,7 +2534,7 @@ button.save-status {
   margin: 0;
   display: flex;
   flex-direction: column;
-  border-radius: 14px;
+  border-radius: var(--r-lg);
   background: var(--surface);
 }
 
@@ -2514,13 +2551,13 @@ button.save-status {
 
 .fact dt {
   color: var(--muted);
-  font-size: 14px;
+  font-size: var(--fs-md);
 }
 
 .fact dd {
   margin: 0;
-  font-weight: 800;
-  font-size: 14px;
+  font-weight: 700;
+  font-size: var(--fs-md);
   text-align: right;
 }
 
@@ -2536,7 +2573,7 @@ button.save-status {
 }
 
 .field input.bad {
-  border-color: var(--pink);
+  border-color: var(--danger);
 }
 
 /* Photos as square tiles, three to a row. */
@@ -2559,7 +2596,7 @@ button.save-status {
 
 .exercise-description {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--fs-md);
   line-height: 1.45;
   white-space: pre-line;
 }
@@ -2567,7 +2604,7 @@ button.save-status {
 .photo-tile {
   position: relative;
   aspect-ratio: 1;
-  border-radius: 12px;
+  border-radius: var(--r-md);
   overflow: hidden;
   background: var(--surface);
 }
@@ -2609,7 +2646,7 @@ button.save-status {
   height: 28px;
   padding: 0;
   border: 0;
-  border-radius: 14px;
+  border-radius: 50%;
   background: rgba(0, 0, 0, 0.6);
   color: #fff;
   display: flex;
@@ -2653,7 +2690,7 @@ button.save-status {
   height: 44px;
   padding: 0;
   border: 0;
-  border-radius: 22px;
+  border-radius: 50%;
   background: rgba(0, 0, 0, 0.55);
   color: #fff;
   display: flex;
@@ -2674,8 +2711,8 @@ button.save-status {
   right: 0;
   text-align: center;
   color: #fff;
-  font-size: 13px;
-  font-weight: 800;
+  font-size: var(--fs-sm);
+  font-weight: 700;
   pointer-events: none;
 }
 
@@ -2706,12 +2743,12 @@ button.save-status {
 
 .weight-value {
   font-family: var(--font-display);
-  font-size: 34px;
+  font-size: var(--fs-3xl);
   font-weight: 600;
 }
 
 .weight-value span {
-  font-size: 18px;
+  font-size: var(--fs-xl);
   color: var(--muted);
 }
 
@@ -2727,7 +2764,7 @@ button.save-status {
   display: block;
   width: 100%;
   aspect-ratio: 340 / 180;
-  border-radius: 16px;
+  border-radius: var(--r-lg);
   background: var(--surface);
 }
 
@@ -2746,7 +2783,7 @@ button.save-status {
 
 .weight-axis {
   fill: var(--muted);
-  font-size: 10px;
+  font-size: var(--fs-xs);
   font-weight: 700;
 }
 
@@ -2757,21 +2794,21 @@ button.save-status {
 
 .weight-line {
   fill: none;
-  stroke: var(--pink);
+  stroke: var(--accent);
   stroke-width: 2.5;
   stroke-linejoin: round;
   stroke-linecap: round;
 }
 
 .weight-end {
-  fill: var(--pink);
+  fill: var(--accent);
 }
 
 .weigh-ins {
   list-style: none;
   margin: 0;
   padding: 0;
-  border-radius: 14px;
+  border-radius: var(--r-lg);
   background: var(--surface);
 }
 
@@ -2790,11 +2827,11 @@ button.save-status {
 .weigh-ins li span {
   flex-grow: 1;
   color: var(--muted);
-  font-size: 14px;
+  font-size: var(--fs-md);
 }
 
 .weigh-ins li strong {
-  font-size: 14px;
+  font-size: var(--fs-md);
 }
 
 /* Without a delete button the weight still lines up on the right. */
@@ -2810,7 +2847,7 @@ button.save-status {
 
 .kcal-total {
   margin: 0;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .macros {
@@ -2827,13 +2864,13 @@ button.save-status {
   flex-direction: column;
   gap: 2px;
   padding: 12px;
-  border-radius: 14px;
+  border-radius: var(--r-lg);
   background: var(--surface);
 }
 
 .macros strong {
   font-family: var(--font-display);
-  font-size: 20px;
+  font-size: var(--fs-xl);
   font-weight: 600;
 }
 

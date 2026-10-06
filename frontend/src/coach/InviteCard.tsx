@@ -43,7 +43,7 @@ export function InviteCard({ invite, onClose }: { invite: ShownInvite; onClose?:
     <div className="invite-card" role="status">
       <div className="invite-head">
         <strong>Запрошення · {invite.name}</strong>
-        <span className="tag tag-warn">до {formatDay(invite.expires_at)}</span>
+        <span className="tag">до {formatDay(invite.expires_at)}</span>
       </div>
       <input
         className="invite-url"

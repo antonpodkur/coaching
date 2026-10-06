@@ -19,7 +19,7 @@ type ResultSet = Schemas['ResultSet']
 type ResultExercise = Schemas['ResultExercise']
 
 const EFFORT: Record<Schemas['Effort'], { text: string; className: string }> = {
-  easy: { text: 'Легко', className: 'tag tag-ok' },
+  easy: { text: 'Легко', className: 'tag tag-new' },
   ok: { text: 'Нормально', className: 'tag' },
   hard: { text: 'Важко', className: 'tag tag-warn' },
 }
