@@ -4,6 +4,7 @@ import { Route, Routes } from 'react-router'
 
 import type { Schemas } from '../api/client'
 import { BottomNote } from '../shared/BottomNote'
+import { SwipeUnderlay } from '../shared/SwipeUnderlay'
 import { holdClosing } from '../shared/closingGuard'
 import { ExerciseScreen } from './ExerciseScreen'
 import { FinishPage } from './FinishPage'
@@ -45,20 +46,25 @@ export function ClientApp({
   // A session saved before the coach card existed has none until it renews.
   const coach = (client as Partial<Schemas['ClientProfile']>).coach ?? null
 
+  const routes = (
+    <>
+      <Route index element={<HomePage client={client} />} />
+      <Route path="workouts/:id" element={<WorkoutPage />} />
+      <Route path="workouts/:id/exercises/:exerciseId" element={<ExerciseScreen />} />
+      <Route path="workouts/:id/finish" element={<FinishPage />} />
+      <Route
+        path="questionnaire"
+        element={<QuestionnairePage client={client} onSignOut={onSignOut} />}
+      />
+      <Route path="weight" element={<WeightPage />} />
+      <Route path="nutrition" element={<NutritionPage />} />
+    </>
+  )
+
   return (
     <CoachCardContext value={coach}>
-      <Routes>
-        <Route index element={<HomePage client={client} />} />
-        <Route path="workouts/:id" element={<WorkoutPage />} />
-        <Route path="workouts/:id/exercises/:exerciseId" element={<ExerciseScreen />} />
-        <Route path="workouts/:id/finish" element={<FinishPage />} />
-        <Route
-          path="questionnaire"
-          element={<QuestionnairePage client={client} onSignOut={onSignOut} />}
-        />
-        <Route path="weight" element={<WeightPage />} />
-        <Route path="nutrition" element={<NutritionPage />} />
-      </Routes>
+      <Routes>{routes}</Routes>
+      <SwipeUnderlay render={(location) => <Routes location={location}>{routes}</Routes>} />
       <OfflineNote />
     </CoachCardContext>
   )

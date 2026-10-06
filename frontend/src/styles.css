@@ -253,6 +253,38 @@ a.button {
   box-shadow: -12px 0 32px rgba(0, 0, 0, 0.7);
 }
 
+/* The screen it goes back to (shared/SwipeUnderlay.tsx), under the page and
+   coming out of the dark as the finger pulls (`--swipe-progress`, 0 to 1),
+   the way the back slide brings it in. */
+.swipe-underlay {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  background: var(--bg);
+  transform: translateX(calc(-28% * (1 - var(--swipe-progress, 0))));
+}
+
+.swipe-underlay::after {
+  content: '';
+  position: absolute;
+  z-index: 100;
+  inset: 0;
+  background: #000;
+  opacity: calc(0.45 * (1 - var(--swipe-progress, 0)));
+}
+
+:root:not(.swiping-back) .swipe-underlay {
+  display: none;
+}
+
+.swipe-settling .swipe-underlay,
+.swipe-settling .swipe-underlay::after {
+  transition:
+    transform 180ms ease-out,
+    opacity 180ms ease-out;
+}
+
 /* Installed on an iPhone, the page runs under the status bar (index.html), so
    the top of each screen leaves room for it. Elsewhere the inset is 0. */
 .screen {

@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 
+import { setUnderlay, useInUnderlay } from '../shared/underlay'
 import { telegramSupporting } from './telegram'
 
 /**
@@ -7,12 +8,13 @@ import { telegramSupporting } from './telegram'
  * still works, and so does Telegram's own close button.
  */
 export function useNoSwipeToClose() {
+  const underlay = useInUnderlay()
   useEffect(() => {
     const webApp = telegramSupporting('7.7')
-    if (!webApp) return
+    if (!webApp || underlay) return
     webApp.disableVerticalSwipes()
     return () => webApp.enableVerticalSwipes()
-  }, [])
+  }, [underlay])
 }
 
 /** A swipe has to start this close to the left edge. */
@@ -26,20 +28,35 @@ const FLICK_SPEED = 0.4
 const SETTLE_MS = 180
 
 /** What a swipe from the left edge does on this page: the same as the back arrow. */
-let swipeBack: (() => void) | null = null
+let swipeBack: { back: () => void; destination: () => string } | null = null
 
-/** Makes `back` the swipe's action until the returned function is called. */
-export function setSwipeBack(back: () => void): () => void {
-  swipeBack = back
+/**
+ * Makes `back` the swipe's action until the returned function is called;
+ * `destination` is the address it goes to, drawn under the page meanwhile.
+ */
+export function setSwipeBack(back: () => void, destination: () => string): () => void {
+  const action = { back, destination }
+  swipeBack = action
   return () => {
-    if (swipeBack === back) swipeBack = null
+    if (swipeBack === action) swipeBack = null
   }
+}
+
+/** Calls `then` in the first frame after `left` is no longer the screen shown, or in half a second. */
+function whenScreenLeft(left: string | undefined, then: () => void) {
+  const html = document.documentElement
+  const until = performance.now() + 500
+  const check = () => {
+    if (html.dataset.screen !== left || performance.now() > until) then()
+    else requestAnimationFrame(check)
+  }
+  requestAnimationFrame(check)
 }
 
 /**
  * Going back with a swipe from the left edge, as iPhone apps do: the page
- * follows the finger and goes back past a third of the screen or on a quick
- * flick, otherwise it springs back. Telegram gives Mini Apps no such gesture
+ * follows the finger over the screen it goes back to and goes back past a
+ * third of the screen or on a quick flick, otherwise it springs back. Telegram gives Mini Apps no such gesture
  * on iPhones, and neither does an iPhone to an app installed on the home
  * screen; on Android the system one already goes back.
  * Returns a function that removes it.
@@ -58,11 +75,16 @@ export function installSwipeBack(): () => void {
   const place = (x: number, animate: boolean) => {
     root.style.transition = animate ? `left ${SETTLE_MS}ms ease-out` : 'none'
     root.style.left = `${x}px`
+    // How far the screen underneath has come out (`.swipe-underlay`).
+    html.classList.toggle('swipe-settling', animate)
+    html.style.setProperty('--swipe-progress', String(x / window.innerWidth))
   }
   const reset = () => {
-    html.classList.remove('swiping-back')
+    html.classList.remove('swiping-back', 'swipe-settling')
+    html.style.removeProperty('--swipe-progress')
     root.style.transition = ''
     root.style.left = ''
+    setUnderlay(null)
   }
 
   const onStart = (event: TouchEvent) => {
@@ -91,6 +113,7 @@ export function installSwipeBack(): () => void {
       if (dx < SLOP_PX) return
       swiping = true
       html.classList.add('swiping-back')
+      setUnderlay(swipeBack?.destination() ?? null)
     }
     event.preventDefault()
     const elapsed = event.timeStamp - last.time
@@ -113,9 +136,12 @@ export function installSwipeBack(): () => void {
     const goBack = back !== null && event.type === 'touchend' && !changedMind && (far || flick)
     place(goBack ? width : 0, true)
     window.setTimeout(() => {
-      if (goBack) back()
-      // Wait for the next page to draw, so the old one does not flash back.
-      requestAnimationFrame(() => requestAnimationFrame(reset))
+      if (!goBack || back === null) return reset()
+      const left = html.dataset.screen
+      back.back()
+      // The page comes back to its place once the next screen is in it, so
+      // the old one does not flash back.
+      whenScreenLeft(left, reset)
     }, SETTLE_MS)
   }
 

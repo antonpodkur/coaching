@@ -58,6 +58,13 @@ function stepsBackTo(to: string): number | null {
   return null
 }
 
+/** The address going back to `to` lands on: the earlier step's, filters and all, else `to`. */
+export function backDestination(to: string): string {
+  const back = stepsBackTo(to)
+  const at = step()
+  return back === null || at === null ? to : (steps[at - back] ?? to)
+}
+
 /**
  * Goes back to `to`, as a native app does: back through history if the
  * screen is in it, so the system back button (Android outside Telegram) does

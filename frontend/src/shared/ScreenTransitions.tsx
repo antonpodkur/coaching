@@ -18,6 +18,8 @@ export function ScreenTransitions() {
     const from = shown.current
     if (from === pathname) return
     shown.current = pathname
+    // For the swipe back (app/gestures.ts) to see the screen it went to is in.
+    document.documentElement.dataset.screen = pathname
     const motion = screenMotion(from, pathname, historyStep)
     document.documentElement.dataset.screenMotion = motion
     const back = motion === 'back' || motion === 'fade'

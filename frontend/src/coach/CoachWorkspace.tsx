@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { Link, Route, Routes, useLocation } from 'react-router'
 
 import type { Schemas } from '../api/client'
+import { SwipeUnderlay } from '../shared/SwipeUnderlay'
 import { CalendarIcon, LibraryIcon, PeopleIcon } from '../shared/icons'
 import { ClientEditPage } from './ClientEditPage'
 import { ClientNutritionPage } from './ClientNutritionPage'
@@ -38,6 +39,33 @@ interface Props {
 export function CoachWorkspace({ base, coach, onUnauthorized, onSignOut }: Props) {
   const context = useMemo(() => ({ base, coach, onUnauthorized }), [base, coach, onUnauthorized])
   const { pathname } = useLocation()
+
+  return (
+    <CoachContext value={context}>
+      <Shell base={base} coach={coach} onSignOut={onSignOut} pathname={pathname} />
+      <SwipeUnderlay
+        render={(location) => (
+          <Shell
+            base={base}
+            coach={coach}
+            onSignOut={onSignOut}
+            pathname={location.replace(/[?#].*/, '')}
+            location={location}
+          />
+        )}
+      />
+    </CoachContext>
+  )
+}
+
+/** The workspace at `location`, the address shown unless given. */
+function Shell({
+  base,
+  coach,
+  onSignOut,
+  pathname,
+  location,
+}: Omit<Props, 'onUnauthorized'> & { pathname: string; location?: string }) {
   const section = pathname.startsWith(`${base}/exercises`)
     ? 'exercises'
     : pathname === `${base}/workouts`
@@ -49,47 +77,45 @@ export function CoachWorkspace({ base, coach, onUnauthorized, onSignOut }: Props
   )
 
   return (
-    <CoachContext value={context}>
-      <div className="coach-shell">
-        <main className="coach-main">
-          <Routes>
-            <Route index element={<ClientsPage />} />
-            <Route path="invite" element={<InvitePage />} />
-            <Route path="clients/:id" element={<ClientPage />} />
-            <Route path="clients/:id/edit" element={<ClientEditPage />} />
-            <Route path="clients/:id/questionnaire" element={<ClientQuestionnairePage />} />
-            <Route path="clients/:id/weight" element={<ClientWeightPage />} />
-            <Route path="clients/:id/nutrition" element={<ClientNutritionPage />} />
-            <Route path="workouts" element={<WorkoutsPage />} />
-            <Route path="workouts/:id" element={<BuilderPage />} />
-            <Route path="workouts/:id/report" element={<ReportPage />} />
-            <Route path="exercises" element={<LibraryPage />} />
-            <Route path="exercises/new" element={<NewExercisePage />} />
-            <Route path="exercises/:id" element={<ExercisePage />} />
-            <Route path="profile" element={<ProfilePage coach={coach} onSignOut={onSignOut} />} />
-            <Route path="import" element={<ImportPage />} />
-          </Routes>
-        </main>
-        {!subPage && (
-          <nav className="tab-bar" aria-label="Розділи">
-            <Link to={base} aria-current={section === 'clients' ? 'page' : undefined}>
-              <PeopleIcon size={22} />
-              Клієнти
-            </Link>
-            <Link to={`${base}/workouts`} aria-current={section === 'workouts' ? 'page' : undefined}>
-              <CalendarIcon size={22} />
-              Тренування
-            </Link>
-            <Link
-              to={`${base}/exercises`}
-              aria-current={section === 'exercises' ? 'page' : undefined}
-            >
-              <LibraryIcon size={22} />
-              Вправи
-            </Link>
-          </nav>
-        )}
-      </div>
-    </CoachContext>
+    <div className="coach-shell">
+      <main className="coach-main">
+        <Routes location={location}>
+          <Route index element={<ClientsPage />} />
+          <Route path="invite" element={<InvitePage />} />
+          <Route path="clients/:id" element={<ClientPage />} />
+          <Route path="clients/:id/edit" element={<ClientEditPage />} />
+          <Route path="clients/:id/questionnaire" element={<ClientQuestionnairePage />} />
+          <Route path="clients/:id/weight" element={<ClientWeightPage />} />
+          <Route path="clients/:id/nutrition" element={<ClientNutritionPage />} />
+          <Route path="workouts" element={<WorkoutsPage />} />
+          <Route path="workouts/:id" element={<BuilderPage />} />
+          <Route path="workouts/:id/report" element={<ReportPage />} />
+          <Route path="exercises" element={<LibraryPage />} />
+          <Route path="exercises/new" element={<NewExercisePage />} />
+          <Route path="exercises/:id" element={<ExercisePage />} />
+          <Route path="profile" element={<ProfilePage coach={coach} onSignOut={onSignOut} />} />
+          <Route path="import" element={<ImportPage />} />
+        </Routes>
+      </main>
+      {!subPage && (
+        <nav className="tab-bar" aria-label="Розділи">
+          <Link to={base} aria-current={section === 'clients' ? 'page' : undefined}>
+            <PeopleIcon size={22} />
+            Клієнти
+          </Link>
+          <Link to={`${base}/workouts`} aria-current={section === 'workouts' ? 'page' : undefined}>
+            <CalendarIcon size={22} />
+            Тренування
+          </Link>
+          <Link
+            to={`${base}/exercises`}
+            aria-current={section === 'exercises' ? 'page' : undefined}
+          >
+            <LibraryIcon size={22} />
+            Вправи
+          </Link>
+        </nav>
+      )}
+    </div>
   )
 }
