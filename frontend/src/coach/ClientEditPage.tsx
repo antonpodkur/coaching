@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router'
 
 import { ApiError } from '../api/client'
 import { BackLink } from '../shared/BackLink'
+import { goBackTo } from '../shared/history'
 import { addMonths, localDate } from '../shared/format'
 import { type Client, clientQuery, useUpdateClient } from './clients'
 import { isUnauthorized, useCoach } from './context'
@@ -121,7 +122,7 @@ function ClientForm({ client }: { client: Client }) {
 function ArchiveButton({ client }: { client: Client }) {
   const { base } = useCoach()
   const navigate = useNavigate()
-  const archive = useUpdateClient(client.id, () => void navigate(base, { replace: true }))
+  const archive = useUpdateClient(client.id, () => goBackTo(navigate, base))
 
   const onClick = async () => {
     const confirmed = await confirmAction(

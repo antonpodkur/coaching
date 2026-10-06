@@ -3,8 +3,8 @@ import { Link, useNavigate } from 'react-router'
 
 import { setSwipeBack } from '../app/gestures'
 import { type TelegramWebApp, telegramWebApp } from '../app/telegram'
+import { goBackTo } from './history'
 import { BackIcon } from './icons'
-import { goingBack } from './screenMotion'
 
 /** Back links on the screen now; Telegram's back arrow shows while there is one. */
 let backLinks = 0
@@ -35,10 +35,7 @@ export function BackLink({ to, label }: { to: string; label: string }) {
   const webApp = telegramWebApp()
 
   useEffect(() => {
-    const back = () => {
-      goingBack()
-      void navigate(to)
-    }
+    const back = () => goBackTo(navigate, to)
     const releaseSwipe = setSwipeBack(back)
     if (!webApp) return releaseSwipe
     webApp.BackButton.onClick(back)
@@ -54,7 +51,14 @@ export function BackLink({ to, label }: { to: string; label: string }) {
 
   if (webApp) return null
   return (
-    <Link className="back-link" to={to} onClick={goingBack}>
+    <Link
+      className="back-link"
+      to={to}
+      onClick={(event) => {
+        event.preventDefault()
+        goBackTo(navigate, to)
+      }}
+    >
       <BackIcon />
       {label}
     </Link>

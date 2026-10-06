@@ -5,6 +5,7 @@ import { useNavigate, useParams } from 'react-router'
 
 import { ApiError, api, unwrap } from '../../api/client'
 import { BackLink } from '../../shared/BackLink'
+import { goBackTo } from '../../shared/history'
 import { plural } from '../../shared/format'
 import { CheckIcon, PlusIcon } from '../../shared/icons'
 import { EASE_IOS } from '../../shared/motion'
@@ -167,7 +168,8 @@ function Builder({ workout, onReload }: { workout: Workout; onReload: () => void
       unwrap(await api.DELETE('/coach/workouts/{id}', { params: { path: { id: workout.id } } })),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: WORKOUTS_KEY })
-      void navigate(clientPath, { replace: true })
+      // Where its back arrow leads: the client, or the week it was opened from.
+      goBackTo(navigate, back.to)
     },
     onError: (err) => {
       if (isUnauthorized(err)) onUnauthorized()

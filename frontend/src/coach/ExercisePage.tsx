@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router'
 
 import { ApiError, type Schemas, api, unwrap } from '../api/client'
 import { BackLink } from '../shared/BackLink'
+import { goBackTo } from '../shared/history'
 import { PhotoGrid } from '../shared/PhotoGrid'
 import { VideoPlayer } from '../shared/VideoPlayer'
 import { jpegBody, shrinkPhoto } from '../shared/photos'
@@ -316,7 +317,7 @@ function ArchiveButton({ exercise }: { exercise: Exercise }) {
       ),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: EXERCISES_KEY })
-      void navigate(`${base}/exercises`, { replace: true })
+      goBackTo(navigate, `${base}/exercises`)
     },
     onError: (err) => {
       if (isUnauthorized(err)) onUnauthorized()

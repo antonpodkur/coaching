@@ -17,6 +17,7 @@ import { ScreenTransitions } from './shared/ScreenTransitions'
 import { UpdateNote } from './shared/UpdateNote'
 import { registerServiceWorker } from './shared/appUpdate'
 import { placeCaretOnFocus } from './shared/fieldFocus'
+import { trackHistory } from './shared/history'
 import { listenForInstallPrompt } from './shared/installPrompt'
 import { listenForNotifications } from './shared/push'
 import { playScreenTransitions } from './shared/screenMotion'
@@ -54,6 +55,7 @@ const router = createBrowserRouter([
 ])
 
 playScreenTransitions(router)
+trackHistory(router)
 
 placeCaretOnFocus()
 // iPhones only show a pressed button (`:active`) on pages that listen for touches.

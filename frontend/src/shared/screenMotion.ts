@@ -72,9 +72,12 @@ export function playScreenTransitions(router: Router) {
   )
 
   router.navigate = ((to: Parameters<Router['navigate']>[0], options?: Parameters<Router['navigate']>[1]) => {
-    // A step through history, e.g. Android's back gesture: React Router plays
-    // it if the step forward to there played one.
-    if (typeof to === 'number') return navigate(to)
+    // A step through history, e.g. a back arrow to the screen before: React
+    // Router plays it if the step forward to there played one.
+    if (typeof to === 'number') {
+      backRequested = false
+      return navigate(to)
+    }
     browserAnimated = false
     scrolled.set(window.location.pathname, window.scrollY)
     intent = { replace: options?.replace === true, back: backRequested }
