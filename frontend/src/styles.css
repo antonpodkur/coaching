@@ -350,19 +350,6 @@ a.button {
 
 /* Coach workspace */
 
-.wordmark {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  font-size: var(--fs-xs);
-  font-weight: 600;
-}
-
-.wordmark span:first-child {
-  font-family: var(--font-display);
-  font-size: var(--fs-md);
-}
-
 /* The workspace is laid out for a phone: pages above a bottom tab bar. */
 
 .coach-shell {
@@ -371,24 +358,12 @@ a.button {
   flex-direction: column;
 }
 
-.coach-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: calc(16px + env(safe-area-inset-top)) 16px 0;
-}
-
 .coach-main {
   width: 100%;
   max-width: 640px;
   margin: 0 auto;
-  padding: 20px 16px calc(var(--tab-bar-height) + var(--safe-bottom) + 28px);
-}
-
-/* In the Mini App there is no header above, so the page meets the top edge. */
-.coach-main:first-child {
-  padding-top: calc(20px + env(safe-area-inset-top));
+  padding: calc(20px + env(safe-area-inset-top)) 16px
+    calc(var(--tab-bar-height) + var(--safe-bottom) + 28px);
 }
 
 .tab-bar {
@@ -441,10 +416,6 @@ a.button {
     border-top: 0;
   }
 
-  .coach-top {
-    order: -2;
-  }
-
   .tab-bar a {
     height: 40px;
     flex-direction: row;
@@ -470,6 +441,76 @@ a.button {
   align-items: flex-end;
   justify-content: space-between;
   gap: 12px;
+}
+
+/* Today's date, with the person button at the right edge. */
+.page-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: -12px 0 -14px;
+}
+
+/* Rows that belong together, in one card with lines between them. */
+.list-group {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.list-group li + li {
+  border-top: 1px solid var(--line);
+}
+
+.list-row,
+.sheet-option {
+  width: 100%;
+  min-height: 60px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px 10px 14px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.list-row > svg {
+  flex: none;
+  color: var(--faint);
+}
+
+.list-icon {
+  width: 32px;
+  height: 32px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.list-text {
+  flex-grow: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.list-title {
+  font-size: var(--fs-md);
+  font-weight: 700;
 }
 
 .page-title {
@@ -1743,6 +1784,30 @@ button.save-status {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+.sheet.fit {
+  height: auto;
+}
+
+/* A sheet's choices: big rows, one tap each. */
+.sheet-options {
+  list-style: none;
+  margin: 0 0 4px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sheet-option {
+  border-radius: var(--r-md);
+  background: var(--surface-sunken);
+}
+
+.sheet-option:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
 
 .sheet-head h2 {

@@ -1102,6 +1102,11 @@ export interface components {
             created_at: string;
             /**
              * Format: int64
+             * @description Workouts Dasha started and has not published.
+             */
+            drafts: number;
+            /**
+             * Format: int64
              * @description Gym photos, and gym videos that arrived (encoding or ready).
              */
             gym_photos: number;
@@ -1124,6 +1129,12 @@ export interface components {
              * @description Ready videos from the client that Dasha has not watched yet.
              */
             new_videos: number;
+            /**
+             * Format: date
+             * @description The date of the next published workout not done yet, from the client's
+             *     today on. `null` when nothing is planned.
+             */
+            next_workout_on?: string | null;
             /** Format: date */
             paid_until?: string | null;
             sex?: components["schemas"]["Sex"] | null;

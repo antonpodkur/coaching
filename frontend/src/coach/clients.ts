@@ -1,7 +1,7 @@
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { type Schemas, api, unwrap } from '../api/client'
-import { daysBetween, formatAge, formatDate, localDate } from '../shared/format'
+import { daysBetween, formatAge, formatDate, formatShortDate, localDate } from '../shared/format'
 import { CLIENTS_KEY, isUnauthorized, useCoach } from './context'
 
 export type Client = Schemas['CoachClient']
@@ -75,6 +75,21 @@ export function payment(paidUntil: string | null | undefined): Payment | null {
   const left = daysBetween(localDate(new Date()), paidUntil)
   if (left < 0) return { text: `оплата закінчилась ${formatDate(paidUntil)}`, due: true }
   return { text: `оплачено до ${formatDate(paidUntil)}`, due: left <= RENEWAL_DAYS }
+}
+
+/**
+ * What is planned for a client who joined: the next workout, or that nothing
+ * is, which is worth a look (`warn`).
+ */
+export function planned(client: Client): { text: string; warn: boolean } {
+  if (client.next_workout_on) {
+    const days = daysBetween(localDate(new Date()), client.next_workout_on)
+    if (days <= 0) return { text: 'Тренування сьогодні', warn: false }
+    if (days === 1) return { text: 'Тренування завтра', warn: false }
+    return { text: `Наступне: ${formatShortDate(client.next_workout_on)}`, warn: false }
+  }
+  if (client.drafts > 0) return { text: 'Чернетка ще не опублікована', warn: true }
+  return { text: 'Нічого не заплановано', warn: true }
 }
 
 /** Saves changes to one client and refreshes every list that shows them. */

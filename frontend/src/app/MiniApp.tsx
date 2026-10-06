@@ -120,7 +120,9 @@ export function MiniApp() {
   }
 
   if (session.data.role === 'coach') {
-    return <CoachWorkspace base="/app" onUnauthorized={onUnauthorized} />
+    return (
+      <CoachWorkspace base="/app" coach={session.data.coach} onUnauthorized={onUnauthorized} />
+    )
   }
   return <ClientApp client={session.data.client} />
 }

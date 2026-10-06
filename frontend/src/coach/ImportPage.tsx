@@ -2,12 +2,13 @@ import { useMutation } from '@tanstack/react-query'
 import { useState } from 'react'
 
 import { type Schemas, api, unwrap } from '../api/client'
+import { BackLink } from '../shared/BackLink'
 import { formatSet, plural } from '../shared/format'
 import { isUnauthorized, useCoach } from './context'
 
 /** One-off import of an old Telegram plan: paste it, see how it was read. */
 export function ImportPage() {
-  const { onUnauthorized } = useCoach()
+  const { base, onUnauthorized } = useCoach()
   const [text, setText] = useState('')
   const parse = useMutation({
     mutationFn: async (plan: string) =>
@@ -19,6 +20,7 @@ export function ImportPage() {
 
   return (
     <section className="import">
+      <BackLink to={`${base}/profile`} label="Профіль" />
       <div className="import-intro">
         <h1>Імпорт плану з Telegram</h1>
         <p className="muted">

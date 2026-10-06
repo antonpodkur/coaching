@@ -258,3 +258,52 @@ async fn dashas_phone_sets_her_timezone(db: PgPool) {
     .await;
     assert_eq!(status, StatusCode::FORBIDDEN);
 }
+
+#[sqlx::test]
+async fn the_client_list_says_whats_planned(db: PgPool) {
+    let coach_id = seed_coach(&db, COACH_TG).await;
+    let client_id = seed_client(&db, coach_id, CLIENT_TG).await;
+    let today = chrono::Utc::now()
+        .with_timezone(&chrono_tz::Europe::Kyiv)
+        .date_naive();
+    let day = |offset: i64| today + chrono::Duration::days(offset);
+    for (date, status) in [
+        (Some(day(-1)), "done"),
+        // Missed, so not the next one.
+        (Some(day(-2)), "published"),
+        (Some(day(10)), "published"),
+        (Some(day(3)), "published"),
+        (Some(day(5)), "draft"),
+        (None, "draft"),
+    ] {
+        sqlx::query(
+            "INSERT INTO workouts (coach_id, client_id, date, status)
+             VALUES ($1, $2, $3, $4::workout_status)",
+        )
+        .bind(coach_id)
+        .bind(client_id)
+        .bind(date)
+        .bind(status)
+        .execute(&db)
+        .await
+        .unwrap();
+    }
+    let state = test_state(db);
+    let token = coach_token(&state, coach_id);
+    let app = coaching_backend::router(state);
+
+    let (status, clients) = call(&app, "GET", "/coach/clients", Some(&token), None).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(clients[0]["next_workout_on"], day(3).to_string());
+    assert_eq!(clients[0]["drafts"], 2);
+
+    let (_, client) = call(
+        &app,
+        "GET",
+        &format!("/coach/clients/{client_id}"),
+        Some(&token),
+        None,
+    )
+    .await;
+    assert_eq!(client["next_workout_on"], day(3).to_string());
+}

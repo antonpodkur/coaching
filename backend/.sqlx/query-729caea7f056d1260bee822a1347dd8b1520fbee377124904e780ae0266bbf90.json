@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT c.id, c.name, c.telegram_id IS NOT NULL AS \"joined!\", c.invite_expires_at,\n                  c.paid_until, c.created_at,\n                  (SELECT count(*) FROM workout_reports r JOIN workouts w ON w.id = r.workout_id\n                   WHERE w.client_id = c.id AND r.seen_at IS NULL) AS \"unseen_reports!\",\n                  (SELECT count(*) FROM form_videos v\n                   WHERE v.client_id = c.id AND v.status = 'ready' AND v.seen_at IS NULL)\n                   AS \"new_videos!\",\n                  c.archived_at IS NOT NULL AS \"archived!\",\n                  c.birth_year, c.sex AS \"sex: Sex\", c.height_cm,\n                  (SELECT count(*) FROM gym_media m WHERE m.client_id = c.id AND m.kind = 'photo')\n                   AS \"gym_photos!\",\n                  (SELECT count(*) FROM gym_media m WHERE m.client_id = c.id AND m.kind = 'video'\n                   AND m.status IN ('processing', 'ready')) AS \"gym_videos!\",\n                  -- The storage path, replaced with a signed link below.\n                  c.avatar_path AS avatar_url\n           FROM clients c\n           WHERE c.coach_id = $1 AND (c.archived_at IS NOT NULL) = $2\n           ORDER BY c.archived_at DESC NULLS LAST, c.created_at DESC",
+  "query": "SELECT c.id, c.name, c.telegram_id IS NOT NULL AS \"joined!\", c.invite_expires_at,\n                  c.paid_until, c.created_at,\n                  (SELECT count(*) FROM workout_reports r JOIN workouts w ON w.id = r.workout_id\n                   WHERE w.client_id = c.id AND r.seen_at IS NULL) AS \"unseen_reports!\",\n                  (SELECT count(*) FROM form_videos v\n                   WHERE v.client_id = c.id AND v.status = 'ready' AND v.seen_at IS NULL)\n                   AS \"new_videos!\",\n                  c.archived_at IS NOT NULL AS \"archived!\",\n                  c.birth_year, c.sex AS \"sex: Sex\", c.height_cm,\n                  (SELECT count(*) FROM gym_media m WHERE m.client_id = c.id AND m.kind = 'photo')\n                   AS \"gym_photos!\",\n                  (SELECT count(*) FROM gym_media m WHERE m.client_id = c.id AND m.kind = 'video'\n                   AND m.status IN ('processing', 'ready')) AS \"gym_videos!\",\n                  -- The storage path, replaced with a signed link below.\n                  c.avatar_path AS avatar_url,\n                  (SELECT min(w.date) FROM workouts w\n                   WHERE w.client_id = c.id AND w.status = 'published'\n                     -- The client's today; a timezone Postgres doesn't know counts as Kyiv.\n                     AND w.date >= (now() AT TIME ZONE COALESCE(\n                           (SELECT tz.name FROM pg_timezone_names tz WHERE tz.name = c.timezone),\n                           'Europe/Kyiv'))::date)\n                   AS next_workout_on,\n                  (SELECT count(*) FROM workouts w WHERE w.client_id = c.id AND w.status = 'draft')\n                   AS \"drafts!\"\n           FROM clients c\n           WHERE c.id = $1 AND c.coach_id = $2",
   "describe": {
     "columns": [
       {
@@ -147,12 +147,24 @@
             "name": "avatar_path"
           }
         }
+      },
+      {
+        "ordinal": 15,
+        "name": "next_workout_on",
+        "type_info": "Date",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 16,
+        "name": "drafts!",
+        "type_info": "Int8",
+        "origin": "Expression"
       }
     ],
     "parameters": {
       "Left": [
         "Uuid",
-        "Bool"
+        "Uuid"
       ]
     },
     "nullable": [
@@ -170,8 +182,10 @@
       true,
       null,
       null,
-      true
+      true,
+      null,
+      null
     ]
   },
-  "hash": "b63e439a787765451ec672138c89cbe03f9e3432bf33d6e794e2483ede4e71a6"
+  "hash": "729caea7f056d1260bee822a1347dd8b1520fbee377124904e780ae0266bbf90"
 }

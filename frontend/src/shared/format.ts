@@ -89,7 +89,8 @@ export function initials(name: string): string {
     .split(/\s+/)
     .filter(Boolean)
     .slice(0, 2)
-    .map((word) => word.charAt(0))
+    // The first letter, so `(dev)` gives `D`, not `(`.
+    .map((word) => /\p{L}/u.exec(word)?.[0] ?? '')
     .join('')
     .toUpperCase()
 }

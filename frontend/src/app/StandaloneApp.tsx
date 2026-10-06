@@ -121,7 +121,14 @@ export function StandaloneApp() {
   }
 
   if (session.data.role === 'coach') {
-    return <CoachWorkspace base="/app" onUnauthorized={signOut} onSignOut={signOut} />
+    return (
+      <CoachWorkspace
+        base="/app"
+        coach={session.data.coach}
+        onUnauthorized={signOut}
+        onSignOut={signOut}
+      />
+    )
   }
   return <ClientApp client={session.data.client} onSignOut={signOut} />
 }

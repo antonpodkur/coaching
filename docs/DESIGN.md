@@ -47,6 +47,11 @@ Each color has one job.
 | Today's card and bottom sheets | `--r-xl` |
 | A control inside a card | One size down |
 
+## Lists and sheets
+
+- **Rows that belong together share one card** (`list-group`), with lines between them, like an iPhone's settings.
+- **Choices with a consequence go in a bottom sheet** (`shared/Sheet.tsx`): one row per choice, each with a line saying what happens.
+
 ## Buttons
 
 - **One white (`primary`) button per screen.** Everything else is outlined, or a frameless `link-button`.
@@ -57,7 +62,6 @@ Each color has one job.
 
 From the design review of 6 October 2026, after this pass:
 
-- **Coach shell:** move "Вийти" and the name header into a profile screen, and move "Імпорт" out of the tab bar.
 - **The coach in the client's app:** the coach's photo on the client home and next to the coach's comments. Muscle-group tiles instead of empty video boxes.
 - **Client home:**
   - Today's workout first.
@@ -66,7 +70,3 @@ From the design review of 6 October 2026, after this pass:
 - **Workout flow:**
   - "Завершити" becomes the main button when every set is done.
   - The finish screen leads with the result.
-- **Coach's client page:**
-  - Анкета, Вага and Харчування in one list.
-  - One "Наступне тренування" button instead of three.
-- **Client list:** a useful line under each name instead of "У застосунку".

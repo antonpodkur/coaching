@@ -7,9 +7,9 @@ import { Avatar } from '../shared/Avatar'
 import { formatDay, formatToday } from '../shared/format'
 import { InstallCard } from '../shared/InstallCard'
 import { PushCard } from '../shared/PushCard'
-import { PlusIcon, SearchIcon } from '../shared/icons'
+import { PersonIcon, PlusIcon, SearchIcon } from '../shared/icons'
 import { InviteCard, type ShownInvite } from './InviteCard'
-import { ARCHIVED_KEY, type Client, payment } from './clients'
+import { ARCHIVED_KEY, type Client, payment, planned } from './clients'
 import { CLIENTS_KEY, isUnauthorized, useCoach } from './context'
 
 /** Search appears once the list no longer fits on a phone screen. */
@@ -57,13 +57,16 @@ export function ClientsPage() {
 
   return (
     <section className="page">
+      <div className="page-top">
+        <p className="muted small">{formatToday()}</p>
+        <Link className="icon-button" to={`${base}/profile`} aria-label="Профіль">
+          <PersonIcon />
+        </Link>
+      </div>
       <header className="page-head">
-        <div className="page-title">
-          <p className="muted small">{formatToday()}</p>
-          <h1>
-            Клієнти {clients.data && <span className="count">{all.length}</span>}
-          </h1>
-        </div>
+        <h1>
+          Клієнти {clients.data && <span className="count">{all.length}</span>}
+        </h1>
         <Link className="button primary" to={`${base}/invite`}>
           <PlusIcon />
           Запросити
@@ -206,7 +209,10 @@ function ClientStatus({ client }: { client: Client }) {
       </span>
     )
   }
-  if (client.joined) return <span className="client-status">У застосунку</span>
+  if (client.joined) {
+    const plan = planned(client)
+    return <span className={plan.warn ? 'client-status warn' : 'client-status'}>{plan.text}</span>
+  }
   if (!client.invite_expires_at) return <span className="client-status">Без запрошення</span>
   const expired = new Date(client.invite_expires_at) < new Date()
   return expired ? (

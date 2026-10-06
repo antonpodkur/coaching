@@ -45,6 +45,11 @@ pub struct CoachClient {
     pub gym_videos: i64,
     /// The client's photo, or their Telegram photo; signed for a few hours.
     pub avatar_url: Option<String>,
+    /// The date of the next published workout not done yet, from the client's
+    /// today on. `null` when nothing is planned.
+    pub next_workout_on: Option<NaiveDate>,
+    /// Workouts Dasha started and has not published.
+    pub drafts: i64,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -132,7 +137,16 @@ pub async fn list(
                   (SELECT count(*) FROM gym_media m WHERE m.client_id = c.id AND m.kind = 'video'
                    AND m.status IN ('processing', 'ready')) AS "gym_videos!",
                   -- The storage path, replaced with a signed link below.
-                  c.avatar_path AS avatar_url
+                  c.avatar_path AS avatar_url,
+                  (SELECT min(w.date) FROM workouts w
+                   WHERE w.client_id = c.id AND w.status = 'published'
+                     -- The client's today; a timezone Postgres doesn't know counts as Kyiv.
+                     AND w.date >= (now() AT TIME ZONE COALESCE(
+                           (SELECT tz.name FROM pg_timezone_names tz WHERE tz.name = c.timezone),
+                           'Europe/Kyiv'))::date)
+                   AS next_workout_on,
+                  (SELECT count(*) FROM workouts w WHERE w.client_id = c.id AND w.status = 'draft')
+                   AS "drafts!"
            FROM clients c
            WHERE c.coach_id = $1 AND (c.archived_at IS NOT NULL) = $2
            ORDER BY c.archived_at DESC NULLS LAST, c.created_at DESC"#,
@@ -365,8 +379,18 @@ async fn fetch_client(state: &AppState, coach_id: Uuid, client_id: Uuid) -> AppR
                   (SELECT count(*) FROM gym_media m WHERE m.client_id = c.id AND m.kind = 'video'
                    AND m.status IN ('processing', 'ready')) AS "gym_videos!",
                   -- The storage path, replaced with a signed link below.
-                  c.avatar_path AS avatar_url
-           FROM clients c WHERE c.id = $1 AND c.coach_id = $2"#,
+                  c.avatar_path AS avatar_url,
+                  (SELECT min(w.date) FROM workouts w
+                   WHERE w.client_id = c.id AND w.status = 'published'
+                     -- The client's today; a timezone Postgres doesn't know counts as Kyiv.
+                     AND w.date >= (now() AT TIME ZONE COALESCE(
+                           (SELECT tz.name FROM pg_timezone_names tz WHERE tz.name = c.timezone),
+                           'Europe/Kyiv'))::date)
+                   AS next_workout_on,
+                  (SELECT count(*) FROM workouts w WHERE w.client_id = c.id AND w.status = 'draft')
+                   AS "drafts!"
+           FROM clients c
+           WHERE c.id = $1 AND c.coach_id = $2"#,
         client_id,
         coach_id,
     )

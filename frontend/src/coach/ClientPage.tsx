@@ -1,19 +1,36 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { AnimatePresence } from 'motion/react'
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 
 import { ApiError, type Schemas, api, unwrap } from '../api/client'
 import { Avatar } from '../shared/Avatar'
 import { BackLink } from '../shared/BackLink'
-import { formatDay } from '../shared/format'
+import { Sheet } from '../shared/Sheet'
+import { addDays, formatDay, formatShortDate } from '../shared/format'
 import { nutritionSummary } from '../shared/nutrition'
 import { weightSummary } from '../shared/weight'
-import { ChevronIcon, CopyIcon, EditIcon, PlusIcon } from '../shared/icons'
+import {
+  ChevronIcon,
+  CopyIcon,
+  EditIcon,
+  PersonIcon,
+  PlateIcon,
+  PlusIcon,
+  ScaleIcon,
+} from '../shared/icons'
 import { ArchivedNotice } from './ClientEditPage'
 import { InviteCard, type ShownInvite } from './InviteCard'
 import { ReportCard } from './ReportCard'
 import { WorkoutRow } from './WorkoutRow'
-import { clientQuery, nutritionQuery, payment, questionnaireSummary, weightQuery } from './clients'
+import {
+  clientQuery,
+  nutritionQuery,
+  payment,
+  planned,
+  questionnaireSummary,
+  weightQuery,
+} from './clients'
 import { CLIENTS_KEY, WORKOUTS_KEY, isUnauthorized, useCoach } from './context'
 import { resultsQuery } from './results'
 
@@ -24,6 +41,7 @@ export function ClientPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [invite, setInvite] = useState<ShownInvite | null>(null)
+  const [choosing, setChoosing] = useState(false)
 
   const client = useQuery(clientQuery(id))
   const weight = useQuery(weightQuery(id))
@@ -90,9 +108,18 @@ export function ClientPage() {
   const person = client.data
   // "Copy to the next one" starts from the latest workout that has something in it.
   const latest = workouts.data?.find((workout) => workout.date && workout.exercise_count > 0)
+  // The next workout starts as a copy of one of these, a week later, or empty.
+  const sources = [reported, latest].filter(
+    (workout, index, all): workout is Schemas['WorkoutSummary'] =>
+      workout !== undefined &&
+      workout.date !== null &&
+      workout.exercise_count > 0 &&
+      all.findIndex((other) => other?.id === workout.id) === index,
+  )
   // The report goes above the buttons and the list, so they wait for it: a
   // report that arrives later pushes them down, under a finger already on its way.
   const loading = workouts.isPending || (reported !== undefined && report.isPending)
+  const plan = person.joined && !person.archived ? planned(person) : null
   const status = person.joined
     ? 'У застосунку'
     : person.invite_expires_at && new Date(person.invite_expires_at) > new Date()
@@ -110,7 +137,13 @@ export function ClientPage() {
         <div className="client-text">
           <h1>{person.name}</h1>
           <span className="client-status">
-            {person.archived ? 'В архіві' : status}
+            {person.archived ? (
+              'В архіві'
+            ) : plan ? (
+              <span className={plan.warn ? 'warn' : undefined}>{plan.text}</span>
+            ) : (
+              status
+            )}
             {paid && (
               <>
                 {' · '}
@@ -130,35 +163,54 @@ export function ClientPage() {
 
       {person.archived && <ArchivedNotice client={person} />}
 
-      <Link className="workout-row" to={`${base}/clients/${id}/questionnaire`}>
-        <span className="workout-text">
-          <span className="workout-title">Анкета</span>
-          <span className="muted small">{questionnaireSummary(person) ?? 'Ще не заповнена'}</span>
-        </span>
-        <ChevronIcon />
-      </Link>
-      <Link className="workout-row" to={`${base}/clients/${id}/weight`}>
-        <span className="workout-text">
-          <span className="workout-title">Вага</span>
-          <span className="muted small">
-            {weight.isPending ? '…' : (weightSummary(weight.data ?? []) ?? 'Ще немає записів')}
-          </span>
-        </span>
-        <ChevronIcon />
-      </Link>
-      <Link className="workout-row" to={`${base}/clients/${id}/nutrition`}>
-        <span className="workout-text">
-          <span className="workout-title">Харчування</span>
-          <span className="muted small">
-            {nutrition.isPending
-              ? '…'
-              : nutrition.data?.targets[0]
-                ? nutritionSummary(nutrition.data.targets[0])
-                : 'Ще не задано'}
-          </span>
-        </span>
-        <ChevronIcon />
-      </Link>
+      <ul className="list-group">
+        <li>
+          <Link className="list-row" to={`${base}/clients/${id}/questionnaire`}>
+            <span className="list-icon" aria-hidden="true">
+              <PersonIcon size={18} />
+            </span>
+            <span className="list-text">
+              <span className="list-title">Анкета</span>
+              <span className="muted small">
+                {questionnaireSummary(person) ?? 'Ще не заповнена'}
+              </span>
+            </span>
+            <ChevronIcon />
+          </Link>
+        </li>
+        <li>
+          <Link className="list-row" to={`${base}/clients/${id}/weight`}>
+            <span className="list-icon" aria-hidden="true">
+              <ScaleIcon size={18} />
+            </span>
+            <span className="list-text">
+              <span className="list-title">Вага</span>
+              <span className="muted small">
+                {weight.isPending ? '…' : (weightSummary(weight.data ?? []) ?? 'Ще немає записів')}
+              </span>
+            </span>
+            <ChevronIcon />
+          </Link>
+        </li>
+        <li>
+          <Link className="list-row" to={`${base}/clients/${id}/nutrition`}>
+            <span className="list-icon" aria-hidden="true">
+              <PlateIcon size={18} />
+            </span>
+            <span className="list-text">
+              <span className="list-title">Харчування</span>
+              <span className="muted small">
+                {nutrition.isPending
+                  ? '…'
+                  : nutrition.data?.targets[0]
+                    ? nutritionSummary(nutrition.data.targets[0])
+                    : 'Ще не задано'}
+              </span>
+            </span>
+            <ChevronIcon />
+          </Link>
+        </li>
+      </ul>
 
       {active && !person.joined && !invite && (
         <button
@@ -174,14 +226,7 @@ export function ClientPage() {
 
       {loading && <p className="muted">Завантаження…</p>}
 
-      {reported && report.data && (
-        <LatestReport
-          key={reported.id}
-          results={report.data}
-          onCopy={active ? () => create.mutate(reported.id) : undefined}
-          copying={create.isPending}
-        />
-      )}
+      {reported && report.data && <LatestReport key={reported.id} results={report.data} />}
 
       {active && !loading && (
         <div className="stack">
@@ -189,27 +234,67 @@ export function ClientPage() {
             type="button"
             className="button primary block"
             disabled={create.isPending}
-            onClick={() => create.mutate(undefined)}
+            onClick={() => (sources.length > 0 ? setChoosing(true) : create.mutate(undefined))}
           >
             <PlusIcon />
-            Нове тренування
+            Наступне тренування
           </button>
-          {latest && latest.id !== reported?.id && (
-            <button
-              type="button"
-              className="button block"
-              disabled={create.isPending}
-              onClick={() => create.mutate(latest.id)}
-            >
-              <CopyIcon />
-              Скопіювати «{latest.title || 'тренування'}» на наступний тиждень
-            </button>
-          )}
           {create.isError && !isUnauthorized(create.error) && (
             <p className="error">Не вдалося створити тренування.</p>
           )}
         </div>
       )}
+
+      <AnimatePresence>
+        {choosing && (
+          <Sheet
+            title="Наступне тренування"
+            titleId="next-workout-title"
+            fit
+            onClose={() => setChoosing(false)}
+          >
+            <ul className="sheet-options">
+              {sources.map((source) => (
+                <li key={source.id}>
+                  <button
+                    type="button"
+                    className="sheet-option"
+                    disabled={create.isPending}
+                    onClick={() => create.mutate(source.id)}
+                  >
+                    <span className="list-icon" aria-hidden="true">
+                      <CopyIcon size={18} />
+                    </span>
+                    <span className="list-text">
+                      <span className="list-title">Копія «{source.title || 'Тренування'}»</span>
+                      <span className="muted small">
+                        На {formatShortDate(addDays(source.date ?? '', 7))}
+                        {source.id === reported?.id && ' · є звіт'}
+                      </span>
+                    </span>
+                  </button>
+                </li>
+              ))}
+              <li>
+                <button
+                  type="button"
+                  className="sheet-option"
+                  disabled={create.isPending}
+                  onClick={() => create.mutate(undefined)}
+                >
+                  <span className="list-icon" aria-hidden="true">
+                    <PlusIcon size={18} />
+                  </span>
+                  <span className="list-text">
+                    <span className="list-title">Порожнє</span>
+                    <span className="muted small">Скласти з нуля</span>
+                  </span>
+                </button>
+              </li>
+            </ul>
+          </Sheet>
+        )}
+      </AnimatePresence>
 
       {!loading && (
         <section className="stack" aria-labelledby="workouts-title">
@@ -233,17 +318,8 @@ export function ClientPage() {
   )
 }
 
-/** The newest report, differences first, with the step Dasha usually takes next. */
-function LatestReport({
-  results,
-  onCopy,
-  copying,
-}: {
-  results: Schemas['WorkoutResults']
-  /** Left out for an archived client. */
-  onCopy?: () => void
-  copying: boolean
-}) {
+/** The newest report, differences first. */
+function LatestReport({ results }: { results: Schemas['WorkoutResults'] }) {
   const { base } = useCoach()
   return (
     <ReportCard
@@ -251,12 +327,6 @@ function LatestReport({
       compact
       actions={
         <div className="report-actions">
-          {onCopy && (
-            <button type="button" className="button block" disabled={copying} onClick={onCopy}>
-              <CopyIcon />
-              Скопіювати в наступне тренування
-            </button>
-          )}
           <Link className="link-button" to={`${base}/workouts/${results.id}/report`}>
             Відкрити звіт повністю
           </Link>
@@ -265,4 +335,3 @@ function LatestReport({
     />
   )
 }
-
