@@ -1,3 +1,4 @@
+import type { QueryClient } from '@tanstack/react-query'
 import type { createBrowserRouter } from 'react-router'
 
 /**
@@ -8,12 +9,16 @@ import type { createBrowserRouter } from 'react-router'
  * fixed bars need no care; phones without them just switch.
  *
  * "Back" is what the back arrows (and the swipe) do, a step back through
- * history, or any move to a shallower screen. The back arrows open the page
- * above rather than stepping through history, so they say so (`goingBack`).
+ * history, or any move to a shallower screen. A back arrow without its screen
+ * in history opens it in place of this one (shared/history.ts), so it says so
+ * (`goingBack`).
  */
 export type ScreenMotion = 'forward' | 'back' | 'fade' | 'none'
 
 type Router = ReturnType<typeof createBrowserRouter>
+
+/** Longest a screen change waits for the new screen's data before it plays anyway. */
+const DATA_WAIT_MS = 300
 
 /** Dasha's sections behind the tab bar. */
 const TABS = new Set(['/app', '/app/workouts', '/app/exercises'])
@@ -53,13 +58,28 @@ export function screenMotion(from: string, to: string, historyStep = false): Scr
  * away under the finger), or after a step back the browser animated itself
  * (Safari's swipe from the edge): playing one then shows the old screen again
  * and slides it away a second time.
+ *
+ * The new screen comes in with its data: the transition holds the old one for
+ * a moment while it loads, rather than sliding in an empty screen that fills
+ * up on the way.
  */
-export function playScreenTransitions(router: Router) {
+export function playScreenTransitions(router: Router, queryClient: QueryClient) {
   const navigate = router.navigate.bind(router)
   const subscribe = router.subscribe.bind(router)
   const canPlay = typeof document.startViewTransition === 'function'
   const lessMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
   let browserAnimated = false
+
+  // React Router starts the transitions; each one waits for the new screen's
+  // data after React has drawn it.
+  if (canPlay) {
+    const start = document.startViewTransition.bind(document)
+    document.startViewTransition = ((update?: ViewTransitionUpdateCallback) =>
+      start(async () => {
+        await update?.()
+        await screenLoaded(queryClient)
+      })) as Document['startViewTransition']
+  }
 
   // Before React Router's own listener, which starts the step.
   window.addEventListener(
@@ -97,4 +117,25 @@ export function playScreenTransitions(router: Router) {
         !document.documentElement.classList.contains('swiping-back')
       subscriber(state, plays ? opts : { ...opts, viewTransitionOpts: undefined })
     })
+}
+
+/** Once no query on screen is still loading its first data, or `DATA_WAIT_MS`. */
+function screenLoaded(queryClient: QueryClient): Promise<void> {
+  const cache = queryClient.getQueryCache()
+  const loading = () =>
+    cache
+      .findAll({ type: 'active' })
+      .some((query) => query.state.status === 'pending' && query.state.fetchStatus === 'fetching')
+  return new Promise((resolve) => {
+    if (!loading()) return resolve()
+    const done = () => {
+      clearTimeout(timer)
+      unsubscribe()
+      resolve()
+    }
+    const timer = setTimeout(done, DATA_WAIT_MS)
+    const unsubscribe = cache.subscribe(() => {
+      if (!loading()) done()
+    })
+  })
 }

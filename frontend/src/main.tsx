@@ -54,7 +54,7 @@ const router = createBrowserRouter([
   },
 ])
 
-playScreenTransitions(router)
+playScreenTransitions(router, queryClient)
 trackHistory(router)
 
 placeCaretOnFocus()
