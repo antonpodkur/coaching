@@ -5,12 +5,13 @@ import { Link } from 'react-router'
 import { ApiError, type Schemas } from '../api/client'
 import { Avatar } from '../shared/Avatar'
 import { BackLink } from '../shared/BackLink'
+import { InstallRow } from '../shared/InstallCard'
 import { confirmAction } from '../shared/dialogs'
 import { ChevronIcon, ImportIcon } from '../shared/icons'
 import { removeCoachAvatar, showCoachAvatar, uploadCoachAvatar } from './coachAvatar'
 import { useCoach } from './context'
 
-/** The coach's own page: her photo, the rarer tools, and signing out. */
+/** The coach's own page: her photo, the rarer tools, the app's install page, and signing out. */
 export function ProfilePage({
   coach,
   onSignOut,
@@ -39,6 +40,7 @@ export function ProfilePage({
             <ChevronIcon />
           </Link>
         </li>
+        <InstallRow installedBefore={coach.app_installed} />
       </ul>
 
       <dl className="facts">

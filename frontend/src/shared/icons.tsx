@@ -221,3 +221,13 @@ export function MenuDotsIcon({ size = 18 }: { size?: number }) {
     </Icon>
   )
 }
+
+/** A phone, for the app on its home screen. */
+export function PhoneIcon({ size = 18 }: { size?: number }) {
+  return (
+    <Icon size={size}>
+      <rect x="6.5" y="3" width="11" height="18" rx="2.5" />
+      <path d="M11 17.5h2" />
+    </Icon>
+  )
+}

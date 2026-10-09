@@ -5,9 +5,11 @@ import { ApiError, type Schemas, api, unwrap } from '../api/client'
 import { Avatar } from '../shared/Avatar'
 import { BackLink } from '../shared/BackLink'
 import { FormVideoTile } from '../shared/FormVideoTile'
+import { InstallRow } from '../shared/InstallCard'
 import { PhotoGrid } from '../shared/PhotoGrid'
 import { Screen } from '../shared/Screen'
 import { holdClosing } from '../shared/closingGuard'
+import { installedApp } from '../shared/device'
 import { confirmAction } from '../shared/dialogs'
 import { CameraIcon, PhotoIcon } from '../shared/icons'
 import { VideoSendCards } from './VideoSendCards'
@@ -37,8 +39,8 @@ const SEXES: { value: Sex; label: string }[] = [
  * client's gym. Optional, and only Dasha sees it.
  */
 /**
- * The client's profile: their photo, the questionnaire, and signing out
- * outside Telegram.
+ * The client's profile: their photo, the way to the app's install page, the
+ * questionnaire, and signing out outside Telegram.
  */
 export function QuestionnairePage({
   client,
@@ -53,6 +55,11 @@ export function QuestionnairePage({
     <>
       <BackLink to="/app" label="Головна" />
       <AvatarSection client={client} />
+      {!installedApp() && (
+        <ul className="list-group">
+          <InstallRow installedBefore={client.app_installed} />
+        </ul>
+      )}
     </>
   )
   if (!questionnaire.data) {

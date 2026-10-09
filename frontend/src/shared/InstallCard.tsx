@@ -1,11 +1,19 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
+import { useNavigate } from 'react-router'
 
 import { type AppSession, SESSION_KEY } from '../app/session'
 import { telegramWebApp } from '../app/telegram'
 import { Collapse } from './Collapse'
+import { installedApp } from './device'
+import { ChevronIcon, PhoneIcon } from './icons'
 
 const DISMISSED_KEY = 'install_card_dismissed'
+
+/** Telegram's own browser can't install, so from Telegram the page opens in the phone's. */
+function openInstallPage() {
+  telegramWebApp()?.openLink(new URL('/install', window.location.origin).href)
+}
 
 function readDismissed(): boolean {
   try {
@@ -53,7 +61,7 @@ export function InstallCard() {
           <button
             type="button"
             className="button primary small"
-            onClick={() => webApp?.openLink(new URL('/install', window.location.origin).href)}
+            onClick={openInstallPage}
           >
             Встановити
           </button>
@@ -63,5 +71,38 @@ export function InstallCard() {
         </div>
       </div>
     </Collapse>
+  )
+}
+
+/**
+ * A quiet row on the profile that always leads to the install page, for
+ * whoever put the card off, deleted the app or has a new phone. A list item
+ * for a `list-group`; nothing in the installed app itself.
+ */
+export function InstallRow({ installedBefore }: { installedBefore: boolean }) {
+  const navigate = useNavigate()
+  if (installedApp()) return null
+
+  return (
+    <li>
+      <button
+        type="button"
+        className="list-row"
+        onClick={() => (telegramWebApp() ? openInstallPage() : navigate('/install'))}
+      >
+        <span className="list-icon" aria-hidden="true">
+          <PhoneIcon />
+        </span>
+        <span className="list-text">
+          <span className="list-title">Застосунок на телефон</span>
+          <span className="muted small">
+            {installedBefore
+              ? 'Ще раз або на новий телефон'
+              : 'Одним дотиком, без Telegram'}
+          </span>
+        </span>
+        <ChevronIcon />
+      </button>
+    </li>
   )
 }
