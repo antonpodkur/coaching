@@ -10,7 +10,9 @@ import '@fontsource/unbounded/cyrillic-600.css'
 
 import { InstallPage } from './app/InstallPage'
 import { MiniApp } from './app/MiniApp'
+import { MovedPage } from './app/MovedPage'
 import { StandaloneApp } from './app/StandaloneApp'
+import { leaveOldAddress } from './app/moved'
 import { telegramWebApp } from './app/telegram'
 import { DialogHost } from './shared/DialogHost'
 import { MotionProvider } from './shared/MotionProvider'
@@ -69,13 +71,23 @@ listenForNotifications((url) => void router.navigate(url))
 const root = document.getElementById('root')
 if (!root) throw new Error('index.html has no #root element')
 
-createRoot(root).render(
-  <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <MotionProvider>
-        <RouterProvider router={router} />
-        <UpdateNote />
-      </MotionProvider>
-    </QueryClientProvider>
-  </StrictMode>,
-)
+// The old address hands over to the new one; an app installed from it says so.
+const address = leaveOldAddress()
+if (address === 'installed') {
+  createRoot(root).render(
+    <StrictMode>
+      <MovedPage />
+    </StrictMode>,
+  )
+} else if (address === 'here') {
+  createRoot(root).render(
+    <StrictMode>
+      <QueryClientProvider client={queryClient}>
+        <MotionProvider>
+          <RouterProvider router={router} />
+          <UpdateNote />
+        </MotionProvider>
+      </QueryClientProvider>
+    </StrictMode>,
+  )
+}

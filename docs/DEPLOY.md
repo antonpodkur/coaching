@@ -171,19 +171,17 @@ Do this on iOS and Android, inside Telegram:
   - Bunny keys: regenerate them in Bunny, then update them in Render.
   - `JWT_SECRET`: regenerating it signs everyone out, and the Mini App signs them back in.
 
-## Custom domain (before real clients)
+## Custom domain
 
-The phones keep offline data and the session per address. So moving to a domain after clients have joined means a fresh sign-in, and losing any sets still waiting to send. Do it before the first real client.
+The app lives at `https://getcoachin.app` (bought October 2026). Before that it was `coaching.anton-podkur.workers.dev`.
+
+The phones keep offline data, the session, notifications and the installed app per address. So moving to another domain means everyone with the installed app installs it again, signs in again and turns notifications on again, and any sets still waiting to send are lost. Telegram users don't notice.
+
+To move to a domain:
 
 1. Buy the domain at Cloudflare Registrar, so its DNS is on Cloudflare.
-2. **Frontend:** the Worker > Settings > Domains & Routes > add the domain (or `app.<domain>`).
-3. **Backend:**
-   1. Render > the service > Settings > Custom Domains > add `api.<domain>`.
-   2. Create the CNAME it asks for in Cloudflare DNS, as "DNS only" (grey cloud).
-   3. Wait until Render shows the certificate.
-4. **Point the two at each other:**
-   1. In Render, set `FRONTEND_ORIGIN` to the new frontend address.
-   2. In Workers Builds, set the `VITE_API_URL` build variable to `https://api.<domain>`.
-   3. Redeploy both.
-
-The bot's menu button follows `FRONTEND_ORIGIN` on the next start. Invite links are `t.me` links, so they don't change.
+2. **Frontend:** the Worker > Settings > Domains & Routes > Add > Custom domain.
+3. **The old address:** set the old and new addresses in `frontend/src/app/moved.ts`, and deploy. The old address then sends Telegram and browser tabs on to the same page at the new one. The app installed from it shows "Застосунок переїхав" with a link to the new install page, and drops its notifications.
+4. **Backend:** in Render, set `FRONTEND_ORIGIN` to the new address. Only that address may call the API, so do this right after step 3. The bot's menu button and every link the bot sends follow it on the next start.
+5. **@BotFather:** /mybots > the bot > Bot Settings > Configure Mini App > Edit Mini App URL > `<new address>/app`. Invite links (`t.me/<bot>?startapp=…`) open this address; they keep working without it, through the old address, but take a detour.
+6. **Optional, the API's own address:** Render > the service > Settings > Custom Domains > add `api.<domain>`, create the CNAME it asks for in Cloudflare DNS as "DNS only" (grey cloud), wait for the certificate, then set the `VITE_API_URL` build variable in Workers Builds to `https://api.<domain>` and redeploy. Not needed for the move: the API's address isn't stored on phones.

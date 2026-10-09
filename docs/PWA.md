@@ -16,7 +16,7 @@ The goal is to install the site itself on the phone, with its own icon, its own 
 - **Invites** stay Telegram app links (`startapp=inv_…`).
 - **Notifications:** web push for people who turn it on, and the bot messages keep coming as well. A per-person setting comes later.
 - **Dasha** installs it too and gets her notifications as push as well.
-- **Address:** develop on `coaching.anton-podkur.workers.dev`, and move to the product's own domain before real clients install. See "Address".
+- **Address:** the app moved from `coaching.anton-podkur.workers.dev` to `getcoachin.app` in October 2026. See "Address".
 - **Icon:** a placeholder until there is branding.
 
 ## Sign-in outside Telegram
