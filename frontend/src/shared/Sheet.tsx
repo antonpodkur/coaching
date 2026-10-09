@@ -14,6 +14,19 @@ interface Props {
   children: ReactNode
 }
 
+interface FrameProps {
+  /** The `id` of the sheet's title, for `aria-labelledby`; unique on the page. */
+  titleId: string
+  /** The `id` of the sheet's message, for a question (`role="alertdialog"`). */
+  messageId?: string
+  onClose: () => void
+  fit?: boolean
+  className?: string
+  /** The top under the handle, such as the title: pulling it pulls the sheet down. */
+  grip: ReactNode
+  children: ReactNode
+}
+
 /** Pulled down this far, or flicked down this fast (px/s), the sheet closes. */
 const CLOSE_DISTANCE = 120
 const CLOSE_SPEED = 600
@@ -27,6 +40,35 @@ const BACKDROP_CLEAR = 'rgba(8, 8, 8, 0)'
  * an `AnimatePresence` so it can slide away.
  */
 export function Sheet({ title, titleId, onClose, fit = false, children }: Props) {
+  return (
+    <SheetFrame
+      titleId={titleId}
+      onClose={onClose}
+      fit={fit}
+      grip={
+        <div className="sheet-head">
+          <h2 id={titleId}>{title}</h2>
+          <button type="button" className="icon-button filled" aria-label="Закрити" onClick={onClose}>
+            <CloseIcon />
+          </button>
+        </div>
+      }
+    >
+      {children}
+    </SheetFrame>
+  )
+}
+
+/** What every sheet shares: the backdrop, sliding up and away, and closing. */
+export function SheetFrame({
+  titleId,
+  messageId,
+  onClose,
+  fit = false,
+  className,
+  grip,
+  children,
+}: FrameProps) {
   const dialog = useRef<HTMLDivElement>(null)
   const drag = useDragControls()
 
@@ -55,10 +97,11 @@ export function Sheet({ title, titleId, onClose, fit = false, children }: Props)
     >
       <m.div
         ref={dialog}
-        className={fit ? 'sheet fit' : 'sheet'}
-        role="dialog"
+        className={['sheet', fit && 'fit', className].filter(Boolean).join(' ')}
+        role={messageId ? 'alertdialog' : 'dialog'}
         aria-modal="true"
         aria-labelledby={titleId}
+        aria-describedby={messageId}
         onClick={(event) => event.stopPropagation()}
         initial={{ y: '100%' }}
         animate={{ y: 0 }}
@@ -74,17 +117,7 @@ export function Sheet({ title, titleId, onClose, fit = false, children }: Props)
         {/* The top is what pulls it down; anything below scrolls as usual. */}
         <div className="sheet-grip" onPointerDown={(event) => drag.start(event)}>
           <span className="sheet-handle" aria-hidden="true" />
-          <div className="sheet-head">
-            <h2 id={titleId}>{title}</h2>
-            <button
-              type="button"
-              className="icon-button filled"
-              aria-label="Закрити"
-              onClick={onClose}
-            >
-              <CloseIcon />
-            </button>
-          </div>
+          {grip}
         </div>
         {children}
       </m.div>

@@ -125,9 +125,12 @@ function ArchiveButton({ client }: { client: Client }) {
   const archive = useUpdateClient(client.id, () => goBackTo(navigate, base))
 
   const onClick = async () => {
-    const confirmed = await confirmAction(
-      `Архівувати «${client.name}»? Застосунок для клієнта закриється, нагадування припиняться. Тренування й звіти залишаться в тебе, клієнта можна повернути.`,
-    )
+    const confirmed = await confirmAction({
+      title: `Архівувати «${client.name}»?`,
+      detail:
+        'Застосунок для клієнта закриється, нагадування припиняться. Тренування й звіти залишаться в тебе, клієнта можна повернути.',
+      action: 'Архівувати',
+    })
     if (confirmed) archive.mutate({ archived: true })
   }
 

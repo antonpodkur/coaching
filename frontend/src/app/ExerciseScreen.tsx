@@ -184,8 +184,14 @@ function FormVideos({
     event.target.value = ''
     if (file) void sendVideo(target, file, queryClient)
   }
-  const remove = async (videoId: string) => {
-    if (!(await confirmAction(`Видалити це відео? ${coachName} його більше не побачить.`))) return
+  const remove = async (videoId: string, thumbnail?: string | null) => {
+    const confirmed = await confirmAction({
+      title: 'Видалити це відео?',
+      detail: `${coachName} його більше не побачить.`,
+      action: 'Видалити',
+      image: thumbnail,
+    })
+    if (!confirmed) return
     await api.DELETE('/form-videos/{id}', { params: { path: { id: videoId } } }).catch(() => undefined)
     void queryClient.invalidateQueries({ queryKey: [...MY_WORKOUTS_KEY, workoutId] })
   }
@@ -200,7 +206,7 @@ function FormVideos({
           key={video.id}
           video={video}
           label={`Відео ${index + 1}`}
-          onDelete={() => remove(video.id)}
+          onDelete={() => remove(video.id, video.thumbnail_url)}
         />
       ))}
       <VideoSendCards sends={sends} />

@@ -12,6 +12,7 @@ import { InstallPage } from './app/InstallPage'
 import { MiniApp } from './app/MiniApp'
 import { StandaloneApp } from './app/StandaloneApp'
 import { telegramWebApp } from './app/telegram'
+import { DialogHost } from './shared/DialogHost'
 import { MotionProvider } from './shared/MotionProvider'
 import { ScreenTransitions } from './shared/ScreenTransitions'
 import { UpdateNote } from './shared/UpdateNote'
@@ -35,6 +36,7 @@ const router = createBrowserRouter([
       <>
         <ScreenTransitions />
         <Outlet />
+        <DialogHost />
       </>
     ),
     children: [

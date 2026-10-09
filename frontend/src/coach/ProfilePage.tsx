@@ -6,7 +6,7 @@ import { ApiError, type Schemas } from '../api/client'
 import { Avatar } from '../shared/Avatar'
 import { BackLink } from '../shared/BackLink'
 import { InstallRow } from '../shared/InstallCard'
-import { confirmAction } from '../shared/dialogs'
+import { confirmAction, confirmSignOut } from '../shared/dialogs'
 import { ChevronIcon, ImportIcon } from '../shared/icons'
 import { removeCoachAvatar, showCoachAvatar, uploadCoachAvatar } from './coachAvatar'
 import { useCoach } from './context'
@@ -54,7 +54,13 @@ export function ProfilePage({
       </p>
 
       {onSignOut && (
-        <button type="button" className="link-button sign-out" onClick={onSignOut}>
+        <button
+          type="button"
+          className="link-button sign-out"
+          onClick={async () => {
+            if (await confirmSignOut()) onSignOut()
+          }}
+        >
           Вийти з акаунта
         </button>
       )}
@@ -90,7 +96,12 @@ function PhotoSection({ coach }: { coach: Schemas['CoachProfile'] }) {
   }
 
   const remove = async () => {
-    if (!(await confirmAction('Прибрати фото? Клієнти бачитимуть твої ініціали.'))) return
+    const confirmed = await confirmAction({
+      title: 'Прибрати фото профілю?',
+      detail: 'Клієнти бачитимуть твої ініціали.',
+      action: 'Прибрати',
+    })
+    if (!confirmed) return
     setError(null)
     setBusy(true)
     try {

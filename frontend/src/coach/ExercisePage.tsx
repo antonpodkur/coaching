@@ -257,7 +257,13 @@ function PhotosSection({ exercise }: { exercise: Exercise }) {
   }
 
   const remove = async (photoId: string) => {
-    if (!(await confirmAction('Видалити це фото? Клієнти його більше не побачать.'))) return
+    const confirmed = await confirmAction({
+      title: 'Видалити це фото?',
+      detail: 'Клієнти його більше не побачать.',
+      action: 'Видалити',
+      image: exercise.photos.find((photo) => photo.id === photoId)?.url,
+    })
+    if (!confirmed) return
     await api
       .DELETE('/coach/exercise-photos/{id}', { params: { path: { id: photoId } } })
       .catch(() => undefined)
@@ -325,9 +331,11 @@ function ArchiveButton({ exercise }: { exercise: Exercise }) {
   })
 
   const onClick = async () => {
-    const confirmed = await confirmAction(
-      `Прибрати «${exercise.name}» з бібліотеки? У старих тренуваннях вона залишиться.`,
-    )
+    const confirmed = await confirmAction({
+      title: `Прибрати «${exercise.name}» з бібліотеки?`,
+      detail: 'У старих тренуваннях вона залишиться.',
+      action: 'Прибрати',
+    })
     if (confirmed) archive.mutate()
   }
 

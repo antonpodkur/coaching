@@ -231,3 +231,13 @@ export function PhoneIcon({ size = 18 }: { size?: number }) {
     </Icon>
   )
 }
+
+/** Something went wrong: an exclamation mark in a circle. */
+export function AlertIcon({ size = 18 }: { size?: number }) {
+  return (
+    <Icon size={size}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7.5v5M12 16.2h.01" />
+    </Icon>
+  )
+}

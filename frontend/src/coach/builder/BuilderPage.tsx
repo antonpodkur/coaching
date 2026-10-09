@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, m } from 'motion/react'
-import { useEffect, useState } from 'react'
+import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 
 import { ApiError, api, unwrap } from '../../api/client'
@@ -9,9 +9,10 @@ import { goBackTo } from '../../shared/history'
 import { plural } from '../../shared/format'
 import { CheckIcon, PlusIcon } from '../../shared/icons'
 import { EASE_IOS } from '../../shared/motion'
+import { useNotesAbove } from '../../shared/notesAbove'
 import { useBackTarget } from '../backTarget'
 import { EXERCISES_KEY, WORKOUTS_KEY, isUnauthorized, useCoach } from '../context'
-import { alertMessage, confirmAction } from '../../shared/dialogs'
+import { confirmAction, flashNote } from '../../shared/dialogs'
 import { type Exercise } from '../library'
 import { ExerciseCard } from './ExerciseCard'
 import { LibrarySheet } from './LibrarySheet'
@@ -111,14 +112,24 @@ function Builder({ workout, onReload }: { workout: Workout; onReload: () => void
       return { ...current, exercises }
     })
 
-  const removeExercise = async (exercise: DraftExercise) => {
-    const confirmed = await confirmAction(`Прибрати «${exercise.name}» з тренування?`)
-    if (!confirmed) return
+  // Only the draft changes, so it goes at once, with a moment to put it back.
+  const removeExercise = (exercise: DraftExercise) => {
+    const index = draft.exercises.findIndex((row) => row.id === exercise.id)
     if (selection?.exercise === exercise.id) setSelection(null)
     update((current) => ({
       ...current,
       exercises: current.exercises.filter((row) => row.id !== exercise.id),
     }))
+    flashNote({
+      text: `«${exercise.name}» прибрано`,
+      undo: () =>
+        update((current) => {
+          if (current.exercises.some((row) => row.id === exercise.id)) return current
+          const exercises = [...current.exercises]
+          exercises.splice(Math.min(index, exercises.length), 0, exercise)
+          return { ...current, exercises }
+        }),
+    })
   }
 
   // An exercise added to this workout only, moved into the library afterwards.
@@ -142,8 +153,8 @@ function Builder({ workout, onReload }: { workout: Workout; onReload: () => void
     onError: (err) => {
       if (isUnauthorized(err)) onUnauthorized()
       else if (err instanceof ApiError && err.code === 'name_taken') {
-        alertMessage('У бібліотеці вже є вправа з такою назвою.')
-      } else alertMessage('Не вдалося додати вправу в бібліотеку. Спробуй ще раз.')
+        flashNote({ text: 'У бібліотеці вже є вправа з такою назвою.', error: true })
+      } else flashNote({ text: 'Не вдалося додати вправу в бібліотеку. Спробуй ще раз.', error: true })
     },
   })
 
@@ -273,7 +284,7 @@ function Builder({ workout, onReload }: { workout: Workout; onReload: () => void
               onAddToLibrary={
                 exercise.in_library ? undefined : () => toLibrary.mutate(exercise.exercise_id)
               }
-              onRemove={() => void removeExercise(exercise)}
+              onRemove={() => removeExercise(exercise)}
             />
           ))}
         </AnimatePresence>
@@ -285,9 +296,11 @@ function Builder({ workout, onReload }: { workout: Workout; onReload: () => void
           className="link-button danger"
           disabled={deleteWorkout.isPending}
           onClick={() =>
-            void confirmAction('Видалити це тренування?').then(
-              (confirmed) => confirmed && deleteWorkout.mutate(),
-            )
+            void confirmAction({
+              title: 'Видалити це тренування?',
+              detail: isPublished ? 'Клієнт його більше не побачить.' : undefined,
+              action: 'Видалити',
+            }).then((confirmed) => confirmed && deleteWorkout.mutate())
           }
         >
           Видалити тренування
@@ -297,7 +310,7 @@ function Builder({ workout, onReload }: { workout: Workout; onReload: () => void
       {/* The bottom bar: "add exercise", or the set editor sliding up over it. */}
       <AnimatePresence initial={false}>
         {editing && selectedExercise && editingSet ? (
-          <m.div key="editor" className="builder-bottom" {...BOTTOM_PANEL}>
+          <BottomPanel key="editor" className="builder-bottom">
             <SetEditor
               key={editingSet.id}
               exercise={selectedExercise}
@@ -332,14 +345,14 @@ function Builder({ workout, onReload }: { workout: Workout; onReload: () => void
               }}
               onDone={() => setSelection(null)}
             />
-          </m.div>
+          </BottomPanel>
         ) : (
-          <m.div key="add" className="builder-bottom builder-add" {...BOTTOM_PANEL}>
+          <BottomPanel key="add" className="builder-bottom builder-add">
             <button type="button" className="button block" onClick={() => setSheetOpen(true)}>
               <PlusIcon />
               Вправа з бібліотеки
             </button>
-          </m.div>
+          </BottomPanel>
         )}
       </AnimatePresence>
 
@@ -356,13 +369,23 @@ function Builder({ workout, onReload }: { workout: Workout; onReload: () => void
   )
 }
 
-/** The bottom bar slides up into place and back down out of the way. */
-const BOTTOM_PANEL = {
-  initial: { y: '100%' },
-  animate: { y: 0 },
-  exit: { y: '100%' },
-  transition: { duration: 0.3, ease: EASE_IOS },
-} as const
+/** The bottom bar slides up into place and back down out of the way; notes float above it. */
+function BottomPanel({ className, children }: { className: string; children: ReactNode }) {
+  const panel = useRef<HTMLDivElement>(null)
+  useNotesAbove(panel)
+  return (
+    <m.div
+      ref={panel}
+      className={className}
+      initial={{ y: '100%' }}
+      animate={{ y: 0 }}
+      exit={{ y: '100%' }}
+      transition={{ duration: 0.3, ease: EASE_IOS }}
+    >
+      {children}
+    </m.div>
+  )
+}
 
 function SaveIndicator({ status, onReload }: { status: SaveStatus; onReload: () => void }) {
   switch (status) {

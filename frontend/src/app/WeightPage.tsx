@@ -46,7 +46,9 @@ export function WeightPage() {
   const code = save.error instanceof ApiError ? save.error.code : null
 
   const remove = async (day: string) => {
-    if (!(await confirmAction(`Видалити запис за ${formatDate(day)}?`))) return
+    if (!(await confirmAction({ title: `Видалити запис за ${formatDate(day)}?`, action: 'Видалити' }))) {
+      return
+    }
     await api.DELETE('/me/weight/{date}', { params: { path: { date: day } } }).catch(() => undefined)
     void queryClient.invalidateQueries({ queryKey: MY_WEIGHT_KEY })
   }

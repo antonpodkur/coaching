@@ -10,7 +10,7 @@ import { PhotoGrid } from '../shared/PhotoGrid'
 import { Screen } from '../shared/Screen'
 import { holdClosing } from '../shared/closingGuard'
 import { installedApp } from '../shared/device'
-import { confirmAction } from '../shared/dialogs'
+import { confirmAction, confirmSignOut } from '../shared/dialogs'
 import { CameraIcon, PhotoIcon } from '../shared/icons'
 import { VideoSendCards } from './VideoSendCards'
 import { removeAvatar, showAvatar, uploadAvatar } from './avatar'
@@ -88,7 +88,7 @@ export function QuestionnairePage({
           type="button"
           className="link-button sign-out"
           onClick={async () => {
-            if (await confirmAction('Вийти з акаунта на цьому пристрої?')) onSignOut()
+            if (await confirmSignOut()) onSignOut()
           }}
         >
           Вийти з акаунта
@@ -241,7 +241,12 @@ function AvatarSection({ client }: { client: Schemas['ClientProfile'] }) {
   }
 
   const remove = async () => {
-    if (!(await confirmAction('Прибрати фото профілю?'))) return
+    const confirmed = await confirmAction({
+      title: 'Прибрати фото профілю?',
+      detail: `${coachName} бачитиме твої ініціали.`,
+      action: 'Прибрати',
+    })
+    if (!confirmed) return
     setError(null)
     setBusy(true)
     try {
@@ -343,8 +348,14 @@ function GymSection({ questionnaire }: { questionnaire: Questionnaire }) {
     void sendVideo(GYM_VIDEOS, file, queryClient)
   }
 
-  const remove = async (id: string, what: string) => {
-    if (!(await confirmAction(`Видалити ${what}? ${coachName} його більше не побачить.`))) return
+  const remove = async (id: string, what: string, image?: string | null) => {
+    const confirmed = await confirmAction({
+      title: `Видалити ${what}?`,
+      detail: `${coachName} його більше не побачить.`,
+      action: 'Видалити',
+      image,
+    })
+    if (!confirmed) return
     await api.DELETE('/me/gym/{id}', { params: { path: { id } } }).catch(() => undefined)
     void queryClient.invalidateQueries({ queryKey: QUESTIONNAIRE_KEY })
   }
@@ -360,7 +371,7 @@ function GymSection({ questionnaire }: { questionnaire: Questionnaire }) {
       <PhotoGrid
         photos={photos}
         pending={uploading}
-        onDelete={(id) => void remove(id, 'це фото')}
+        onDelete={(id) => void remove(id, 'це фото', photos.find((photo) => photo.id === id)?.url)}
       />
       {photoSlots > 0 && (
         <label className="button block file-button">
@@ -378,7 +389,7 @@ function GymSection({ questionnaire }: { questionnaire: Questionnaire }) {
               key={video.id}
               video={video}
               label={`Відео ${index + 1}`}
-              onDelete={() => void remove(video.id, 'це відео')}
+              onDelete={() => void remove(video.id, 'це відео', video.thumbnail_url)}
             />
           ))}
           <VideoSendCards sends={sends} />
