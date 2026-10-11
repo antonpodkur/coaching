@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Coachin — B · Петля</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="shared.css" />
+<style>
+  :root {
+    --stone: #ebe6de;
+    --stone-2: #e2dcd2;
+    --ink: #161413;
+    --clay: #77706a;
+    --rule: rgba(22, 20, 19, 0.14);
+    --amber: #a8700f;
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+  }
+  body { background: var(--stone); color: var(--ink); font-family: 'Manrope Variable', system-ui, sans-serif; font-weight: 500; }
+  .page { max-width: 1440px; margin: 0 auto; padding: 0 64px; overflow: hidden; }
+
+  nav { height: 84px; display: flex; align-items: center; gap: 36px; }
+  .links { display: flex; gap: 28px; font-size: 15px; font-weight: 650; color: var(--clay); margin-left: 24px; }
+  .links a { text-decoration: none; }
+  .nav-end { margin-left: auto; display: flex; align-items: center; gap: 22px; font-size: 14px; font-weight: 700; }
+  .lang { display: inline-flex; border: 1px solid var(--rule); border-radius: 999px; padding: 3px; }
+  .lang span { padding: 4px 10px; border-radius: 999px; color: var(--clay); }
+  .lang span.on { background: var(--ink); color: var(--stone); }
+  .quiet { color: var(--clay); text-decoration: none; font-weight: 700; }
+  .btn { white-space: nowrap; display: inline-flex; align-items: center; gap: 10px; height: 44px; padding: 0 18px; border-radius: 12px; background: var(--ink); color: var(--stone); font-weight: 750; text-decoration: none; font-size: 15px; }
+  .btn.big { height: 56px; padding: 0 24px; border-radius: 14px; font-size: 16px; }
+
+  .top { display: grid; grid-template-columns: minmax(0, 1fr) 430px; gap: 48px; align-items: end; padding-top: 34px; }
+  h1 { margin: 0; font-weight: 800; font-size: 68px; line-height: 1.02; letter-spacing: -0.045em; }
+  h1 span { display: block; position: relative; }
+  h1 small { position: absolute; left: -44px; top: 14px; font-family: var(--mono); font-size: 13px; font-weight: 700; letter-spacing: 0; color: var(--clay); }
+  .lede { margin: 0; font-size: 17px; line-height: 1.55; color: #3b3633; }
+  .actions { margin-top: 24px; display: flex; align-items: center; gap: 20px; }
+  .beta { margin-top: 14px; font-family: var(--mono); font-size: 13px; color: var(--clay); }
+  .beta b { color: var(--ink); }
+
+  /* Two phones and what travels between them. */
+  .stage { position: relative; height: 600px; margin-top: 40px; }
+  .phone { --w: 320px; --s: 0.769; position: absolute; top: 36px; }
+  .phone.coach { left: 130px; }
+  .phone.client { right: 130px; }
+  .cap { position: absolute; top: 0; width: 320px; text-align: center; font-family: var(--mono); font-size: 12.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--clay); }
+  .cap.coach { left: 130px; }
+  .cap.client { right: 130px; }
+  .routes { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
+  .routes path { fill: none; stroke: var(--ink); stroke-width: 1.5; }
+  .routes .back { stroke-dasharray: 1 6; stroke-linecap: round; stroke-width: 2.5; }
+  .note {
+    position: absolute; z-index: 3; width: 268px; padding: 12px 14px; border-radius: 18px;
+    background: rgba(250, 248, 245, 0.92); box-shadow: 0 1px 0 rgba(255,255,255,.6) inset, 0 18px 40px -18px rgba(22, 20, 19, 0.35), 0 0 0 1px var(--rule);
+    display: grid; grid-template-columns: 34px 1fr; gap: 2px 10px; align-content: start; font-size: 13.5px; line-height: 1.35;
+  }
+  .note .icon { grid-row: span 3; width: 34px; height: 34px; border-radius: 9px; background: var(--ink); color: var(--stone); display: grid; place-items: center; font-family: 'Unbounded'; font-size: 13px; }
+  .note .meta { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 11.5px; color: var(--clay); }
+  .note strong { font-weight: 750; }
+  .note .warn { color: var(--amber); font-weight: 700; }
+  .note.out { left: 50%; top: 120px; transform: translateX(-50%); }
+  .note.back { left: 50%; top: 360px; transform: translateX(-50%); }
+
+  @media (max-width: 720px) {
+    .page { padding: 0 18px; }
+    nav { height: 64px; }
+    .links, nav .quiet, nav .btn { display: none; }
+    .top { display: block; padding-top: 18px; }
+    h1 { font-size: 38px; }
+    h1 small { position: static; display: block; margin: 12px 0 2px; }
+    h1 span:first-child small { margin-top: 0; }
+    .lede { margin-top: 22px; font-size: 16px; }
+    .actions { flex-direction: column; align-items: stretch; gap: 12px; }
+    .actions .btn { justify-content: center; }
+    .actions .quiet { text-align: center; }
+    .beta { text-align: center; }
+    .stage { height: auto; margin-top: 40px; padding-bottom: 48px; display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
+    .phone { --w: 170px; --s: 0.385; position: relative; left: auto !important; right: auto !important; justify-self: center; }
+    .routes { display: none; }
+    .phone { top: 0; }
+    .note, .note.out, .note.back { position: relative; left: auto; top: auto; transform: none; width: auto; grid-column: 1 / -1; margin-top: 14px; }
+    .note.out { margin-top: -120px; margin-inline: 18px; }
+    .note.back { margin-inline: 18px; }
+    .cap { position: static; width: auto; font-size: 11px; margin-bottom: 10px; }
+    .phone { grid-row: 2; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <nav>
+    <a class="wordmark" href="#">Coachin</a>
+    <div class="links"><a href="#">Для тренера</a><a href="#">Для клієнтів</a><a href="#">Ціна</a></div>
+    <div class="nav-end">
+      <span class="lang"><span class="on">UA</span><span>EN</span></span>
+      <a class="quiet" href="#">Я клієнт →</a>
+      <a class="btn" href="#">Написати</a>
+    </div>
+  </nav>
+
+  <header class="top">
+    <h1>
+      <span><small>01</small>Ви складаєте план.</span>
+      <span><small>02</small>Клієнт тренується.</span>
+      <span><small>03</small>Ви бачите, як пройшло.</span>
+    </h1>
+    <div>
+      <p class="lede">Coachin — застосунок для онлайн-тренера і його клієнтів. Тренування з відео техніки, підходи й звіти — в одному місці, що відкривається просто з Telegram.</p>
+      <div class="actions">
+        <a class="btn big" href="#"><svg class="plane" viewBox="0 0 24 24"><path d="M21.5 3.5L2.8 10.7c-.9.4-.9 1.6.1 1.9l4.6 1.5 1.8 5.6c.3.9 1.4 1.1 2 .4l2.6-2.7 4.7 3.5c.7.5 1.7.1 1.9-.8l3-14.6c.2-1-.8-1.8-1.8-1.5zM9.7 14.4l-.6 3.6-1.2-3.9 9.6-6.6-7.8 6.9z" fill="currentColor"/></svg>Написати в Telegram</a>
+        <a class="quiet" href="#">Спробувати демо</a>
+      </div>
+      <p class="beta"><b>Безкоштовно</b>, поки триває бета</p>
+    </div>
+  </header>
+
+  <section class="stage" id="stage">
+    <span class="cap coach">Тренер</span>
+    <span class="cap client">Клієнт</span>
+
+    <div class="phone coach" id="coach">
+      <div class="island"></div>
+      <div class="screen"><div class="app">
+        <div class="status"><span>19:41</span><i>●●● ▮</i></div>
+        <div class="body">
+          <div class="topbar"><span class="back">‹ Андрій К.</span></div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <span><span class="tag new">Новий звіт · сьогодні, 19:40</span></span>
+            <div class="h1">Спина · 13 жовт</div>
+            <span class="muted small">52 хв · 8 з 8 підходів · 1 інакше, ніж у плані</span>
+          </div>
+          <div class="card" style="gap:10px">
+            <span><span class="tag">Нормально</span></span>
+            <p style="margin:0;font-size:15px">«Останній підхід тяги не дотягнув — передпліччя забилися»</p>
+          </div>
+          <div class="section-title">Інакше, ніж у плані</div>
+          <div class="rows">
+            <div class="row" style="flex-wrap:wrap;gap:8px"><span class="ex-name" style="width:100%">Тяга гантелі в нахилі <span class="muted small">· на кожну руку</span></span><span class="result">20 × 12</span><span class="result warn" id="diff">22 × 7 · план 10</span></div>
+          </div>
+          <span class="btn block">Скопіювати в наступне тренування</span>
+        </div>
+      </div></div>
+    </div>
+
+    <div class="phone client" id="client">
+      <div class="island"></div>
+      <div class="screen"><div class="app">
+        <div class="status"><span>9:13</span><i>●●● ▮</i></div>
+        <div class="body">
+          <div class="h1" style="font-size:22px;margin-top:6px">Привіт, Андрій</div>
+          <div class="week">
+            <div class="day today has"><span>Пн</span><strong>13</strong><i></i></div>
+            <div class="day"><span>Вт</span><strong>14</strong><i></i></div>
+            <div class="day has"><span>Ср</span><strong>15</strong><i></i></div>
+            <div class="day"><span>Чт</span><strong>16</strong><i></i></div>
+            <div class="day has"><span>Пт</span><strong>17</strong><i></i></div>
+            <div class="day"><span>Сб</span><strong>18</strong><i></i></div>
+            <div class="day"><span>Нд</span><strong>19</strong><i></i></div>
+          </div>
+          <div class="today-card" id="today">
+            <div class="today-img"></div>
+            <div class="today-body">
+              <span class="muted small" style="font-weight:700">Сьогодні</span>
+              <div class="h1" style="font-size:22px">Спина</div>
+              <span class="muted small">3 вправи · 8 підходів · відео до кожної</span>
+              <span class="btn block primary" style="margin-top:6px" id="start">Почати тренування</span>
+            </div>
+          </div>
+          <div class="section-title">Далі цього тижня</div>
+          <div class="rows">
+            <div class="row"><span>Груди + трицепс</span><span class="muted small" style="margin-left:auto">Ср, 15 жовт</span></div>
+            <div class="row"><span>Ноги</span><span class="muted small" style="margin-left:auto">Пт, 17 жовт</span></div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+
+
+    <svg class="routes" id="routes"></svg>
+    <div class="note out"><span class="icon">C</span><span class="meta"><span>Coachin</span><span>09:12</span></span><strong>Нове тренування: Спина</strong><span>Пн, 13 жовтня · 3 вправи</span></div>
+    <div class="note back"><span class="icon">C</span><span class="meta"><span>Coachin</span><span>19:40</span></span><strong>Андрій К. завершив тренування</strong><span>8 з 8 підходів · <span class="warn">1 не за планом</span></span></div>
+  </section>
+</div>
+<script>
+  // Routes: coach → client above, client → coach below.
+  function draw() {
+    const svg = document.getElementById('routes')
+    if (getComputedStyle(svg).display === 'none') return
+    const box = document.getElementById('stage').getBoundingClientRect()
+    const c = document.getElementById('coach').getBoundingClientRect()
+    const k = document.getElementById('client').getBoundingClientRect()
+    const today = document.getElementById('today').getBoundingClientRect()
+    const diff = document.getElementById('diff').getBoundingClientRect()
+    const out = document.querySelector('.note.out').getBoundingClientRect()
+    const back = document.querySelector('.note.back').getBoundingClientRect()
+    const X = (x) => x - box.left, Y = (y) => y - box.top
+    svg.setAttribute('viewBox', `0 0 ${box.width} ${box.height}`)
+    const a1 = [X(c.right), Y(c.top + 90)], a2 = [X(k.left), Y(today.top + 60)]
+    const b1 = [X(k.left), Y(document.getElementById('start').getBoundingClientRect().top + 20)], b2 = [X(c.right), Y(diff.top + diff.height / 2)]
+    const mid = (out.top + out.height / 2)
+    svg.innerHTML =
+      `<path d="M${a1[0]} ${a1[1]} C ${a1[0] + 70} ${a1[1]}, ${X(out.left) - 40} ${Y(mid)}, ${X(out.left)} ${Y(mid)}"/>` +
+      `<path d="M${X(out.right)} ${Y(mid)} C ${X(out.right) + 40} ${Y(mid)}, ${a2[0] - 60} ${a2[1]}, ${a2[0] - 6} ${a2[1]}"/>` +
+      `<path d="M${a2[0] - 14} ${a2[1] - 6} L ${a2[0] - 5} ${a2[1]} L ${a2[0] - 14} ${a2[1] + 6}"/>` +
+      `<path class="back" d="M${b1[0]} ${b1[1]} C ${b1[0] - 60} ${b1[1]}, ${X(back.right) + 40} ${Y(back.top + back.height / 2)}, ${X(back.right)} ${Y(back.top + back.height / 2)}"/>` +
+      `<path class="back" d="M${X(back.left)} ${Y(back.top + back.height / 2)} C ${X(back.left) - 40} ${Y(back.top + back.height / 2)}, ${b2[0] + 60} ${b2[1]}, ${b2[0] + 8} ${b2[1]}"/>` +
+      `<path d="M${b2[0] + 16} ${b2[1] - 6} L ${b2[0] + 7} ${b2[1]} L ${b2[0] + 16} ${b2[1] + 6}"/>`
+  }
+  document.fonts.ready.then(draw)
+  addEventListener('resize', draw)
+</script>
+</body>
+</html>

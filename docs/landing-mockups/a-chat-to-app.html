@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Coachin — A · З переписки в застосунок (chosen)</title>
+<link rel="stylesheet" href="shared.css" />
+<style>
+  :root {
+    --ground: #0e0d0d;
+    --chalk: #f4f2ef;
+    --stone: #a8a39e;
+    --faint: #6f6a66;
+    --line: rgba(255, 244, 236, 0.09);
+    --chat: #141b23;
+    --bubble: #23364a;
+    --thread: rgba(244, 242, 239, 0.32);
+  }
+  body { background: var(--ground); color: var(--chalk); font-family: 'Manrope Variable', system-ui, sans-serif; font-weight: 500; }
+  .page { max-width: 1440px; margin: 0 auto; padding: 0 64px; min-height: 100vh; display: flex; flex-direction: column; }
+
+  nav { height: 84px; display: flex; align-items: center; gap: 36px; }
+  .wordmark .mark { background: var(--chalk); color: var(--ground); }
+  .links { display: flex; gap: 28px; font-size: 15px; font-weight: 600; color: var(--stone); margin-left: 24px; }
+  .links a { text-decoration: none; }
+  .nav-end { margin-left: auto; display: flex; align-items: center; gap: 22px; font-size: 14px; font-weight: 700; }
+  .lang { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 3px; }
+  .lang span { padding: 4px 10px; border-radius: 999px; color: var(--stone); }
+  .lang span.on { background: #242221; color: var(--chalk); }
+  .quiet { color: var(--stone); text-decoration: none; }
+  .btn { display: inline-flex; align-items: center; gap: 10px; height: 44px; padding: 0 18px; border-radius: 12px; background: var(--chalk); color: var(--ground); font-weight: 750; text-decoration: none; font-size: 15px; }
+  .btn.big { height: 56px; padding: 0 24px; border-radius: 14px; font-size: 16px; }
+
+  .hero { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) 780px; gap: 40px; align-items: center; padding-bottom: 40px; }
+  .eyebrow { display: inline-flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 700; color: var(--stone); letter-spacing: 0.02em; }
+  .eyebrow::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--chalk); }
+  h1 { margin: 22px 0 0; font-family: 'Unbounded', sans-serif; font-weight: 600; font-size: 46px; line-height: 1.1; letter-spacing: -0.02em; text-wrap: balance; }
+  h1 em { font-style: normal; color: var(--stone); }
+  .lede { margin: 24px 0 0; max-width: 470px; font-size: 18px; line-height: 1.55; color: #cfcac5; }
+  .actions { margin-top: 34px; display: flex; align-items: center; gap: 26px; }
+  .beta { margin-top: 18px; font-size: 14px; color: var(--stone); display: flex; align-items: center; gap: 8px; }
+  .beta b { color: var(--chalk); font-weight: 700; }
+
+  /* The stage: a plan as it's sent today, and the same plan in the app. */
+  .stage { position: relative; height: 680px; display: flex; align-items: center; justify-content: space-between; }
+  .chat { position: relative; z-index: 2; width: 330px; border-radius: 22px; background: var(--chat); border: 1px solid rgba(160, 190, 220, 0.08); padding: 0 0 16px; overflow: hidden; }
+  .chat-head { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid rgba(160, 190, 220, 0.08); font-size: 14px; }
+  .chat-head .av { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(140deg, #5d7a96, #34495e); display: grid; place-items: center; font-weight: 800; font-size: 12px; }
+  .chat-head small { display: block; color: #7d8fa1; font-size: 12px; font-weight: 600; }
+  .msgs { padding: 14px 14px 0; display: flex; flex-direction: column; gap: 8px; }
+  .bubble { align-self: flex-end; max-width: 92%; background: var(--bubble); border-radius: 16px 16px 4px 16px; padding: 10px 13px 8px; font-size: 14.5px; line-height: 1.5; color: #e8eef4; }
+  .bubble .l { display: block; position: relative; }
+  .bubble .l.ex { font-weight: 700; margin-top: 6px; }
+  .bubble .l.ex:first-child { margin-top: 0; }
+  .bubble time { display: block; text-align: right; font-size: 11px; color: #8aa6c1; margin-top: 2px; }
+  .in { align-self: flex-start; background: #1d2731; border-radius: 16px 16px 16px 4px; color: #d3dbe3; }
+  .in time { color: #6f8193; }
+  .threads { position: absolute; inset: 0; z-index: 4; pointer-events: none; overflow: visible; }
+  .threads path { fill: none; stroke: var(--thread); stroke-width: 1.25; }
+  .threads circle { fill: var(--chalk); }
+  .threads .bracket { stroke: rgba(244, 242, 239, 0.55); stroke-width: 1.5; }
+  .phone { --w: 320px; --s: 0.769; z-index: 2; }
+  .caption { position: absolute; bottom: 4px; font-size: 13px; font-weight: 700; color: var(--faint); letter-spacing: 0.04em; text-transform: uppercase; }
+  .caption.left { left: 0; }
+  .caption.right { right: 0; width: 320px; text-align: center; }
+
+  @media (max-width: 720px) {
+    .page { padding: 0 18px; }
+    nav { height: 64px; gap: 12px; }
+    .links, .quiet, nav .btn { display: none; }
+    .wordmark { font-size: 17px; }
+    .hero { display: flex; flex-direction: column; align-items: stretch; gap: 0; padding: 18px 0 40px; }
+    h1 { font-size: 29px; margin-top: 16px; }
+    .lede { font-size: 16px; margin-top: 16px; }
+    .actions { flex-direction: column; align-items: stretch; gap: 14px; margin-top: 26px; }
+    .actions .btn { justify-content: center; }
+    .actions .quiet { display: block; text-align: center; }
+    .beta { justify-content: center; }
+    .stage { height: auto; margin-top: 36px; flex-direction: column; gap: 0; }
+    .chat { width: 100%; }
+    .threads, .caption { display: none; }
+    .msgs .in:last-of-type { display: none; }
+    .arrow { display: flex !important; }
+    .phone { --w: 300px; --s: 0.718; }
+  }
+  .arrow { display: none; flex-direction: column; align-items: center; gap: 6px; padding: 14px 0; color: var(--stone); font-size: 13px; font-weight: 700; }
+  .arrow::after { content: ''; width: 1px; height: 28px; background: linear-gradient(var(--thread), transparent); }
+</style>
+</head>
+<body>
+<div class="page">
+  <nav>
+    <a class="wordmark" href="#">Coachin</a>
+    <div class="links"><a href="#">Для тренера</a><a href="#">Для клієнтів</a><a href="#">Ціна</a></div>
+    <div class="nav-end">
+      <span class="lang"><span class="on">UA</span><span>EN</span></span>
+      <a class="quiet" href="#">Я клієнт →</a>
+      <a class="btn" href="#">Написати</a>
+    </div>
+  </nav>
+
+  <main class="hero">
+    <div>
+      <span class="eyebrow">Для онлайн-тренерів</span>
+      <h1>Плани тренувань&nbsp;— <em>з переписки</em> в&nbsp;застосунок</h1>
+      <p class="lede">Складайте тренування з власної бібліотеки вправ, надсилайте клієнтам в один дотик і отримуйте звіт після кожного заняття. Клієнти відкривають усе просто з Telegram — без завантажень і паролів.</p>
+      <div class="actions">
+        <a class="btn big" href="#"><svg class="plane" viewBox="0 0 24 24"><path d="M21.5 3.5L2.8 10.7c-.9.4-.9 1.6.1 1.9l4.6 1.5 1.8 5.6c.3.9 1.4 1.1 2 .4l2.6-2.7 4.7 3.5c.7.5 1.7.1 1.9-.8l3-14.6c.2-1-.8-1.8-1.8-1.5zM9.7 14.4l-.6 3.6-1.2-3.9 9.6-6.6-7.8 6.9z" fill="currentColor"/></svg>Написати в Telegram</a>
+        <a class="quiet" href="#">Як це працює ↓</a>
+      </div>
+      <p class="beta">●&nbsp;<span><b>Безкоштовно</b>, поки триває бета</span></p>
+    </div>
+
+    <div class="stage" id="stage">
+      <svg class="threads" id="threads"></svg>
+      <div class="chat">
+        <div class="chat-head"><span class="av">АК</span><span>Андрій К.<small>в мережі</small></span></div>
+        <div class="msgs">
+          <div class="bubble">
+            <span class="l">Понеділок, спина</span>
+            <span class="l ex" data-g="g1">Тяга верхнього блоку</span>
+            <span class="l" data-g="g1">40 кг х 12</span>
+            <span class="l" data-g="g1">45 х 10</span>
+            <span class="l" data-g="g1">50 х 8</span>
+            <span class="l ex" data-g="g2">Тяга гантелі в нахилі (на кожну руку)</span>
+            <span class="l" data-g="g2">20 х 12</span>
+            <span class="l" data-g="g2">22 х 10</span>
+            <span class="l ex" data-g="g3">Підтягування</span>
+            <span class="l" data-g="g3">х 8</span>
+            <span class="l" data-g="g3">х 8</span>
+            <span class="l" data-g="g3">х 6</span>
+            <time>09:12 ✓✓</time>
+          </div>
+          <div class="bubble in">А можна ще раз відео тяги? Не можу знайти в чаті<time>18:47</time></div>
+          <div class="bubble in">І скільки я минулого разу тягнув?<time>18:48</time></div>
+        </div>
+      </div>
+      <div class="arrow">Той самий план у Coachin</div>
+      <div class="phone">
+        <div class="island"></div>
+        <div class="screen">
+          <div class="app">
+            <div class="status"><span>9:41</span><i>●●● ▮</i></div>
+            <div class="body">
+              <div class="topbar"><span class="back">‹ Андрій К.</span><span class="btn small primary">Опублікувати</span></div>
+              <div><div class="h1">Спина</div><div class="muted small" style="margin-top:6px">Пн, 13 жовтня · 3 вправи</div></div>
+              <div class="card" data-id="g1">
+                <div class="ex-head"><span class="thumb"></span><div><div class="ex-name">Тяга верхнього блоку</div><div class="ex-sub">Відео техніки</div></div><span class="dots">···</span></div>
+                <div class="chips"><span class="set-chip"><b>1</b>40 × 12</span><span class="set-chip"><b>2</b>45 × 10</span><span class="set-chip"><b>3</b>50 × 8</span><span class="set-chip add">+</span></div>
+              </div>
+              <div class="card" data-id="g2">
+                <div class="ex-head"><span class="thumb"></span><div><div class="ex-name">Тяга гантелі в нахилі</div><div class="ex-sub">на кожну руку</div></div><span class="dots">···</span></div>
+                <div class="chips"><span class="set-chip"><b>1</b>20 × 12</span><span class="set-chip"><b>2</b>22 × 10</span><span class="set-chip add">+</span></div>
+              </div>
+              <div class="card" data-id="g3">
+                <div class="ex-head"><span class="thumb"></span><div><div class="ex-name">Підтягування</div><div class="ex-sub">власна вага</div></div><span class="dots">···</span></div>
+                <div class="chips"><span class="set-chip"><b>1</b>× 8</span><span class="set-chip"><b>2</b>× 8</span><span class="set-chip"><b>3</b>× 6</span><span class="set-chip add">+</span></div>
+              </div>
+              <div class="dashed">+ Вправа з бібліотеки</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+<script>
+  // Tie each set line in the message to the chip it becomes.
+  function draw() {
+    const stage = document.getElementById('stage')
+    const svg = document.getElementById('threads')
+    if (getComputedStyle(svg).display === 'none') return
+    const box = stage.getBoundingClientRect()
+    svg.setAttribute('viewBox', `0 0 ${box.width} ${box.height}`)
+    svg.innerHTML = ''
+    // One thread per exercise: a bracket over its lines in the message,
+    // into the card it became.
+    for (const card of document.querySelectorAll('.card[data-id]')) {
+      const lines = [...document.querySelectorAll(`[data-g="${card.dataset.id}"]`)].map((l) => l.getBoundingClientRect())
+      const bubble = document.querySelector('.bubble').getBoundingClientRect()
+      const top = Math.min(...lines.map((r) => r.top)) - box.top + 4
+      const bottom = Math.max(...lines.map((r) => r.bottom)) - box.top - 4
+      const x1 = bubble.right - box.left + 10
+      const y1 = (top + bottom) / 2
+      const b = card.getBoundingClientRect()
+      const x2 = b.left - box.left, y2 = b.top + b.height / 2 - box.top
+      const dx = (x2 - x1) * 0.5
+      svg.insertAdjacentHTML('beforeend',
+        `<path class="bracket" d="M${x1 - 5} ${top} H${x1} V${bottom} H${x1 - 5}"/>` +
+        `<path d="M${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}"/><circle cx="${x2}" cy="${y2}" r="3"/>`)
+    }
+  }
+  document.fonts.ready.then(draw)
+  addEventListener('resize', draw)
+</script>
+</body>
+</html>
