@@ -5,7 +5,8 @@
  * The service worker keeps this version's own files on the phone, so the app
  * opens with no signal. The build (sw/plugin.ts) fills in `BUILD`. The API,
  * videos and photos live at other addresses and always go to the network;
- * workouts and logged sets are kept by the app itself.
+ * workouts and logged sets are kept by the app itself. The landing page (`/`,
+ * `/en`) is not the app and always comes from the network.
  *
  * A new version downloads in the background and waits. The app offers
  * "Оновити", which sends 'activate' (src/shared/appUpdate.ts); otherwise it
@@ -21,8 +22,12 @@ const worker = /** @type {ServiceWorkerGlobalScope} */ (/** @type {unknown} */ (
 /** @type {{ version: string, files: string[] }} */
 const BUILD = { version: 'dev', files: [] }
 const CACHE = `app-${BUILD.version}`
-/** Every page is the same app, `index.html`; the router picks the screen. */
-const PAGE = '/'
+/**
+ * Every page of the app is the same `index.html`; the router picks the
+ * screen. It is kept under `/app`, since `/` is the landing page.
+ */
+const PAGE = '/app'
+const APP_PAGES = /^\/(app|install|coach)(\/|$)/
 
 worker.addEventListener('install', (event) => {
   event.waitUntil(keepFiles())
@@ -40,8 +45,7 @@ worker.addEventListener('fetch', (event) => {
   const request = event.request
   const url = new URL(request.url)
   if (request.method !== 'GET' || url.origin !== worker.location.origin) return
-  // A file opened directly, such as /sw.js, is not a page of the app.
-  if (request.mode === 'navigate' && !/\.\w+$/.test(url.pathname)) {
+  if (request.mode === 'navigate' && APP_PAGES.test(url.pathname)) {
     event.respondWith(fromCache(PAGE, request))
   } else if (BUILD.files.includes(url.pathname)) {
     event.respondWith(fromCache(url.pathname, request))

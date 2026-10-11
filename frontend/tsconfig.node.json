@@ -15,5 +15,5 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true
   },
-  "include": ["vite.config.ts", "sw/plugin.ts"]
+  "include": ["vite.config.ts", "sw/plugin.ts", "landing/plugin.ts", "landing/page.ts", "landing/strings.ts"]
 }

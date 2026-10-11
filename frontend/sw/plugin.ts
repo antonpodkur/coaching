@@ -4,8 +4,9 @@ import path from 'node:path'
 
 import type { Plugin } from 'vite'
 
-/** Only used when the app is installed, or not by the app at all. */
-const NOT_KEPT = /^(_headers|sw\.js)$|\.(png|woff)$/
+/** Only used when the app is installed, or not by the app at all (the landing page). */
+const NOT_KEPT =
+  /^(_headers|_redirects|robots\.txt|sw\.js|home\.html|en\.html)$|^assets\/landing-|\.(png|woff)$/
 const PLACEHOLDER = "{ version: 'dev', files: [] }"
 
 /**
@@ -40,7 +41,7 @@ export function serviceWorker(): Plugin {
       }
       const build = {
         version: version.digest('hex').slice(0, 12),
-        files: files.map((file) => (file === 'index.html' ? '/' : `/${file}`)),
+        files: files.map((file) => (file === 'index.html' ? '/app' : `/${file}`)),
       }
       await writeFile(
         path.join(outDir, 'sw.js'),

@@ -1,0 +1,3 @@
+# The landing page (landing/plugin.ts) is home.html; the app keeps index.html
+# for /app and everything else.
+/  /home  200

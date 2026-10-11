@@ -4,12 +4,13 @@ Dasha's online coaching app. She builds workouts from her exercise library and p
 
 - Design and decisions: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - How the app looks (colors, type, rules): [docs/DESIGN.md](docs/DESIGN.md)
+- The landing page at `/` and `/en`: [docs/LANDING.md](docs/LANDING.md)
 - Clickable prototype: https://claude.ai/artifact/WaTHWZpJ27qQq8HDozxSr5 (source in the `dashas-inst` repo, `app-prototype/`)
 
 | Folder | What |
 | --- | --- |
 | `backend/` | Rust: axum, sqlx (Postgres), Telegram auth, plan import parser |
-| `frontend/` | React + TypeScript + Vite: `/app` is the app: the client's screens or Dasha's workspace, inside Telegram, installed on a phone, or in a browser |
+| `frontend/` | React + TypeScript + Vite: `/app` is the app: the client's screens or Dasha's workspace, inside Telegram, installed on a phone, or in a browser. `/` and `/en` are the landing page (`frontend/landing/`) |
 | `docs/` | Architecture, and the deploy guide |
 | `render.yaml` | Render Blueprint: backend and Postgres |
 
