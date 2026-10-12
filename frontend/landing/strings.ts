@@ -6,7 +6,7 @@
  */
 
 /** Where a coach who is interested writes. */
-export const CONTACT_URL = 'https://t.me/USERNAME'
+export const CONTACT_URL = 'https://t.me/antonpodkur'
 
 export const uk = {
   lang: 'uk',
@@ -15,7 +15,7 @@ export const uk = {
   description:
     'Програми тренувань з вашими відео техніки, клієнти в Telegram без реєстрації і звіт після кожного тренування. Безкоштовно, поки триває бета.',
 
-  nav: { coach: 'Для тренера', clients: 'Для клієнтів', beta: 'Ціна', client: 'Я клієнт', write: 'Написати' },
+  nav: { coach: 'Для тренера', clients: 'Для клієнтів', beta: 'Ціна', client: 'Я клієнт', write: 'Зв’язатися' },
 
   hero: {
     eyebrow: 'Для онлайн-тренерів',
@@ -152,7 +152,7 @@ export const uk = {
 
   beta: {
     title: 'Безкоштовно, поки триває бета',
-    text: 'Напишіть мені в Telegram — покажу, як усе влаштовано, і допоможу підключити перших клієнтів. Про ціну після бети теж домовимося в переписці.',
+    text: 'Coachin зараз у беті, і всі можливості доступні безкоштовно. Напишіть нам у Telegram — проведемо коротку демонстрацію й допоможемо підключити перших клієнтів. Умови після бети обговорюємо індивідуально.',
     cta: 'Написати в Telegram',
   },
 
@@ -163,7 +163,7 @@ export const uk = {
         q: 'Клієнтам треба щось встановлювати?',
         a: 'Ні. Coachin відкривається прямо з Telegram. Хто хоче — додає його на головний екран телефона, як звичайний застосунок.',
       },
-      { q: 'Скільки це коштує?', a: 'Поки триває бета — безкоштовно. Про ціну після бети напишіть мені — обговоримо.' },
+      { q: 'Скільки це коштує?', a: 'Поки триває бета — безкоштовно. Умови після бети обговорюємо індивідуально: напишіть нам у Telegram.' },
       {
         q: 'Хто бачить мої вправи й відео?',
         a: 'Вашу бібліотеку бачать лише ваші клієнти в застосунку. Відео, які надсилають клієнти, зберігаються приватно й відкриваються тільки вам.',
@@ -190,7 +190,7 @@ export const en: Strings = {
     eyebrow: 'For online coaches',
     title: 'Training plans&nbsp;— <em>out of the chat</em>, into an&nbsp;app',
     lede: 'Build workouts from your own exercise library, send them to clients in one tap and get a report after every session. Clients open everything right from Telegram — no downloads, no passwords.',
-    cta: 'Message me on Telegram',
+    cta: 'Message us on Telegram',
     how: 'How it works',
     beta: '<b>Free</b> while in beta',
     then: 'The same plan in Coachin',
@@ -321,8 +321,8 @@ export const en: Strings = {
 
   beta: {
     title: 'Free while in beta',
-    text: 'Message me on Telegram — I’ll show you around and help you bring your first clients over. We’ll agree on pricing after the beta there too.',
-    cta: 'Message me on Telegram',
+    text: 'Coachin is in beta, and every feature is free. Message us on Telegram for a short walkthrough, and we’ll help you bring your first clients over. Terms after the beta are agreed individually.',
+    cta: 'Message us on Telegram',
   },
 
   faq: {
@@ -332,7 +332,7 @@ export const en: Strings = {
         q: 'Do clients need to install anything?',
         a: 'No. Coachin opens right from Telegram. Anyone who wants can add it to their phone’s home screen like a regular app.',
       },
-      { q: 'How much does it cost?', a: 'It’s free while in beta. For pricing after the beta, message me and we’ll talk.' },
+      { q: 'How much does it cost?', a: 'It’s free while in beta. Terms after the beta are agreed individually: message us on Telegram.' },
       {
         q: 'Who sees my exercises and videos?',
         a: 'Your library is shown only to your clients in the app. Videos your clients send are stored privately and open only for you.',
