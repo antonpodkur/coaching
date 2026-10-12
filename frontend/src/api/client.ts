@@ -1,5 +1,6 @@
 import createClient, { type Middleware } from 'openapi-fetch'
 
+import { isDemo } from '../demo/mode'
 import type { components, paths } from './schema'
 
 /** Request and response bodies, generated from the backend (`pnpm gen:api`). */
@@ -19,7 +20,13 @@ const auth: Middleware = {
   },
 }
 
-export const api = createClient<paths>({ baseUrl: import.meta.env.VITE_API_URL })
+export const api = createClient<paths>({
+  baseUrl: import.meta.env.VITE_API_URL,
+  // The landing page's demo answers in the browser, never from the server.
+  fetch: isDemo()
+    ? (request) => import('../demo/transport').then((demo) => demo.demoFetch(request))
+    : undefined,
+})
 api.use(auth)
 
 /** A failed request, with the backend's machine-readable code (`not_a_client`, …). */

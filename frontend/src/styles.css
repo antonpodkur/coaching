@@ -68,6 +68,19 @@
   box-sizing: border-box;
 }
 
+/* The landing page's demo draws the app inside a phone, which has no scrollbars. */
+:root[data-demo] {
+  scrollbar-width: none;
+}
+
+:root[data-demo]::-webkit-scrollbar {
+  display: none;
+}
+
+:root[data-demo] body {
+  overflow-x: clip;
+}
+
 body {
   margin: 0;
   background: var(--bg);

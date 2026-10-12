@@ -443,6 +443,259 @@ h3 {
   color: #c4bfba;
 }
 
+/* Demo: the real app in two phones, with the steps between them. */
+.demo .section-head {
+  align-items: center;
+  text-align: center;
+}
+
+.demo h2 {
+  max-width: 820px;
+}
+
+.demo-lede {
+  max-width: 640px;
+  font-size: 17px;
+}
+
+.demo-stage {
+  display: grid;
+  grid-template-columns: auto minmax(0, 300px) auto;
+  justify-content: center;
+  align-items: center;
+  gap: 56px;
+}
+
+.demo-phone {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.demo-phone figcaption {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.step-who {
+  align-self: flex-start;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.demo-phone figcaption .step-who {
+  align-self: center;
+}
+
+.step-who.coach {
+  background: var(--chalk);
+  color: var(--ground);
+}
+
+.step-who.client {
+  background: rgba(203, 198, 246, 0.16);
+  color: #cbc6f6;
+}
+
+.demo .phone {
+  --w: 340px;
+  --s: 0.8205;
+}
+
+.demo .phone .app {
+  display: flex;
+  flex-direction: column;
+}
+
+.frame-wrap {
+  position: relative;
+  flex: 1;
+  overflow: clip;
+}
+
+.frame-wrap iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  border: 0;
+  background: #0e0d0d;
+  color-scheme: dark;
+}
+
+.frame-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--stone);
+  pointer-events: none;
+  transition: opacity 300ms ease;
+}
+
+.demo-phone.loaded .frame-loading {
+  opacity: 0;
+}
+
+.demo-guide {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.demo-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  counter-reset: demo-step;
+}
+
+.demo-steps li {
+  position: relative;
+  padding: 14px 14px 14px 50px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-radius: 16px;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--stone);
+  transition:
+    background-color 300ms ease,
+    color 300ms ease,
+    box-shadow 300ms ease;
+}
+
+.demo-steps li::before {
+  counter-increment: demo-step;
+  content: counter(demo-step);
+  position: absolute;
+  left: 14px;
+  top: 14px;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid var(--hair-strong);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.demo-steps li.current {
+  background: var(--raised);
+  color: var(--chalk);
+  box-shadow: inset 0 0 0 1px var(--hair-strong);
+}
+
+.demo-steps li.done {
+  color: var(--faint);
+}
+
+.demo-steps li.done::before {
+  content: '✓';
+  border-color: var(--chalk);
+  background: var(--chalk);
+  color: var(--ground);
+}
+
+.demo-done {
+  display: none;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--chalk);
+}
+
+.demo.finished .demo-done {
+  display: block;
+}
+
+.demo-note {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--faint);
+}
+
+.link-reset {
+  align-self: flex-start;
+  padding: 8px 0;
+  border: 0;
+  background: none;
+  color: var(--stone);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.link-reset:hover {
+  color: var(--chalk);
+}
+
+/* Nothing to start over before anything has happened. */
+.demo:not(.started) .link-reset {
+  display: none;
+}
+
+/* One phone at a time on narrower screens, with a switch. */
+.demo-switch {
+  display: none;
+  align-self: center;
+  margin: 0 auto 24px;
+  padding: 4px;
+  width: fit-content;
+  border-radius: 999px;
+  border: 1px solid var(--hair);
+}
+
+.demo-switch button {
+  position: relative;
+  padding: 9px 22px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--stone);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.demo-switch button[aria-pressed='true'] {
+  background: var(--chalk);
+  color: var(--ground);
+}
+
+/* Whose turn it is, when it isn't the phone shown. */
+.demo-switch button.next::after {
+  content: '';
+  position: absolute;
+  top: 7px;
+  right: 9px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #cbc6f6;
+}
+
 /* Coach: four steps, each with the piece of the app it happens in. */
 .steps {
   list-style: none;
@@ -741,6 +994,8 @@ h3 {
   position: absolute;
   inset: 10px;
   overflow: hidden;
+  /* Not even a scroll into view from the app inside may move the screen. */
+  overflow: clip;
   border-radius: calc(var(--w) * 0.125);
   background: #0e0d0d;
 }
@@ -779,6 +1034,7 @@ h3 {
 }
 
 .phone .app {
+  overflow: clip;
   width: 390px;
   height: 844px;
   transform: scale(var(--s));
@@ -1281,6 +1537,36 @@ h3 {
     grid-template-columns: minmax(0, 1fr);
     gap: 24px;
   }
+
+  .demo-stage {
+    gap: 32px;
+  }
+
+  .demo .phone {
+    --w: 300px;
+    --s: 0.718;
+  }
+}
+
+/* Too narrow for both phones: a switch between them, the steps beside. */
+@media (max-width: 1060px) {
+  .demo-switch {
+    display: flex;
+  }
+
+  .demo-stage {
+    grid-template-columns: auto minmax(0, 320px);
+  }
+
+  .demo[data-show='coach'] .demo-phone[data-role='client'],
+  .demo[data-show='client'] .demo-phone[data-role='coach'] {
+    display: none;
+  }
+
+  .demo-guide {
+    grid-column: 2;
+    grid-row: 1;
+  }
 }
 
 /* Phones: one column, the chat above the phone, no threads. */
@@ -1393,6 +1679,41 @@ h3 {
     font-size: 18px;
   }
 
+  .demo-stage {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+  }
+
+  .demo-guide {
+    grid-column: auto;
+    grid-row: auto;
+    order: -1;
+  }
+
+  /* Only the step to do now, right above the phone; the switch says whose it is. */
+  .demo-phone figcaption,
+  .demo-guide > .label,
+  .demo-steps li:not(.current) {
+    display: none;
+  }
+
+  .demo-steps li {
+    padding: 10px 12px 10px 46px;
+  }
+
+  .demo-steps li::before {
+    top: 10px;
+  }
+
+  .demo-switch {
+    margin-bottom: 16px;
+  }
+
+  .demo .phone {
+    --w: 320px;
+    --s: 0.769;
+  }
+
   .step {
     grid-template-columns: minmax(0, 1fr);
     gap: 14px;
@@ -1442,5 +1763,12 @@ h3 {
 
   .footer .lang {
     margin-left: 0;
+  }
+}
+
+@media (max-width: 360px) {
+  .demo .phone {
+    --w: 290px;
+    --s: 0.692;
   }
 }

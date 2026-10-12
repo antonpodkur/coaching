@@ -1,5 +1,6 @@
-// The landing page's only script. The page is complete without it; this ties
-// each exercise in the chat message to the card it became in the app.
+// The landing page's only script. The page reads without it; it ties each
+// exercise in the chat message to the card it became in the app, and runs
+// the demo: the real app in two frames (src/demo).
 
 import '@fontsource-variable/manrope'
 import '@fontsource/unbounded/latin-600.css'
@@ -86,3 +87,109 @@ window.addEventListener('resize', () => {
   cancelAnimationFrame(resizing)
   resizing = requestAnimationFrame(() => drawThreads(false))
 })
+
+// ── Demo ───────────────────────────────────────────────────────────────────
+
+interface DemoState {
+  featured: string
+  workouts: {
+    id: string
+    status: 'draft' | 'published' | 'done'
+    rows: { sets: { completed_at: string | null }[] }[]
+    report: { seen_at: string | null } | null
+  }[]
+}
+
+/** Where the demo's frames keep their shared data (src/demo/transport.ts). */
+declare global {
+  interface Window {
+    __coachinDemo?: Record<string, string>
+  }
+}
+
+function runDemo(section: HTMLElement) {
+  // Names the frames, so both find the same data and nothing else does.
+  const id = crypto.randomUUID().slice(0, 13)
+  const frames: HTMLIFrameElement[] = []
+  const steps = [...section.querySelectorAll<HTMLElement>('[data-step]')]
+  const switches = [...section.querySelectorAll<HTMLButtonElement>('.demo-switch button')]
+
+  // A frame takes its name when it's created; naming one already on the page
+  // doesn't reach the app inside.
+  const start = () => {
+    for (const place of section.querySelectorAll<HTMLElement>('.frame-wrap[data-role]')) {
+      const frame = document.createElement('iframe')
+      frame.name = `coachin-demo:${place.dataset.role}:${id}`
+      frame.title = place.dataset.title ?? ''
+      frame.addEventListener('load', () => {
+        place.closest('.demo-phone')?.classList.add('loaded')
+        showProgress()
+      })
+      frame.src = '/app'
+      place.prepend(frame)
+      frames.push(frame)
+    }
+  }
+  const near = new IntersectionObserver(
+    (entries) => {
+      if (!entries.some((entry) => entry.isIntersecting)) return
+      near.disconnect()
+      start()
+    },
+    { rootMargin: '800px 0px' },
+  )
+  near.observe(section)
+
+  // Which steps are done, from the data the frames share.
+  const showProgress = () => {
+    let state: DemoState | null = null
+    try {
+      const saved = window.__coachinDemo?.[id]
+      state = saved ? (JSON.parse(saved) as DemoState) : null
+    } catch {
+      state = null
+    }
+    const workout = state?.workouts.find((candidate) => candidate.id === state?.featured)
+    const logged = workout?.rows.some((row) => row.sets.some((set) => set.completed_at)) ?? false
+    const done = [
+      workout !== undefined && workout.status !== 'draft',
+      logged || workout?.status === 'done',
+      workout?.status === 'done',
+      workout?.report?.seen_at != null,
+    ]
+    const current = done.indexOf(false)
+    steps.forEach((step, index) => {
+      step.classList.toggle('done', done[index] === true)
+      step.classList.toggle('current', index === current)
+    })
+    section.classList.toggle('started', done[0] === true)
+    section.classList.toggle('finished', current === -1)
+    // On a narrow screen, a dot on the other phone's switch when it's its turn.
+    const next = current === -1 ? null : steps[current]
+    const who = next ? (next.querySelector('.step-who.client') ? 'client' : 'coach') : null
+    for (const button of switches) {
+      button.classList.toggle('next', button.dataset.show === who && section.dataset.show !== who)
+    }
+  }
+  showProgress()
+  if ('BroadcastChannel' in window) {
+    new BroadcastChannel(`coachin-demo:${id}`).addEventListener('message', showProgress)
+  }
+
+  for (const button of switches) {
+    button.addEventListener('click', () => {
+      section.dataset.show = button.dataset.show
+      for (const other of switches) other.setAttribute('aria-pressed', String(other === button))
+      showProgress()
+    })
+  }
+
+  section.querySelector('[data-reset]')?.addEventListener('click', () => {
+    if (window.__coachinDemo) delete window.__coachinDemo[id]
+    for (const frame of frames) frame.contentWindow?.location.reload()
+    showProgress()
+  })
+}
+
+const demoSection = document.getElementById('demo')
+if (demoSection) runDemo(demoSection)

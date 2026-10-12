@@ -15,14 +15,14 @@ export const uk = {
   description:
     'Програми тренувань з вашими відео техніки, клієнти в Telegram без реєстрації і звіт після кожного тренування. Безкоштовно, поки триває бета.',
 
-  nav: { coach: 'Для тренера', clients: 'Для клієнтів', beta: 'Ціна', client: 'Я клієнт', write: 'Зв’язатися' },
+  nav: { demo: 'Демо', coach: 'Для тренера', clients: 'Для клієнтів', beta: 'Ціна', client: 'Я клієнт', write: 'Зв’язатися' },
 
   hero: {
     eyebrow: 'Для онлайн-тренерів',
     title: 'Плани тренувань&nbsp;— <em>з переписки</em> в&nbsp;застосунок',
     lede: 'Складайте тренування з власної бібліотеки вправ, надсилайте клієнтам в один дотик і отримуйте звіт після кожного заняття. Клієнти відкривають усе просто з Telegram — без завантажень і паролів.',
     cta: 'Написати в Telegram',
-    how: 'Як це працює',
+    how: 'Спробувати демо',
     beta: '<b>Безкоштовно</b>, поки триває бета',
     then: 'Той самий план у Coachin',
     stageLabel: 'План тренування в переписці й той самий план у застосунку',
@@ -56,6 +56,29 @@ export const uk = {
       { name: 'Підтягування', sub: 'власна вага', sets: ['× 8', '× 8', '× 6'] },
     ],
     add: '+ Вправа з бібліотеки',
+  },
+
+  demo: {
+    label: 'Демо',
+    title: 'Спробуйте самі: тренер і клієнт поруч',
+    lede: 'Це справжній Coachin з вигаданими даними — натискайте. Те, що опублікує тренер, одразу з’являється в клієнта, а звіт клієнта — у тренера.',
+    coach: 'Тренер',
+    client: 'Клієнт',
+    coachName: 'Олена',
+    clientName: 'Андрій К.',
+    coachFrame: 'Coachin, застосунок тренера: демо',
+    clientFrame: 'Coachin, застосунок клієнта: демо',
+    stepsLabel: 'Що спробувати',
+    steps: [
+      { who: 'coach', text: '«Андрій К.» → чернетка «Спина» → «Опублікувати»' },
+      { who: 'client', text: 'Відкрийте тренування й позначте підходи ✓ — або змініть цифри' },
+      { who: 'client', text: '«Завершити й надіслати звіт»' },
+      { who: 'coach', text: 'Звіт уже в «Андрій К.»: що пішло не за планом — першим' },
+    ],
+    done: 'Готово. Так виглядає кожне тренування в Coachin.',
+    reset: 'Почати спочатку',
+    note: '',
+    loading: 'Завантаження…',
   },
 
   coach: {
@@ -184,14 +207,14 @@ export const en: Strings = {
   description:
     'Training plans with your own technique videos, clients in Telegram with no sign-up, and a report after every workout. Free while in beta.',
 
-  nav: { coach: 'For coaches', clients: 'For clients', beta: 'Pricing', client: 'I’m a client', write: 'Get in touch' },
+  nav: { demo: 'Demo', coach: 'For coaches', clients: 'For clients', beta: 'Pricing', client: 'I’m a client', write: 'Get in touch' },
 
   hero: {
     eyebrow: 'For online coaches',
     title: 'Training plans&nbsp;— <em>out of the chat</em>, into an&nbsp;app',
     lede: 'Build workouts from your own exercise library, send them to clients in one tap and get a report after every session. Clients open everything right from Telegram — no downloads, no passwords.',
     cta: 'Message us on Telegram',
-    how: 'How it works',
+    how: 'Try the demo',
     beta: '<b>Free</b> while in beta',
     then: 'The same plan in Coachin',
     stageLabel: 'A workout plan sent as a chat message, and the same plan in the app',
@@ -225,6 +248,29 @@ export const en: Strings = {
       { name: 'Pull-ups', sub: 'bodyweight', sets: ['× 8', '× 8', '× 6'] },
     ],
     add: '+ Exercise from library',
+  },
+
+  demo: {
+    label: 'Demo',
+    title: 'Try it yourself: the coach and the client side by side',
+    lede: 'This is the real Coachin with made-up data — go ahead and tap. What the coach publishes shows up for the client right away, and the client’s report comes back to the coach.',
+    coach: 'Coach',
+    client: 'Client',
+    coachName: 'Олена',
+    clientName: 'Андрій К.',
+    coachFrame: 'Coachin, the coach’s app: demo',
+    clientFrame: 'Coachin, the client’s app: demo',
+    stepsLabel: 'What to try',
+    steps: [
+      { who: 'coach', text: '“Андрій К.” → the “Спина” draft → “Опублікувати” (publish)' },
+      { who: 'client', text: 'Open the workout and tick sets ✓ — or change the numbers' },
+      { who: 'client', text: '“Завершити й надіслати звіт” (finish and send the report)' },
+      { who: 'coach', text: 'The report is on “Андрій К.”: what went off plan comes first' },
+    ],
+    done: 'Done. That’s every workout in Coachin.',
+    reset: 'Start over',
+    note: 'The app is in Ukrainian for now, so button names are quoted as they appear.',
+    loading: 'Loading…',
   },
 
   coach: {

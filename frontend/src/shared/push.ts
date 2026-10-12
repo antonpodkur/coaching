@@ -1,5 +1,6 @@
 import { api, unwrap } from '../api/client'
 import { telegramWebApp } from '../app/telegram'
+import { isDemo } from '../demo/mode'
 import { installedApp, phoneKind } from './device'
 
 /**
@@ -10,6 +11,7 @@ import { installedApp, phoneKind } from './device'
 export function pushSupported(): boolean {
   return (
     import.meta.env.PROD &&
+    !isDemo() &&
     !telegramWebApp() &&
     'serviceWorker' in navigator &&
     'PushManager' in window &&

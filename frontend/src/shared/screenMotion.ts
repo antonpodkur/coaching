@@ -99,7 +99,7 @@ export function playScreenTransitions(router: Router, queryClient: QueryClient) 
       return navigate(to)
     }
     browserAnimated = false
-    scrolled.set(window.location.pathname, window.scrollY)
+    scrolled.set(router.state.location.pathname, window.scrollY)
     intent = { replace: options?.replace === true, back: backRequested }
     backRequested = false
     return navigate(to, { ...options, viewTransition: options?.viewTransition ?? canPlay })

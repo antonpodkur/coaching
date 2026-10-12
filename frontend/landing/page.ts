@@ -66,7 +66,7 @@ function hero(t: Strings): string {
     <p class="lede">${t.hero.lede}</p>
     <div class="actions">
       ${contact(t.hero.cta, 'big')}
-      <a class="quiet" href="#coach">${t.hero.how} ↓</a>
+      <a class="quiet" href="#demo">${t.hero.how} ↓</a>
     </div>
     <p class="beta-note"><span>${t.hero.beta}</span></p>
   </div>
@@ -88,6 +88,61 @@ function hero(t: Strings): string {
       <div class="dashed">${t.builder.add}</div>`,
       t.hero.then,
     )}
+  </div>
+</section>`
+}
+
+/**
+ * The real app, twice: the coach's phone and the client's, each in a frame
+ * running the app's demo mode (src/demo) against the same made-up data. The
+ * frames load as the section comes near (landing/main.ts), and the steps
+ * between them tick off as the visitor goes.
+ */
+function demo(t: Strings): string {
+  const d = t.demo
+  const device = (role: 'coach' | 'client', title: string) => `
+    <div class="phone">
+      <div class="island"></div>
+      <div class="screen"><div class="app">
+        <div class="status" aria-hidden="true"><span>9:41</span><span class="signal"><i></i><i></i><i></i><b></b></span></div>
+        <div class="frame-wrap" data-role="${role}" data-title="${title}">
+          <span class="frame-loading" aria-hidden="true">${d.loading}</span>
+        </div>
+      </div></div>
+    </div>`
+  const steps = d.steps
+    .map(
+      (step, index) =>
+        `<li data-step="${index}"><span class="step-who ${step.who}">${step.who === 'coach' ? d.coach : d.client}</span><span class="step-say">${step.text}</span></li>`,
+    )
+    .join('')
+  return `
+<section class="section demo" id="demo" data-show="coach">
+  <div class="section-head">
+    <span class="label">${d.label}</span>
+    <h2>${d.title}</h2>
+    <p class="demo-lede">${d.lede}</p>
+  </div>
+  <div class="demo-switch" role="group" aria-label="${d.label}">
+    <button type="button" data-show="coach" aria-pressed="true">${d.coach}</button>
+    <button type="button" data-show="client" aria-pressed="false">${d.client}</button>
+  </div>
+  <div class="demo-stage">
+    <figure class="demo-phone" data-role="coach">
+      <figcaption><span class="step-who coach">${d.coach}</span>${d.coachName}</figcaption>
+      ${device('coach', d.coachFrame)}
+    </figure>
+    <div class="demo-guide">
+      <span class="label">${d.stepsLabel}</span>
+      <ol class="demo-steps" aria-live="polite">${steps}</ol>
+      <p class="demo-done">${d.done}</p>
+      ${d.note ? `<p class="demo-note">${d.note}</p>` : ''}
+      <button type="button" class="link-reset" data-reset>${d.reset}</button>
+    </div>
+    <figure class="demo-phone" data-role="client">
+      <figcaption><span class="step-who client">${d.client}</span>${d.clientName}</figcaption>
+      ${device('client', d.clientFrame)}
+    </figure>
   </div>
 </section>`
 }
@@ -253,7 +308,7 @@ ${assets.head}
 <div class="page">
   <header class="nav">
     <a class="wordmark" href="${PATHS[locale]}">Coachin</a>
-    <nav class="links" aria-label="Coachin"><a href="#coach">${t.nav.coach}</a><a href="#clients">${t.nav.clients}</a><a href="#beta">${t.nav.beta}</a></nav>
+    <nav class="links" aria-label="Coachin"><a href="#demo">${t.nav.demo}</a><a href="#coach">${t.nav.coach}</a><a href="#clients">${t.nav.clients}</a><a href="#beta">${t.nav.beta}</a></nav>
     <div class="nav-end">
       ${languages(locale)}
       <a class="quiet client-link" href="/app">${t.nav.client} →</a>
@@ -262,6 +317,7 @@ ${assets.head}
   </header>
   <main>
     ${hero(t)}
+    ${demo(t)}
     ${coach(t)}
     ${clients(t)}
     ${more(t)}
